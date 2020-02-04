@@ -95,6 +95,8 @@ fn main() {
         gl::BindBuffer(gl::ARRAY_BUFFER, 0);
     }
 
+    let a_position_location = basic_shader.get_attribute_location("a_position");
+
     // setup vertex array object
     let mut vao: gl::types::GLuint = 0;
     unsafe {
@@ -102,9 +104,9 @@ fn main() {
 
         gl::BindVertexArray(vao);
         gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-        gl::EnableVertexAttribArray(0); // attribute a_position in basic.vert shader
+        gl::EnableVertexAttribArray(a_position_location); // attribute a_position in basic.vert shader
         gl::VertexAttribPointer(
-            0,  // index of vertex attribute (a_position)
+            a_position_location,  // index of vertex attribute (a_position)
             3,  // number of components per vertex attribute
             gl::FLOAT,   // data type
             gl::FALSE,  // normalized
@@ -188,7 +190,7 @@ fn main() {
             }
 
             gl::Uniform4fv(
-                0,  // uniform position (u_color)
+                basic_shader.get_uniform_location("u_color"),  // uniform position (u_color)
                 1,
                 colors.as_ptr() as *const gl::types::GLfloat
             );
