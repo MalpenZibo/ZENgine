@@ -7,6 +7,7 @@ use sdl2::video::{GLProfile};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use gl_utility::shader::{ShaderManager};
+use gl_utility::gl_buffer::{GLBuffer, AttributeInfo};
 
 extern "system" fn dbg_callback(
     source: gl::types::GLenum,
@@ -71,51 +72,30 @@ fn main() {
 
     let vertices: Vec<f32> = vec![
         //  x       y       z
-            -0.5,   -0.5,   0.0,
-            -0.5,   0.5,   0.0,
+            -0.5,   -0.5,   0.0, 
+            -0.5,   0.5,   0.0,  
             0.5,    0.5,    0.0,
 
             0.5,    0.5,    0.0,
             0.5,    -0.5,   0.0,
             -0.5,   -0.5,   0.0
     ];
-
-    // setup vertex buffer object
-    let mut vbo: gl::types::GLuint = 0;
-    unsafe {
-        gl::GenBuffers(1, &mut vbo);
-
-        gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-        gl::BufferData(
-            gl::ARRAY_BUFFER,
-            (vertices.len() * std::mem::size_of::<f32>()) as gl::types::GLsizeiptr, // size of data in bytes
-            vertices.as_ptr() as *const gl::types::GLvoid, // pointer to data
-            gl::STATIC_DRAW
-        );
-        gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-    }
-
+    
     let a_position_location = basic_shader.get_attribute_location("a_position");
+    
+    let mut buffer = GLBuffer::new();
+    buffer.configure(
+        vec![
+            AttributeInfo {
+                location: a_position_location,
+                component_size: 3
+            }
+        ],
+        false
+    );
 
-    // setup vertex array object
-    let mut vao: gl::types::GLuint = 0;
-    unsafe {
-        gl::GenVertexArrays(1, &mut vao);
-
-        gl::BindVertexArray(vao);
-        gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-        gl::EnableVertexAttribArray(a_position_location); // attribute a_position in basic.vert shader
-        gl::VertexAttribPointer(
-            a_position_location,  // index of vertex attribute (a_position)
-            3,  // number of components per vertex attribute
-            gl::FLOAT,   // data type
-            gl::FALSE,  // normalized
-            (3 * std::mem::size_of::<f32>()) as gl::types::GLint, // stride (byte offset between consecutive attributes)
-            std::ptr::null()
-        );
-        gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-        gl::BindVertexArray(0);
-    }
+    buffer.set_data(vertices.as_slice());
+    buffer.upload();
 
     basic_shader.use_shader();
 
@@ -195,12 +175,7 @@ fn main() {
                 colors.as_ptr() as *const gl::types::GLfloat
             );
 
-            gl::BindVertexArray(vao);
-            gl::DrawArrays(
-                gl::TRIANGLES,   //mode
-                0,              //starting index in the enabled arrays
-                6               // number of indices
-            );
+            buffer.draw();
         }
         window.gl_swap_window();
     }
