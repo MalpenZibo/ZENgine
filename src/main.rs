@@ -9,9 +9,9 @@ use sdl2::video::{GLProfile};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use gl_utility::shader::{ShaderManager};
-use gl_utility::gl_buffer::{GLBuffer, AttributeInfo};
 use math::matrix4x4::Matrix4x4;
-use graphics::color::Color;
+use graphics::sprite::Sprite;
+
 
 extern "system" fn dbg_callback(
     source: gl::types::GLenum,
@@ -72,41 +72,17 @@ fn main() {
     let projection = Matrix4x4::orthographics(0.0, width as f32, 0.0, height as f32, -100.0, 100.0);
 
     let mut shader_manager = ShaderManager::init();
-
+    
     let basic_shader = shader_manager.register(
         "basic", 
         include_str!("basic.vert"), 
         include_str!("basic.frag")
     );
-
-    let vertices: Vec<f32> = vec![
-        //  x       y       z
-            10.0,   10.0,   0.0, 
-            10.0,   60.0,   0.0,  
-            60.0,    60.0,    0.0,
-
-            60.0,    60.0,    0.0,
-            60.0,    10.0,   0.0,
-            10.0,   10.0,   0.0
-    ];
     
     let u_projection_location = basic_shader.get_uniform_location("u_projection");
-    let a_position_location = basic_shader.get_attribute_location("a_position");
-    let u_color_position = basic_shader.get_uniform_location("u_color");
 
-    let mut buffer = GLBuffer::new();
-    buffer.configure(
-        vec![
-            AttributeInfo {
-                location: a_position_location,
-                component_size: 3
-            }
-        ],
-        false
-    );
-
-    buffer.set_data(vertices.as_slice());
-    buffer.upload();
+    let mut sprite = Sprite::new("test", basic_shader, 100.0, 50.0);
+    sprite.load();
 
     basic_shader.use_shader();
 
@@ -116,9 +92,6 @@ fn main() {
     window.gl_swap_window();
 
     let mut event_pump = sdl_context.event_pump().unwrap();
-    
-    let color = Color::new(255, 255, 0, 255);
-    let color = Color::blue();
 
     'main_loop: loop {
         for event in event_pump.poll_iter() {
@@ -153,16 +126,7 @@ fn main() {
 
         unsafe {
             gl::Clear(gl::COLOR_BUFFER_BIT);
-
-            // draw triangle
-            gl::Uniform4f(
-                u_color_position,
-                color.r,
-                color.g,
-                color.b,
-                color.a
-            );
-
+        
             gl::UniformMatrix4fv(
                 u_projection_location,
                 1,
@@ -170,7 +134,7 @@ fn main() {
                 projection.data.as_ptr()
             );
 
-            buffer.draw();
+            sprite.draw();
         }
         window.gl_swap_window();
     }

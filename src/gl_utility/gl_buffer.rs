@@ -7,12 +7,11 @@ pub struct GLBuffer {
     type_size: usize,
 
     element_size: i32,
+    data_len: usize,
     stride: i32,
 
     vao: u32,
-    vbo: u32,
-
-    data: Vec<f32>
+    vbo: u32
 }
 
 impl Drop for GLBuffer {
@@ -30,12 +29,11 @@ impl GLBuffer {
             type_size: std::mem::size_of::<f32>(),
 
             element_size: 0,
+            data_len: 0,
             stride: 0,
 
             vao: 0,
-            vbo: 0,
-
-            data: Vec::new()
+            vbo: 0
         };
 
         unsafe {
@@ -74,28 +72,15 @@ impl GLBuffer {
         }        
     }
 
-    pub fn set_data(&mut self, data: &[f32]) {
-        self.clear_data();
-        self.push_back_data(data);
-    }
-
-    pub fn clear_data(&mut self) {
-        self.data.clear();
-    }
-
-    pub fn push_back_data(&mut self, data: &[f32]) {
-        for i in 0..data.len() {
-            self.data.push(data[i]);
-        }
-    }
-
-    pub fn upload(&self) {
+    pub fn upload(&mut self, data: &[f32]) {
+        self.data_len = data.len();
+        
         unsafe {
             gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
             gl::BufferData(
                 gl::ARRAY_BUFFER,
-                (self.data.len() * self.type_size) as gl::types::GLsizeiptr, // size of data in bytes
-                self.data.as_ptr() as *const gl::types::GLvoid,              // pointer to data
+                (self.data_len * self.type_size) as gl::types::GLsizeiptr, // size of data in bytes
+                data.as_ptr() as *const gl::types::GLvoid,              // pointer to data
                 gl::STATIC_DRAW
             );
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
@@ -108,7 +93,7 @@ impl GLBuffer {
             gl::DrawArrays(
                 gl::TRIANGLES,                              //mode
                 0,                                          //starting index in the enabled arrays
-                self.data.len() as i32 / self.element_size  // number of indices
+                self.data_len as i32 / self.element_size  // number of indices
             );
         }
     }
