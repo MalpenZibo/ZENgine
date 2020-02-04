@@ -11,6 +11,7 @@ use sdl2::keyboard::Keycode;
 use gl_utility::shader::{ShaderManager};
 use math::matrix4x4::Matrix4x4;
 use graphics::sprite::Sprite;
+use math::transform::Transform;
 
 
 extern "system" fn dbg_callback(
@@ -81,8 +82,17 @@ fn main() {
     
     let u_projection_location = basic_shader.get_uniform_location("u_projection");
 
-    let mut sprite = Sprite::new("test", basic_shader, 100.0, 50.0);
+    let mut sprite = Sprite::new("test", basic_shader, None, None);
     sprite.load();
+
+    let mut transform = Transform::new();
+    transform.position.x = 150.0;    
+    transform.position.y = 150.0;  
+    
+    transform.rotation.z = 30.0;  
+
+    transform.scale.x = 3.0;
+    transform.scale.y = 3.0;
 
     basic_shader.use_shader();
 
@@ -134,7 +144,7 @@ fn main() {
                 projection.data.as_ptr()
             );
 
-            sprite.draw();
+            sprite.draw(&transform.get_transformation_matrix());
         }
         window.gl_swap_window();
     }
