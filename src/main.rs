@@ -2,12 +2,16 @@ extern crate sdl2;
 extern crate gl;
 
 mod gl_utility;
+mod math;
+mod graphics;
 
 use sdl2::video::{GLProfile};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use gl_utility::shader::{ShaderManager};
 use gl_utility::gl_buffer::{GLBuffer, AttributeInfo};
+use math::matrix4x4::Matrix4x4;
+use graphics::color::Color;
 
 extern "system" fn dbg_callback(
     source: gl::types::GLenum,
@@ -32,6 +36,9 @@ extern "system" fn dbg_callback(
 fn main() {
     println!("Hello, ZENgine!");
 
+    let width = 800;
+    let height = 600;
+
     // Init Window
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
@@ -44,8 +51,8 @@ fn main() {
     let window = video_subsystem
         .window(
             "ZENgine",
-            800,
-            600
+            width,
+            height
         )
         .opengl()
         .build()
@@ -62,6 +69,8 @@ fn main() {
     println!("Pixel format of the window's GL context: {:?}", window.window_pixel_format());
     println!("OpenGL Profile: {:?} - OpenGL version: {:?}", gl_attr.context_profile(), gl_attr.context_version());
 
+    let projection = Matrix4x4::orthographics(0.0, width as f32, 0.0, height as f32, -100.0, 100.0);
+
     let mut shader_manager = ShaderManager::init();
 
     let basic_shader = shader_manager.register(
@@ -72,17 +81,19 @@ fn main() {
 
     let vertices: Vec<f32> = vec![
         //  x       y       z
-            -0.5,   -0.5,   0.0, 
-            -0.5,   0.5,   0.0,  
-            0.5,    0.5,    0.0,
+            10.0,   10.0,   0.0, 
+            10.0,   60.0,   0.0,  
+            60.0,    60.0,    0.0,
 
-            0.5,    0.5,    0.0,
-            0.5,    -0.5,   0.0,
-            -0.5,   -0.5,   0.0
+            60.0,    60.0,    0.0,
+            60.0,    10.0,   0.0,
+            10.0,   10.0,   0.0
     ];
     
+    let u_projection_location = basic_shader.get_uniform_location("u_projection");
     let a_position_location = basic_shader.get_attribute_location("a_position");
-    
+    let u_color_position = basic_shader.get_uniform_location("u_color");
+
     let mut buffer = GLBuffer::new();
     buffer.configure(
         vec![
@@ -105,10 +116,9 @@ fn main() {
     window.gl_swap_window();
 
     let mut event_pump = sdl_context.event_pump().unwrap();
-
-    let mut colors: Vec<f32> = vec![0.0, 0.0, 0.0, 1.0];
-    let mut increment = 0.01;
-    let mut index = 0;
+    
+    let color = Color::new(255, 255, 0, 255);
+    let color = Color::blue();
 
     'main_loop: loop {
         for event in event_pump.poll_iter() {
@@ -145,34 +155,19 @@ fn main() {
             gl::Clear(gl::COLOR_BUFFER_BIT);
 
             // draw triangle
+            gl::Uniform4f(
+                u_color_position,
+                color.r,
+                color.g,
+                color.b,
+                color.a
+            );
 
-            colors[index] += increment;
-
-            if colors[index] >= 1.0 {
-                colors[index] = 1.0;                
-
-                if index == 2 {
-                    increment *= -1.0;
-                }
-                else {
-                    index += 1;
-                }
-            }
-            if colors[index] < 0.0 {
-                colors[index] = 0.0;
-                
-                if index == 0 {
-                    increment *= -1.0;
-                } 
-                else {
-                    index -= 1;
-                }
-            }
-
-            gl::Uniform4fv(
-                basic_shader.get_uniform_location("u_color"),  // uniform position (u_color)
+            gl::UniformMatrix4fv(
+                u_projection_location,
                 1,
-                colors.as_ptr() as *const gl::types::GLfloat
+                gl::FALSE,
+                projection.data.as_ptr()
             );
 
             buffer.draw();

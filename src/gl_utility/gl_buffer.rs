@@ -58,7 +58,7 @@ impl GLBuffer {
             for attribute in &attributes {
                 gl::VertexAttribPointer(
                     attribute.location,                     // index of vertex attribute 
-                    attribute.component_size,                         // number of components per vertex attribute
+                    attribute.component_size,               // number of components per vertex attribute
                     gl::FLOAT,                              // data type
                     normalized as gl::types::GLboolean,     // normalized
                     self.stride,                            // stride (byte offset between consecutive attributes)
