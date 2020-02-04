@@ -1,3 +1,4 @@
-﻿libs
-target
+**/*.rs.bk
 Cargo.lock
+*.a
+target

@@ -1,18 +1,16 @@
 extern crate sdl2;
 extern crate gl;
 
-mod gl_utility;
-mod math;
-mod graphics;
-
+use sdl2::VideoSubsystem;
+use sdl2::video::DisplayMode;
+use sdl2::video::FullscreenType;
 use sdl2::video::{GLProfile};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use gl_utility::shader::{ShaderManager};
-use math::matrix4x4::Matrix4x4;
-use graphics::sprite::Sprite;
-use math::transform::Transform;
-
+use crate::gl_utilities::shader::{ShaderManager};
+use crate::math::matrix4x4::Matrix4x4;
+use crate::graphics::sprite::Sprite;
+use crate::math::transform::Transform;
 
 extern "system" fn dbg_callback(
     source: gl::types::GLenum,
@@ -34,11 +32,17 @@ extern "system" fn dbg_callback(
     }
 }
 
-fn main() {
-    println!("Hello, ZENgine!");
+pub struct EngineOption {
+    pub title: String,
+    pub fullscreen: bool,
+    pub virtual_width: u32,
+    pub virtual_height: u32,
+    pub screen_width: u32,
+    pub screen_height: u32
+}
 
-    let width = 800;
-    let height = 600;
+pub fn start(option: EngineOption) {
+    println!("Hello, ZENgine!");
 
     // Init Window
     let sdl_context = sdl2::init().unwrap();
@@ -49,15 +53,21 @@ fn main() {
     gl_attr.set_context_version(4, 6);
     gl_attr.set_double_buffer(true);
 
-    let window = video_subsystem
+    let mut window = video_subsystem
         .window(
-            "ZENgine",
-            width,
-            height
+            option.title.as_ref(),
+            option.screen_width,
+            option.screen_height
         )
         .opengl()
         .build()
         .unwrap();
+
+    if option.fullscreen {
+        let display_mode = get_display_mode(&video_subsystem, &option);
+        window.set_display_mode(display_mode).unwrap();
+        window.set_fullscreen(FullscreenType::True).unwrap();
+    }
 
     let _ctx = window.gl_create_context().unwrap();
     gl::load_with(|name| video_subsystem.gl_get_proc_address(name) as *const _);
@@ -70,7 +80,7 @@ fn main() {
     println!("Pixel format of the window's GL context: {:?}", window.window_pixel_format());
     println!("OpenGL Profile: {:?} - OpenGL version: {:?}", gl_attr.context_profile(), gl_attr.context_version());
 
-    let projection = Matrix4x4::orthographics(0.0, width as f32, 0.0, height as f32, -100.0, 100.0);
+    let projection = Matrix4x4::orthographics(0.0, option.virtual_width as f32, 0.0, option.virtual_height as f32, -100.0, 100.0);
 
     let mut shader_manager = ShaderManager::init();
     
@@ -96,10 +106,7 @@ fn main() {
 
     basic_shader.use_shader();
 
-    unsafe {
-        gl::ClearColor(0.0, 0.0, 0.0, 1.0);
-    }
-    window.gl_swap_window();
+    resize(None, &option);
 
     let mut event_pump = sdl_context.event_pump().unwrap();
 
@@ -135,6 +142,14 @@ fn main() {
         }
 
         unsafe {
+            gl::Disable(gl::SCISSOR_TEST);
+
+            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+
+            gl::Enable(gl::SCISSOR_TEST);
+
+            gl::ClearColor(1.0, 1.0, 1.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
         
             gl::UniformMatrix4fv(
@@ -148,4 +163,48 @@ fn main() {
         }
         window.gl_swap_window();
     }
+}
+
+fn resize(new_size: Option<(i32, i32)>, option: &EngineOption) {
+    let target_aspect_ratio = option.virtual_width as f32 / option.virtual_height as f32;
+
+    let width: i32;
+    let height: i32;
+    match new_size {
+        Some(new_size) => {
+            width = new_size.0;
+            height = new_size.1;
+        },
+        None => {
+            width = option.screen_width as i32;
+            height = option.screen_height as i32;
+        }
+    }
+
+    let mut calculated_height = (width as f32 / target_aspect_ratio) as i32;
+    let mut calculated_width = width;
+
+    if calculated_height > height {
+        calculated_height = height;
+        calculated_width = (calculated_height as f32 * target_aspect_ratio) as i32;
+    }
+
+    let vp_x = (width / 2) - (calculated_width /2);
+    let vp_y = (height / 2) - (calculated_height /2);
+
+    unsafe {
+        gl::Viewport(vp_x, vp_y, calculated_width, calculated_height);
+        gl::Scissor(vp_x, vp_y, calculated_width, calculated_height);        
+    }
+}
+
+fn get_display_mode(video_subsystem: &VideoSubsystem, option: &EngineOption) -> DisplayMode {
+    for i in 0..video_subsystem.num_display_modes(0).unwrap() {
+        let display_mode = video_subsystem.display_mode(0,i).unwrap();
+        if display_mode.w == option.screen_width as i32 && display_mode.h == option.screen_height as i32 {
+            return display_mode;
+        }
+    }
+
+    panic!("No DisplayMode available for width {} and height {}", option.screen_width, option.screen_height);
 }
