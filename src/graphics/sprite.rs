@@ -1,9 +1,9 @@
 use crate::math::matrix4x4::Matrix4x4;
 use crate::math::vector3::Vector3;
 use crate::graphics::color::Color;
-use crate::gl_utility::gl_buffer::AttributeInfo;
-use crate::gl_utility::gl_buffer::GLBuffer;
-use crate::gl_utility::shader::Shader;
+use crate::gl_utilities::gl_buffer::AttributeInfo;
+use crate::gl_utilities::gl_buffer::GLBuffer;
+use crate::gl_utilities::shader::Shader;
 use crate::graphics::vertex::Vertex;
 
 pub struct Sprite<'a> {
