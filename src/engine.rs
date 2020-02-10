@@ -106,11 +106,6 @@ pub fn start(option: EngineOption) {
 
     basic_shader.use_shader();
 
-    unsafe {
-        gl::ClearColor(0.0, 0.0, 0.0, 1.0);
-    }
-    window.gl_swap_window();
-
     resize(None, &option);
 
     let mut event_pump = sdl_context.event_pump().unwrap();
@@ -147,6 +142,14 @@ pub fn start(option: EngineOption) {
         }
 
         unsafe {
+            gl::Disable(gl::SCISSOR_TEST);
+
+            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+
+            gl::Enable(gl::SCISSOR_TEST);
+
+            gl::ClearColor(1.0, 1.0, 1.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
         
             gl::UniformMatrix4fv(
@@ -190,10 +193,8 @@ fn resize(new_size: Option<(i32, i32)>, option: &EngineOption) {
     let vp_y = (height / 2) - (calculated_height /2);
 
     unsafe {
-        gl::ClearColor(1.0, 1.0, 1.0, 1.0);
         gl::Viewport(vp_x, vp_y, calculated_width, calculated_height);
-        gl::Scissor(vp_x, vp_y, calculated_width, calculated_height);
-        gl::Enable(gl::SCISSOR_TEST);
+        gl::Scissor(vp_x, vp_y, calculated_width, calculated_height);        
     }
 }
 
