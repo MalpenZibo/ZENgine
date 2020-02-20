@@ -11,6 +11,9 @@ use crate::gl_utilities::shader::{ShaderManager};
 use crate::math::matrix4x4::Matrix4x4;
 use crate::graphics::sprite::Sprite;
 use crate::math::transform::Transform;
+use crate::graphics::texture::Texture;
+use crate::graphics::material::Material;
+use crate::graphics::color::Color;
 
 extern "system" fn dbg_callback(
     source: gl::types::GLenum,
@@ -75,6 +78,9 @@ pub fn start(option: EngineOption) {
     unsafe {
         gl::Enable(gl::DEBUG_OUTPUT);
         gl::DebugMessageCallback(Some(dbg_callback), std::ptr::null());
+
+        gl::Enable(gl::BLEND);
+        gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
     }
 
     println!("Pixel format of the window's GL context: {:?}", window.window_pixel_format());
@@ -89,20 +95,29 @@ pub fn start(option: EngineOption) {
         include_str!("basic.vert"), 
         include_str!("basic.frag")
     );
+
+    let texture1 = Texture::new("test.png");
+    let texture2 = Texture::new("duck.png");
     
     let u_projection_location = basic_shader.get_uniform_location("u_projection");
 
-    let mut sprite = Sprite::new("test", basic_shader, None, None);
+    let mut sprite = Sprite::new(
+        "test", 
+        basic_shader, 
+        Material::new(Color::white(), &texture2),
+        None, 
+        None
+    );
     sprite.load();
 
     let mut transform = Transform::new();
     transform.position.x = 150.0;    
-    transform.position.y = 150.0;  
+    transform.position.y = 500.0;  
     
-    transform.rotation.z = 30.0;  
+    transform.rotation.z = 0.0;  
 
-    transform.scale.x = 3.0;
-    transform.scale.y = 3.0;
+    transform.scale.x = 50.0;
+    transform.scale.y = 50.0;
 
     basic_shader.use_shader();
 
@@ -149,7 +164,7 @@ pub fn start(option: EngineOption) {
 
             gl::Enable(gl::SCISSOR_TEST);
 
-            gl::ClearColor(1.0, 1.0, 1.0, 1.0);
+            gl::ClearColor(1.0, 1.0, 0.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
         
             gl::UniformMatrix4fv(

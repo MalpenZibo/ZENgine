@@ -9,3 +9,4 @@ edition = "2018"
 gl = "0.14.0"
 sdl2 = { version = "0.33.0", features = ["bundled"] }
 auto_ops = "0.1.0"
+image = "0.22.4"
