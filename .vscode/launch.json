@@ -5,16 +5,28 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Pong Launch",
+            "name": "Pong Launch (MacOS)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/debug/pong",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "sourceLanguages": [
+                "rust"
+            ],
+            "preLaunchTask": "cargo-build"
+        },
+        {
+            "name": "Pong Launch (WIN)",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/examples/pong/target/debug/pong.exe",
+            "program": "${workspaceFolder}/target/debug/pong.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false,
-            "preLaunchTask": "cargo-build-pong"
+            "preLaunchTask": "cargo-build"
         }
     ]
 }

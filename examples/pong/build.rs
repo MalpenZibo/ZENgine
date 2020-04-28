@@ -6,15 +6,18 @@ use std::path::Path;
 
 fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let mut out_path = manifest_dir.clone();
-    let profile = env::var("PROFILE").unwrap();
-    out_path.push(format!("target/{}", profile));
-    
-    let mut resource_path = manifest_dir.clone();
-    resource_path.push("assets");
-    let mut resource_out_path = out_path.clone();
-    resource_out_path.push("assets");
-    copy_dir_content_recursive(resource_path.as_path(), &resource_out_path);
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+
+    let mut source_assets_dir = manifest_dir.clone();
+    source_assets_dir.push("assets");
+
+    let mut destination_assets_dir = out_dir.clone();
+    destination_assets_dir.pop();
+    destination_assets_dir.pop();
+    destination_assets_dir.pop();
+    destination_assets_dir.push("assets");
+
+    copy_dir_content_recursive(source_assets_dir.as_path(), &destination_assets_dir);
 }
 
 // one possible implementation of walking a directory only visiting files

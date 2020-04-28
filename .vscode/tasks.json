@@ -2,15 +2,12 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "cargo-build-pong",
+            "label": "cargo-build",
             "type": "cargo",
             "subcommand": "build",
             "problemMatcher": [
                 "$rustc"
-            ],
-            "options": {
-                "cwd": "${workspaceRoot}/examples/pong"
-            }
+            ]
         }
     ]
 }
