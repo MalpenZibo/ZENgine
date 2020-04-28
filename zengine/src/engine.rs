@@ -10,9 +10,7 @@ use crate::math::matrix4x4::Matrix4x4;
 use crate::math::transform::Transform;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::video::DisplayMode;
-use sdl2::video::FullscreenType;
-use sdl2::video::GLProfile;
+use sdl2::video::{DisplayMode, FullscreenType, GLProfile, Window};
 use sdl2::VideoSubsystem;
 
 extern "system" fn dbg_callback(
@@ -63,6 +61,7 @@ pub fn start(option: EngineOption) {
             option.screen_height,
         )
         .opengl()
+        .allow_highdpi()
         .build()
         .unwrap();
 
@@ -133,7 +132,7 @@ pub fn start(option: EngineOption) {
 
     basic_shader.use_shader();
 
-    resize(None, &option);
+    resize(&window, (option.virtual_width, option.virtual_height));
 
     let mut event_pump = sdl_context.event_pump().unwrap();
 
@@ -195,21 +194,12 @@ pub fn start(option: EngineOption) {
     }
 }
 
-fn resize(new_size: Option<(i32, i32)>, option: &EngineOption) {
-    let target_aspect_ratio = option.virtual_width as f32 / option.virtual_height as f32;
+fn resize(window: &Window, virtual_size: (u32, u32)) {
+    let target_aspect_ratio = virtual_size.0 as f32 / virtual_size.1 as f32;
 
-    let width: i32;
-    let height: i32;
-    match new_size {
-        Some(new_size) => {
-            width = new_size.0;
-            height = new_size.1;
-        }
-        None => {
-            width = option.screen_width as i32;
-            height = option.screen_height as i32;
-        }
-    }
+    let size = window.drawable_size();
+    let width = size.0 as i32;
+    let height = size.1 as i32;
 
     let mut calculated_height = (width as f32 / target_aspect_ratio) as i32;
     let mut calculated_width = width;
