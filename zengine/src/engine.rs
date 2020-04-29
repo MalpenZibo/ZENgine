@@ -79,10 +79,10 @@ pub fn start(option: EngineOption) {
     gl::load_with(|name| video_subsystem.gl_get_proc_address(name) as *const _);
 
     unsafe {
-        /*
+        if !cfg!(target_os = "macos") {
             gl::Enable(gl::DEBUG_OUTPUT);
             gl::DebugMessageCallback(Some(dbg_callback), std::ptr::null());
-        */
+        }
         gl::Enable(gl::BLEND);
         gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
     }
