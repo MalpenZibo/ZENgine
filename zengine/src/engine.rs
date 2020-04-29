@@ -8,6 +8,7 @@ use crate::graphics::sprite::Sprite;
 use crate::graphics::texture::Texture;
 use crate::math::matrix4x4::Matrix4x4;
 use crate::math::transform::Transform;
+use crate::world::scene::Scene;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::video::{DisplayMode, FullscreenType, GLProfile, Window};
@@ -42,7 +43,7 @@ pub struct EngineOption {
     pub screen_height: u32,
 }
 
-pub fn start(option: EngineOption) {
+pub fn start(option: EngineOption, scene: &str) {
     println!("Hello, ZENgine!");
 
     // Init Window
@@ -135,6 +136,8 @@ pub fn start(option: EngineOption) {
     transform.scale.y = 50.0;
 
     basic_shader.use_shader();
+
+    let scene1: Scene = serde_yaml::from_str(scene).unwrap();
 
     resize(&window, (option.virtual_width, option.virtual_height));
 
