@@ -51,7 +51,11 @@ pub fn start(option: EngineOption) {
 
     let gl_attr = video_subsystem.gl_attr();
     gl_attr.set_context_profile(GLProfile::Core);
-    gl_attr.set_context_version(4, 1);
+    if cfg!(target_os = "macos") {
+        gl_attr.set_context_version(4, 1);
+    } else {
+        gl_attr.set_context_version(4, 6);
+    }
     gl_attr.set_double_buffer(true);
 
     let mut window = video_subsystem
