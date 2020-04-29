@@ -1,8 +1,17 @@
+use serde::Deserialize;
+
+#[derive(Deserialize)]
 pub struct Color {
     pub r: f32,
     pub g: f32,
     pub b: f32,
-    pub a: f32
+    pub a: f32,
+}
+
+impl Default for Color {
+    fn default() -> Self {
+        Color::white()
+    }
 }
 
 impl Color {

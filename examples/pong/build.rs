@@ -1,6 +1,5 @@
 use std::env;
-use std::fs::{self, DirEntry};
-use std::io;
+use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
