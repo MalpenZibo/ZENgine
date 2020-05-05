@@ -23,3 +23,17 @@ impl Scene {
     self.entities.get(&new_id).unwrap()
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn create_entity() {
+    let mut scene = Scene::new();
+    let entity = scene.create_entity();
+
+    assert_eq!(entity.id, 0);
+    assert_eq!(scene.entity_cur_id, 1);
+  }
+}
