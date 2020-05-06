@@ -1,3 +1,4 @@
+mod component_manager;
 mod entity;
 mod scene;
 

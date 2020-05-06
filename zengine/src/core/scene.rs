@@ -1,11 +1,13 @@
-use crate::core::entity::Entity;
-use crate::core::entity::EntityId;
+use crate::core::component_manager::ComponentManager;
+use crate::core::entity::{Entity, EntityId};
+use std::any::Any;
 use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Scene {
   entity_cur_id: u32,
   pub entities: HashMap<EntityId, Entity>,
+  pub component_manager: ComponentManager,
 }
 
 impl Scene {
@@ -13,6 +15,7 @@ impl Scene {
     Scene {
       entity_cur_id: 0,
       entities: HashMap::new(),
+      component_manager: ComponentManager::new(),
     }
   }
 
@@ -26,6 +29,14 @@ impl Scene {
 
     self.entities.insert(new_id, Entity { id: new_id });
     new_id
+  }
+
+  pub fn get_component<C: Any>(&self, entity_id: &EntityId) -> Option<&C> {
+    self.component_manager.get(entity_id)
+  }
+
+  pub fn add_component<C: Any>(&mut self, entity_id: &EntityId, component: C) {
+    self.component_manager.add(entity_id, component);
   }
 }
 
@@ -61,5 +72,48 @@ mod tests {
     let entity = scene.get_entity(&EntityId(8));
 
     assert_eq!(entity, None);
+  }
+
+  #[test]
+  fn add_and_retrieve_component() {
+    #[derive(PartialEq, Debug)]
+    struct Test {
+      data1: i32,
+      data2: f32,
+    };
+    let mut scene = Scene::new();
+
+    let entity_id = scene.create_entity();
+    scene.add_component(
+      &entity_id,
+      Test {
+        data1: 4,
+        data2: 8.5,
+      },
+    );
+
+    let test: Option<&Test> = scene.get_component(&entity_id);
+    assert_eq!(
+      test,
+      Some(&Test {
+        data1: 4,
+        data2: 8.5
+      })
+    );
+  }
+
+  #[test]
+  fn retrieve_component_not_present() {
+    #[derive(PartialEq, Debug)]
+    struct Test {
+      data1: i32,
+      data2: f32,
+    };
+    let mut scene = Scene::new();
+
+    let entity_id = scene.create_entity();
+
+    let test: Option<&Test> = scene.get_component(&entity_id);
+    assert_eq!(test, None);
   }
 }
