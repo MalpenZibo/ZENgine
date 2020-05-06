@@ -1,10 +1,11 @@
 use crate::core::entity::Entity;
+use crate::core::entity::EntityId;
 use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Scene {
   entity_cur_id: u32,
-  pub entities: HashMap<u32, Entity>,
+  pub entities: HashMap<EntityId, Entity>,
 }
 
 impl Scene {
@@ -15,8 +16,8 @@ impl Scene {
     }
   }
 
-  pub fn create_entity(&mut self) -> u32 {
-    let new_id = self.entity_cur_id;
+  pub fn create_entity(&mut self) -> EntityId {
+    let new_id = EntityId(self.entity_cur_id);
     self.entity_cur_id += 1;
 
     self.entities.insert(new_id, Entity { id: new_id });
@@ -33,7 +34,7 @@ mod tests {
     let mut scene = Scene::new();
     let entity_id = scene.create_entity();
 
-    assert_eq!(entity_id, 0);
+    assert_eq!(entity_id, EntityId(0));
     assert_eq!(scene.entity_cur_id, 1);
   }
 }
