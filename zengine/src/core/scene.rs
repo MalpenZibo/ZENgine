@@ -15,12 +15,12 @@ impl Scene {
     }
   }
 
-  pub fn create_entity(&mut self) -> &Entity {
+  pub fn create_entity(&mut self) -> u32 {
     let new_id = self.entity_cur_id;
     self.entity_cur_id += 1;
 
     self.entities.insert(new_id, Entity { id: new_id });
-    self.entities.get(&new_id).unwrap()
+    new_id
   }
 }
 
@@ -31,9 +31,9 @@ mod tests {
   #[test]
   fn create_entity() {
     let mut scene = Scene::new();
-    let entity = scene.create_entity();
+    let entity_id = scene.create_entity();
 
-    assert_eq!(entity.id, 0);
+    assert_eq!(entity_id, 0);
     assert_eq!(scene.entity_cur_id, 1);
   }
 }

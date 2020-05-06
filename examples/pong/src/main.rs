@@ -1,6 +1,6 @@
 extern crate zengine;
 
-use zengine::core::{Entity, Scene};
+use zengine::core::Scene;
 
 fn main() {
     /*zengine::engine::start(
