@@ -200,6 +200,10 @@ fn resize(window: &Window, virtual_size: (u32, u32)) {
     let size = window.drawable_size();
     let width = size.0 as i32;
     let height = size.1 as i32;
+
+    let size = window.drawable_size();
+    let width = size.0 as i32;
+    let height = size.1 as i32;
     let mut calculated_height = (width as f32 / target_aspect_ratio) as i32;
     let mut calculated_width = width;
 

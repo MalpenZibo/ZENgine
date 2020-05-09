@@ -1,8 +1,8 @@
 use std::env;
-use std::path::PathBuf;
-use std::io;
 use std::fs::{self, DirEntry};
+use std::io;
 use std::path::Path;
+use std::path::PathBuf;
 
 fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
@@ -12,6 +12,7 @@ fn main() {
     source_assets_dir.push("assets");
 
     let mut destination_assets_dir = out_dir.clone();
+    // something like {workspace}/target/{profile}/build/pong-{hash}/out
     destination_assets_dir.pop();
     destination_assets_dir.pop();
     destination_assets_dir.pop();
@@ -24,9 +25,11 @@ fn main() {
 fn copy_dir_content_recursive(dir: &Path, destination_dir: &PathBuf) {
     if dir.is_dir() {
         if !destination_dir.as_path().exists() {
-            fs::create_dir(destination_dir.as_path());
+            fs::create_dir(destination_dir.as_path()).expect(&format!(
+                "Can't create destination folder {:?}",
+                destination_dir.as_path()
+            ));
         }
-        
         for entry in fs::read_dir(dir).unwrap() {
             let entry = entry.unwrap();
             let path = entry.path();
@@ -37,7 +40,13 @@ fn copy_dir_content_recursive(dir: &Path, destination_dir: &PathBuf) {
             } else {
                 let mut new_file_path = destination_dir.clone();
                 new_file_path.push(entry.file_name());
-                std::fs::copy(&path, new_file_path.as_path()).expect("Can't copy from Resource dir");
+                match std::fs::copy(&path, new_file_path.as_path()) {
+                    Ok(_v) => {}
+                    Err(e) => panic!(
+                        "Can't copy from Resource dir: {} - from: {:?} to: {:?}",
+                        e, path, new_file_path
+                    ),
+                };
             }
         }
     }

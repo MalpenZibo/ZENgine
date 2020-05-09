@@ -1,5 +1,5 @@
 [workspace]
 members = [
-  "zengine",
-  "examples/pong"
+    "zengine",
+    "examples/pong"
 ]
