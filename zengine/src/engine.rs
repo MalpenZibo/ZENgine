@@ -51,7 +51,11 @@ pub fn start(option: EngineOption) {
 
     let gl_attr = video_subsystem.gl_attr();
     gl_attr.set_context_profile(GLProfile::Core);
-    gl_attr.set_context_version(4, 1);
+    if cfg!(target_os = "macos") {
+        gl_attr.set_context_version(4, 1);
+    } else {
+        gl_attr.set_context_version(4, 6);
+    }
     gl_attr.set_double_buffer(true);
 
     let mut window = video_subsystem
@@ -75,10 +79,10 @@ pub fn start(option: EngineOption) {
     gl::load_with(|name| video_subsystem.gl_get_proc_address(name) as *const _);
 
     unsafe {
-        /*
+        if !cfg!(target_os = "macos") {
             gl::Enable(gl::DEBUG_OUTPUT);
             gl::DebugMessageCallback(Some(dbg_callback), std::ptr::null());
-        */
+        }
         gl::Enable(gl::BLEND);
         gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
     }
