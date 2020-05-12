@@ -10,9 +10,9 @@ The engine uses the OpenGL API and the SDL2 Library. It can run on Windows and m
 
 ## Motivation
 I'm always been a game engine enthusiast (not so much about creating a videogame XD) but sadly is not my primary focus in my working life.
-I've created some experimental game engine for android, the first with Java and the second in C++ and some engine for the web using the Canvas API and later the WebGL API.
+I've created some experimental game engines for android, the first with Java and the second in C++ and some engine for the web using the Canvas API and later the WebGL API.
 
-In the last year I've discovered RUST and in now it's my favorite language (sadly in my everyday work it's not used :disappointed_relieved:). So to learn RUST I've decided, as a personal project, that write a game engine from scratch could be a great idea (spoiler, it's not).
+In the last year I've discovered RUST and now it's my favorite language (sadly in my everyday work it's not used :disappointed_relieved:). So to learn RUST I've decided, as a personal project, that write a game engine from scratch could be a great idea (spoiler, it's not).
 
 Also to increase my ability to expose and explain my work I've created a youtube series on which I try to explain the whole developing process.
 
