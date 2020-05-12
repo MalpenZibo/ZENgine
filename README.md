@@ -1,4 +1,4 @@
-<img align="left" width="64px" src="docs/images/zengine_emblem.png" />
+<img align="left" width="64px" src="docs/images/logo.svg" />
 
 # ZENgine &emsp; ![Rust](https://github.com/MalpenZibo/ZENgine/workflows/Rust/badge.svg)
 
