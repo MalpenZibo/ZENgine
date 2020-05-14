@@ -63,6 +63,52 @@ mod tests {
   use super::*;
   use crate::core::storage::Storage;
 
+  struct Resource {
+    possible_data: i32,
+  }
+
+  impl Resource {
+    pub fn double_data(&self) -> i32 {
+      self.possible_data * 2
+    }
+
+    pub fn change_data(&mut self, new_data: i32) -> i32 {
+      self.possible_data = new_data;
+      self.possible_data
+    }
+  }
+
+  #[test]
+  fn insert_resource() {
+    let mut store = Store::new();
+
+    store.insert(Resource { possible_data: 3 });
+
+    assert_eq!(store.resources.len(), 1);
+  }
+
+  #[test]
+  fn insert_and_get_immutable_resource() {
+    let mut store = Store::new();
+
+    store.insert(Resource { possible_data: 3 });
+
+    let immut_res: &Resource = store.get().unwrap();
+
+    assert_eq!(immut_res.double_data(), 6);
+  }
+
+  #[test]
+  fn insert_and_get_mutable_resource() {
+    let mut store = Store::new();
+
+    store.insert(Resource { possible_data: 3 });
+
+    let mut_res: &mut Resource = store.get_mut().unwrap();
+
+    assert_eq!(mut_res.change_data(8), 8);
+  }
+
   #[derive(PartialEq, Debug)]
   struct Component1 {
     data1: i32,
