@@ -1,6 +1,6 @@
 extern crate zengine;
 
-use zengine::core::Scene;
+use zengine::core::Store;
 
 fn main() {
     /*zengine::engine::start(
@@ -14,10 +14,10 @@ fn main() {
         }
     );*/
 
-    let mut scene = Scene::new();
+    let mut store = Store::new();
 
-    let entity = scene.create_entity();
+    let entity = store.create_entity();
 
     println!("entity: {:?}", entity);
-    println!("scene: {:?}", scene);
+    println!("store: {:?}", store);
 }
