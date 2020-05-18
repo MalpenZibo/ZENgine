@@ -1,3 +1,35 @@
+use crate::core::Scene;
+use crate::core::Store;
+
+#[derive(Default)]
+pub struct EngineBuilder {}
+
+impl EngineBuilder {
+    pub fn build(self) -> Engine {
+        Engine {
+            store: Store::new(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Engine {
+    store: Store,
+}
+
+impl Engine {
+    pub fn run<S: Scene + 'static>(mut self, mut scene: S) {
+        println!("Engine Start");
+
+        scene.on_start(&mut self.store);
+
+        scene.on_stop(&mut self.store);
+
+        println!("Engine Stop");
+    }
+}
+
+/*
 extern crate gl;
 extern crate sdl2;
 
@@ -237,3 +269,4 @@ fn get_display_mode(video_subsystem: &VideoSubsystem, option: &EngineOption) -> 
         option.screen_width, option.screen_height
     );
 }
+*/

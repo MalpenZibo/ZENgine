@@ -1,6 +1,8 @@
 extern crate zengine;
 
+use zengine::core::Scene;
 use zengine::core::Store;
+use zengine::EngineBuilder;
 
 fn main() {
     /*zengine::engine::start(
@@ -14,10 +16,19 @@ fn main() {
         }
     );*/
 
-    let mut store = Store::new();
+    let engine = EngineBuilder::default().build();
 
-    let entity = store.create_entity();
+    engine.run(Game)
+}
 
-    println!("entity: {:?}", entity);
-    println!("store: {:?}", store);
+pub struct Game;
+
+impl Scene for Game {
+    fn on_start(&mut self, store: &mut Store) {
+        println!("Game scene on start");
+    }
+
+    fn on_stop(&mut self, store: &mut Store) {
+        println!("Game scene on stop");
+    }
 }
