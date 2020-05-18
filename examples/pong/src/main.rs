@@ -1,8 +1,9 @@
 extern crate zengine;
 
-fn main() {
+use zengine::core::Scene;
 
-    zengine::engine::start(
+fn main() {
+    /*zengine::engine::start(
         zengine::engine::EngineOption {
             title: String::from("PONG"),
             fullscreen: false,
@@ -11,5 +12,12 @@ fn main() {
             screen_width: 800,
             screen_height: 600
         }
-    );
+    );*/
+
+    let mut scene = Scene::new();
+
+    let entity = scene.create_entity();
+
+    println!("entity: {:?}", entity);
+    println!("scene: {:?}", scene);
 }
