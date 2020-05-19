@@ -7,7 +7,7 @@ pub struct EngineBuilder {}
 impl EngineBuilder {
     pub fn build(self) -> Engine {
         Engine {
-            store: Store::new(),
+            store: Store::default(),
         }
     }
 }

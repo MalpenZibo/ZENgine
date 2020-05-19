@@ -1,7 +1,6 @@
-mod component_manager;
+mod component_storage;
 mod entity;
 mod scene;
-mod storage;
 mod store;
 
 pub use self::entity::Entity;
