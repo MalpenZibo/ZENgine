@@ -4,7 +4,7 @@ use crate::math::vector3::Vector3;
 pub struct Transform {
     pub position: Vector3,
     pub rotation: Vector3,
-    pub scale: Vector3
+    pub scale: Vector3,
 }
 
 impl Transform {
@@ -12,7 +12,7 @@ impl Transform {
         Transform {
             position: Vector3::zero(),
             rotation: Vector3::zero(),
-            scale: Vector3::one()
+            scale: Vector3::one(),
         }
     }
 

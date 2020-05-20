@@ -1,11 +1,11 @@
-use crate::graphics::material::Material;
-use crate::math::matrix4x4::Matrix4x4;
-use crate::math::vector3::Vector3;
-use crate::graphics::color::Color;
 use crate::gl_utilities::gl_buffer::AttributeInfo;
 use crate::gl_utilities::gl_buffer::GLBuffer;
 use crate::gl_utilities::shader::Shader;
+use crate::graphics::color::Color;
+use crate::graphics::material::Material;
 use crate::graphics::vertex::Vertex;
+use crate::math::matrix4x4::Matrix4x4;
+use crate::math::vector3::Vector3;
 
 pub struct Sprite<'a> {
     pub name: String,
@@ -15,7 +15,7 @@ pub struct Sprite<'a> {
 
     pub origin: Vector3,
 
-    u_color_position: i32,  
+    u_color_position: i32,
     u_model_location: i32,
     u_diffuse_location: i32,
 
@@ -23,16 +23,28 @@ pub struct Sprite<'a> {
     vertices: [Vertex; 6],
 
     shader: &'a Shader,
-    material: Material<'a>
+    material: Material<'a>,
 }
 
 impl<'a> Sprite<'a> {
-    pub fn new(name: &str, shader: &'a Shader, material: Material<'a>, width: Option<f32>, height: Option<f32>) -> Sprite<'a> {
+    pub fn new(
+        name: &str,
+        shader: &'a Shader,
+        material: Material<'a>,
+        width: Option<f32>,
+        height: Option<f32>,
+    ) -> Sprite<'a> {
         Sprite {
             name: String::from(name),
 
-            width: match width { Some(w) => w, _ => 10.0 },
-            height: match height { Some(h) => h, _ => 10.0 },
+            width: match width {
+                Some(w) => w,
+                _ => 10.0,
+            },
+            height: match height {
+                Some(h) => h,
+                _ => 10.0,
+            },
 
             origin: Vector3::zero(),
 
@@ -45,7 +57,7 @@ impl<'a> Sprite<'a> {
             vertices: [Vertex::new(0.0, 0.0, 0.0, 0.0, 0.0); 6],
 
             shader: shader,
-            material: material
+            material: material,
         }
     }
 
@@ -57,14 +69,14 @@ impl<'a> Sprite<'a> {
             vec![
                 AttributeInfo {
                     location: a_position_location,
-                    component_size: 3
+                    component_size: 3,
                 },
                 AttributeInfo {
                     location: a_tex_coord_location,
-                    component_size: 2
-                }
+                    component_size: 2,
+                },
             ],
-            false
+            false,
         );
 
         self.calculate_vertices();
@@ -73,7 +85,7 @@ impl<'a> Sprite<'a> {
     pub fn calculate_vertices(&mut self) {
         let min_x = -(self.width * self.origin.x);
         let max_x = self.width * (1.0 - self.origin.x);
-        
+
         let min_y = -(self.height * self.origin.y);
         let max_y = self.height * (1.0 - self.origin.y);
 
@@ -86,25 +98,32 @@ impl<'a> Sprite<'a> {
         self.vertices[5] = Vertex::new(min_x, min_y, 0.0, 0.0, 0.0);
 
         self.buffer.upload(
-            &self.vertices.iter().flat_map(|v| vec![v.position.x, v.position.y, v.position.z, v.tex_coord.x, v.tex_coord.y]).collect::<Vec<f32>>()
+            &self
+                .vertices
+                .iter()
+                .flat_map(|v| {
+                    vec![
+                        v.position.x,
+                        v.position.y,
+                        v.position.z,
+                        v.tex_coord.x,
+                        v.tex_coord.y,
+                    ]
+                })
+                .collect::<Vec<f32>>(),
         );
     }
 
     pub fn draw(&self, model: &Matrix4x4) {
         unsafe {
-            gl::UniformMatrix4fv(
-                self.u_model_location,
-                1,
-                gl::FALSE,
-                model.data.as_ptr()
-            );
+            gl::UniformMatrix4fv(self.u_model_location, 1, gl::FALSE, model.data.as_ptr());
 
             gl::Uniform4f(
                 self.u_color_position,
                 self.material.tint.r,
                 self.material.tint.g,
                 self.material.tint.b,
-                self.material.tint.a
+                self.material.tint.a,
             );
 
             self.material.texture.activate();

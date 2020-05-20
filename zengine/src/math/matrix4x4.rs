@@ -2,10 +2,10 @@ use crate::math::vector3::Vector3;
 use auto_ops::*;
 
 pub struct Matrix4x4 {
-    pub data: [f32; 16]
+    pub data: [f32; 16],
 }
 
-impl_op_ex!(* |a: &Matrix4x4, b: &Matrix4x4| -> Matrix4x4 {
+impl_op_ex!(*|a: &Matrix4x4, b: &Matrix4x4| -> Matrix4x4 {
     let mut m = Matrix4x4::identity();
 
     let b00 = b.data[0 * 4 + 0];
@@ -117,18 +117,18 @@ impl Matrix4x4 {
     pub fn identity() -> Matrix4x4 {
         Matrix4x4 {
             data: [
-                1.0, 0.0, 0.0, 0.0,
-                0.0, 1.0, 0.0, 0.0,
-                0.0, 0.0, 1.0, 0.0,
-                0.0, 0.0, 0.0, 1.0
-            ]
+                1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+            ],
         }
     }
 
     pub fn orthographics(
-        left: f32, right: f32,
-        top: f32, bottom: f32,
-        near_clip: f32, far_clip: f32
+        left: f32,
+        right: f32,
+        top: f32,
+        bottom: f32,
+        near_clip: f32,
+        far_clip: f32,
     ) -> Matrix4x4 {
         let mut m = Matrix4x4::identity();
 
@@ -205,7 +205,7 @@ impl Matrix4x4 {
         let rx = Matrix4x4::rotation_x(angle.x);
         let ry = Matrix4x4::rotation_y(angle.y);
         let rz = Matrix4x4::rotation_z(angle.z);
-        
+
         rz * ry * rx
     }
 
@@ -218,6 +218,4 @@ impl Matrix4x4 {
 
         m
     }
-
-
 }
