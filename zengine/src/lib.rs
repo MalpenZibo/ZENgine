@@ -1,6 +1,8 @@
 mod assets;
 pub mod core;
-pub mod engine;
+mod engine;
 mod gl_utilities;
 mod graphics;
 mod math;
+
+pub use self::engine::EngineBuilder;
