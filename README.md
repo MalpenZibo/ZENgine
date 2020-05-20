@@ -1,6 +1,6 @@
 <img align="left" width="64px" src="docs/images/logo.svg" />
 
-# ZENgine &emsp; ![Rust](https://github.com/MalpenZibo/ZENgine/workflows/Rust/badge.svg)
+# ZENgine &emsp; ![Build](https://github.com/MalpenZibo/ZENgine/workflows/Build/badge.svg) ![Test](https://github.com/MalpenZibo/ZENgine/workflows/Test/badge.svg) ![Clippy](https://github.com/MalpenZibo/ZENgine/workflows/Clippy/badge.svg) ![Format](https://github.com/MalpenZibo/ZENgine/workflows/Format/badge.svg)
 
 ## What is ZENgine?
 
