@@ -55,10 +55,18 @@ impl ComponentStorageResource {
       s.1.remove(entity);
     }
   }
+
+  pub fn delete_all(&mut self) {
+    for s in self.storages.iter_mut() {
+      s.1.clear();
+    }
+  }
 }
 
 pub trait AnyStorage: Downcast + Debug {
   fn remove(&mut self, entity: &Entity);
+
+  fn clear(&mut self);
 }
 downcast_rs::impl_downcast!(AnyStorage);
 
@@ -78,6 +86,10 @@ impl<C> Default for ComponentStorage<C> {
 impl<C: Component> AnyStorage for ComponentStorage<C> {
   fn remove(&mut self, entity: &Entity) {
     self.data.remove(&entity);
+  }
+
+  fn clear(&mut self) {
+    self.data.clear();
   }
 }
 

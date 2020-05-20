@@ -62,6 +62,11 @@ impl Store {
   pub fn delete_entity(&mut self, entity: &Entity) {
     self.component_storage.delete_entity(entity);
   }
+
+  pub fn delete_all(&mut self) {
+    self.component_storage.delete_all();
+  }
+
   pub fn get_component_storage<C: Component>(&self) -> Option<&ComponentStorage<C>> {
     self.component_storage.get::<C>()
   }
