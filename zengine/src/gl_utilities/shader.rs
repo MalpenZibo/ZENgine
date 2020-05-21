@@ -1,5 +1,5 @@
-use std::ffi::CString;
 use std::collections::HashMap;
+use std::ffi::CString;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -17,7 +17,7 @@ fn create_whitespace_cstring_with_len(len: usize) -> CString {
 static IS_SHADER_MANAGER_ALIVE: AtomicBool = AtomicBool::new(false);
 
 pub struct ShaderManager {
-    shaders: HashMap<String, Shader>
+    shaders: HashMap<String, Shader>,
 }
 
 impl ShaderManager {
@@ -26,11 +26,11 @@ impl ShaderManager {
 
         if !was_alive {
             ShaderManager {
-                shaders: HashMap::new()
+                shaders: HashMap::new(),
             }
         } else {
             panic!("Cannot create two instance of AssetManager");
-        }        
+        }
     }
 
     pub fn register(&mut self, name: &str, vert_source: &str, frag_source: &str) -> &Shader {
@@ -38,7 +38,7 @@ impl ShaderManager {
             name: String::from(name),
             program: 0,
             attributes: HashMap::new(),
-            uniforms: HashMap::new()
+            uniforms: HashMap::new(),
         };
 
         shader.load(
@@ -53,9 +53,9 @@ impl ShaderManager {
 
     pub fn get(&self, name: &str) -> &Shader {
         match self.shaders.get(name) {
-            Some(shader) => return shader,
-            _ => panic!("Unable to find shader {}", name)
-        };
+            Some(shader) => shader,
+            _ => panic!("Unable to find shader {}", name),
+        }
     }
 }
 
@@ -63,7 +63,7 @@ pub struct Shader {
     pub name: String,
     pub program: u32,
     attributes: HashMap<String, u32>,
-    uniforms: HashMap<String, i32>
+    uniforms: HashMap<String, i32>,
 }
 
 impl Drop for Shader {
@@ -84,15 +84,21 @@ impl Shader {
 
     pub fn get_attribute_location(&self, name: &str) -> u32 {
         match self.attributes.get(name) {
-            Some(&attribute) => return attribute,
-            _ => panic!("Unable to find attribute name {} in shader name {}", name, self.name)
+            Some(&attribute) => attribute,
+            _ => panic!(
+                "Unable to find attribute name {} in shader name {}",
+                name, self.name
+            ),
         }
     }
 
     pub fn get_uniform_location(&self, name: &str) -> i32 {
         match self.uniforms.get(name) {
-            Some(&uniform) => return uniform,
-            _ => panic!("Unable to find uniform name {} in shader name {}", name, self.name)
+            Some(&uniform) => uniform,
+            _ => panic!(
+                "Unable to find uniform name {} in shader name {}",
+                name, self.name
+            ),
         }
     }
 
@@ -137,7 +143,7 @@ impl Shader {
                     shader_id,
                     len,
                     std::ptr::null_mut(),
-                    error_msg.as_ptr() as *mut gl::types::GLchar
+                    error_msg.as_ptr() as *mut gl::types::GLchar,
                 );
             }
 
@@ -147,10 +153,10 @@ impl Shader {
         shader_id
     }
 
-    fn create_program(vertex_shader: u32, fragment_shader: u32) -> u32 {        
+    fn create_program(vertex_shader: u32, fragment_shader: u32) -> u32 {
         let program_id = unsafe { gl::CreateProgram() };
-        
-        unsafe {            
+
+        unsafe {
             gl::AttachShader(program_id, vertex_shader);
             gl::AttachShader(program_id, fragment_shader);
 
@@ -175,7 +181,7 @@ impl Shader {
                     program_id,
                     len,
                     std::ptr::null_mut(),
-                    error_msg.as_ptr() as *mut gl::types::GLchar
+                    error_msg.as_ptr() as *mut gl::types::GLchar,
                 );
             }
 
@@ -196,11 +202,11 @@ impl Shader {
             gl::GetProgramiv(self.program, gl::ACTIVE_ATTRIBUTES, &mut attributes_number);
 
             for i in 0..attributes_number {
-                let mut size: gl::types::GLint = 0;         // variable size
-                let mut var_type: gl::types::GLenum = 0;    // variable type (float, vec3, vec4, mat4, etc)
-                const BUF_SIZE: usize = 16;                 // maximum name length
+                let mut size: gl::types::GLint = 0; // variable size
+                let mut var_type: gl::types::GLenum = 0; // variable type (float, vec3, vec4, mat4, etc)
+                const BUF_SIZE: usize = 16; // maximum name length
                 let name = [0; BUF_SIZE];
-                let mut length: gl::types::GLsizei = 0;     // name length
+                let mut length: gl::types::GLsizei = 0; // name length
 
                 gl::GetActiveAttrib(
                     self.program,
@@ -209,22 +215,20 @@ impl Shader {
                     &mut length,
                     &mut size,
                     &mut var_type,
-                    name.as_ptr() as *mut gl::types::GLchar
+                    name.as_ptr() as *mut gl::types::GLchar,
                 );
                 if length == 0 {
                     break;
                 }
 
-                let location = gl::GetAttribLocation(
-                    self.program,
-                    name.as_ptr() as *mut gl::types::GLchar
-                ) as u32;
+                let location =
+                    gl::GetAttribLocation(self.program, name.as_ptr() as *mut gl::types::GLchar)
+                        as u32;
 
                 self.attributes.insert(
-                    String::from_str(
-                        std::ffi::CStr::from_ptr(name.as_ptr()).to_str().unwrap()
-                    ).unwrap(),
-                    location
+                    String::from_str(std::ffi::CStr::from_ptr(name.as_ptr()).to_str().unwrap())
+                        .unwrap(),
+                    location,
                 );
             }
         }
@@ -236,11 +240,11 @@ impl Shader {
             gl::GetProgramiv(self.program, gl::ACTIVE_UNIFORMS, &mut uniforms_number);
 
             for i in 0..uniforms_number {
-                let mut size: gl::types::GLint = 0;         // variable size
-                let mut var_type: gl::types::GLenum = 0;    // variable type (float, vec3, vec4, mat4, etc)
-                const BUF_SIZE: usize = 16;                 // maximum name length
+                let mut size: gl::types::GLint = 0; // variable size
+                let mut var_type: gl::types::GLenum = 0; // variable type (float, vec3, vec4, mat4, etc)
+                const BUF_SIZE: usize = 16; // maximum name length
                 let name = [0; BUF_SIZE];
-                let mut length: gl::types::GLsizei = 0;     // name length
+                let mut length: gl::types::GLsizei = 0; // name length
 
                 gl::GetActiveUniform(
                     self.program,
@@ -249,22 +253,19 @@ impl Shader {
                     &mut length,
                     &mut size,
                     &mut var_type,
-                    name.as_ptr() as *mut gl::types::GLchar
+                    name.as_ptr() as *mut gl::types::GLchar,
                 );
                 if length == 0 {
                     break;
                 }
 
-                let location = gl::GetUniformLocation(
-                    self.program,
-                    name.as_ptr() as *mut gl::types::GLchar
-                );
+                let location =
+                    gl::GetUniformLocation(self.program, name.as_ptr() as *mut gl::types::GLchar);
 
                 self.uniforms.insert(
-                    String::from_str(
-                        std::ffi::CStr::from_ptr(name.as_ptr()).to_str().unwrap()
-                    ).unwrap(),
-                    location
+                    String::from_str(std::ffi::CStr::from_ptr(name.as_ptr()).to_str().unwrap())
+                        .unwrap(),
+                    location,
                 );
             }
         }

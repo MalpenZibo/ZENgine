@@ -2,44 +2,45 @@ use crate::math::vector3::Vector3;
 use auto_ops::*;
 
 pub struct Matrix4x4 {
-    pub data: [f32; 16]
+    pub data: [f32; 16],
 }
 
-impl_op_ex!(* |a: &Matrix4x4, b: &Matrix4x4| -> Matrix4x4 {
+impl_op_ex!(*|a: &Matrix4x4, b: &Matrix4x4| -> Matrix4x4 {
     let mut m = Matrix4x4::identity();
 
-    let b00 = b.data[0 * 4 + 0];
-    let b01 = b.data[0 * 4 + 1];
-    let b02 = b.data[0 * 4 + 2];
-    let b03 = b.data[0 * 4 + 3];
-    let b10 = b.data[1 * 4 + 0];
-    let b11 = b.data[1 * 4 + 1];
-    let b12 = b.data[1 * 4 + 2];
-    let b13 = b.data[1 * 4 + 3];
-    let b20 = b.data[2 * 4 + 0];
-    let b21 = b.data[2 * 4 + 1];
-    let b22 = b.data[2 * 4 + 2];
-    let b23 = b.data[2 * 4 + 3];
-    let b30 = b.data[3 * 4 + 0];
-    let b31 = b.data[3 * 4 + 1];
-    let b32 = b.data[3 * 4 + 2];
-    let b33 = b.data[3 * 4 + 3];
-    let a00 = a.data[0 * 4 + 0];
-    let a01 = a.data[0 * 4 + 1];
-    let a02 = a.data[0 * 4 + 2];
-    let a03 = a.data[0 * 4 + 3];
-    let a10 = a.data[1 * 4 + 0];
-    let a11 = a.data[1 * 4 + 1];
-    let a12 = a.data[1 * 4 + 2];
-    let a13 = a.data[1 * 4 + 3];
-    let a20 = a.data[2 * 4 + 0];
-    let a21 = a.data[2 * 4 + 1];
-    let a22 = a.data[2 * 4 + 2];
-    let a23 = a.data[2 * 4 + 3];
-    let a30 = a.data[3 * 4 + 0];
-    let a31 = a.data[3 * 4 + 1];
-    let a32 = a.data[3 * 4 + 2];
-    let a33 = a.data[3 * 4 + 3];
+    let b00 = b.data[0];
+    let b01 = b.data[1];
+    let b02 = b.data[2];
+    let b03 = b.data[3];
+    let b10 = b.data[4];
+    let b11 = b.data[5];
+    let b12 = b.data[6];
+    let b13 = b.data[7];
+    let b20 = b.data[8];
+    let b21 = b.data[9];
+    let b22 = b.data[10];
+    let b23 = b.data[11];
+    let b30 = b.data[12];
+    let b31 = b.data[13];
+    let b32 = b.data[14];
+    let b33 = b.data[15];
+
+    let a00 = a.data[0];
+    let a01 = a.data[1];
+    let a02 = a.data[2];
+    let a03 = a.data[3];
+    let a10 = a.data[4];
+    let a11 = a.data[5];
+    let a12 = a.data[6];
+    let a13 = a.data[7];
+    let a20 = a.data[8];
+    let a21 = a.data[9];
+    let a22 = a.data[10];
+    let a23 = a.data[11];
+    let a30 = a.data[12];
+    let a31 = a.data[13];
+    let a32 = a.data[14];
+    let a33 = a.data[15];
 
     m.data[0] = b00 * a00 + b01 * a10 + b02 * a20 + b03 * a30;
     m.data[1] = b00 * a01 + b01 * a11 + b02 * a21 + b03 * a31;
@@ -62,38 +63,39 @@ impl_op_ex!(* |a: &Matrix4x4, b: &Matrix4x4| -> Matrix4x4 {
 });
 
 impl_op_ex!(*= |a: &mut Matrix4x4, b: &Matrix4x4| {
-    let b00 = b.data[0 * 4 + 0];
-    let b01 = b.data[0 * 4 + 1];
-    let b02 = b.data[0 * 4 + 2];
-    let b03 = b.data[0 * 4 + 3];
-    let b10 = b.data[1 * 4 + 0];
-    let b11 = b.data[1 * 4 + 1];
-    let b12 = b.data[1 * 4 + 2];
-    let b13 = b.data[1 * 4 + 3];
-    let b20 = b.data[2 * 4 + 0];
-    let b21 = b.data[2 * 4 + 1];
-    let b22 = b.data[2 * 4 + 2];
-    let b23 = b.data[2 * 4 + 3];
-    let b30 = b.data[3 * 4 + 0];
-    let b31 = b.data[3 * 4 + 1];
-    let b32 = b.data[3 * 4 + 2];
-    let b33 = b.data[3 * 4 + 3];
-    let a00 = a.data[0 * 4 + 0];
-    let a01 = a.data[0 * 4 + 1];
-    let a02 = a.data[0 * 4 + 2];
-    let a03 = a.data[0 * 4 + 3];
-    let a10 = a.data[1 * 4 + 0];
-    let a11 = a.data[1 * 4 + 1];
-    let a12 = a.data[1 * 4 + 2];
-    let a13 = a.data[1 * 4 + 3];
-    let a20 = a.data[2 * 4 + 0];
-    let a21 = a.data[2 * 4 + 1];
-    let a22 = a.data[2 * 4 + 2];
-    let a23 = a.data[2 * 4 + 3];
-    let a30 = a.data[3 * 4 + 0];
-    let a31 = a.data[3 * 4 + 1];
-    let a32 = a.data[3 * 4 + 2];
-    let a33 = a.data[3 * 4 + 3];
+    let b00 = b.data[0];
+    let b01 = b.data[1];
+    let b02 = b.data[2];
+    let b03 = b.data[3];
+    let b10 = b.data[4];
+    let b11 = b.data[5];
+    let b12 = b.data[6];
+    let b13 = b.data[7];
+    let b20 = b.data[8];
+    let b21 = b.data[9];
+    let b22 = b.data[10];
+    let b23 = b.data[11];
+    let b30 = b.data[12];
+    let b31 = b.data[13];
+    let b32 = b.data[14];
+    let b33 = b.data[15];
+
+    let a00 = a.data[0];
+    let a01 = a.data[1];
+    let a02 = a.data[2];
+    let a03 = a.data[3];
+    let a10 = a.data[4];
+    let a11 = a.data[5];
+    let a12 = a.data[6];
+    let a13 = a.data[7];
+    let a20 = a.data[8];
+    let a21 = a.data[9];
+    let a22 = a.data[10];
+    let a23 = a.data[11];
+    let a30 = a.data[12];
+    let a31 = a.data[13];
+    let a32 = a.data[14];
+    let a33 = a.data[15];
 
     a.data[0] = b00 * a00 + b01 * a10 + b02 * a20 + b03 * a30;
     a.data[1] = b00 * a01 + b01 * a11 + b02 * a21 + b03 * a31;
@@ -117,18 +119,18 @@ impl Matrix4x4 {
     pub fn identity() -> Matrix4x4 {
         Matrix4x4 {
             data: [
-                1.0, 0.0, 0.0, 0.0,
-                0.0, 1.0, 0.0, 0.0,
-                0.0, 0.0, 1.0, 0.0,
-                0.0, 0.0, 0.0, 1.0
-            ]
+                1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+            ],
         }
     }
 
     pub fn orthographics(
-        left: f32, right: f32,
-        top: f32, bottom: f32,
-        near_clip: f32, far_clip: f32
+        left: f32,
+        right: f32,
+        top: f32,
+        bottom: f32,
+        near_clip: f32,
+        far_clip: f32,
     ) -> Matrix4x4 {
         let mut m = Matrix4x4::identity();
 
@@ -205,7 +207,7 @@ impl Matrix4x4 {
         let rx = Matrix4x4::rotation_x(angle.x);
         let ry = Matrix4x4::rotation_y(angle.y);
         let rz = Matrix4x4::rotation_z(angle.z);
-        
+
         rz * ry * rx
     }
 
@@ -218,6 +220,4 @@ impl Matrix4x4 {
 
         m
     }
-
-
 }

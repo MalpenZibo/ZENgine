@@ -5,46 +5,46 @@ use std::fmt::Debug;
 
 #[derive(Default, Debug)]
 pub struct EntitiesResource {
-  max_id: u32,
+    max_id: u32,
 }
 
 impl Resource for EntitiesResource {}
 
 impl EntitiesResource {
-  pub fn create_entity(&mut self) -> Entity {
-    let id = self.max_id;
-    self.max_id = self.max_id + 1;
+    pub fn create_entity(&mut self) -> Entity {
+        let id = self.max_id;
+        self.max_id += 1;
 
-    Entity(id)
-  }
+        Entity(id)
+    }
 }
 
 pub struct EntityBuilder<'a> {
-  pub entity: Entity,
-  pub store: &'a mut Store,
-  pub is_build: bool,
+    pub entity: Entity,
+    pub store: &'a mut Store,
+    pub is_build: bool,
 }
 
 impl<'a> EntityBuilder<'a> {
-  pub fn with<C: Component>(self, component: C) -> Self {
-    self.store.insert_component(&self.entity, component);
+    pub fn with<C: Component>(self, component: C) -> Self {
+        self.store.insert_component(&self.entity, component);
 
-    self
-  }
+        self
+    }
 
-  pub fn build(mut self) -> Entity {
-    self.is_build = true;
+    pub fn build(mut self) -> Entity {
+        self.is_build = true;
 
-    self.entity
-  }
+        self.entity
+    }
 }
 
 impl<'a> Drop for EntityBuilder<'a> {
-  fn drop(&mut self) {
-    if !self.is_build {
-      self.store.delete_entity(&self.entity);
+    fn drop(&mut self) {
+        if !self.is_build {
+            self.store.delete_entity(&self.entity);
+        }
     }
-  }
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
@@ -52,14 +52,14 @@ pub struct Entity(u32);
 
 #[cfg(test)]
 mod tests {
-  use super::*;
+    use super::*;
 
-  #[test]
-  fn create_entity() {
-    let mut er = EntitiesResource::default();
+    #[test]
+    fn create_entity() {
+        let mut er = EntitiesResource::default();
 
-    let entity = er.create_entity();
+        let entity = er.create_entity();
 
-    assert_eq!(entity, Entity(0));
-  }
+        assert_eq!(entity, Entity(0));
+    }
 }
