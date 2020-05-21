@@ -1,13 +1,23 @@
-use crate::core::Scene;
 use crate::core::Store;
+use crate::core::System;
+use crate::core::{Scene, Trans};
 
 #[derive(Default)]
-pub struct EngineBuilder {}
+pub struct EngineBuilder {
+    systems: Vec<Box<dyn System>>,
+}
 
 impl EngineBuilder {
+    pub fn with_system<S: System>(mut self, system: S) -> Self {
+        self.systems.push(Box::new(system));
+
+        self
+    }
+
     pub fn build(self) -> Engine {
         Engine {
             store: Store::default(),
+            systems: self.systems,
         }
     }
 }
@@ -15,15 +25,40 @@ impl EngineBuilder {
 #[derive(Debug)]
 pub struct Engine {
     store: Store,
+    systems: Vec<Box<dyn System>>,
 }
 
 impl Engine {
     pub fn run<S: Scene + 'static>(mut self, mut scene: S) {
         println!("Engine Start");
 
+        println!("Init Systems");
+        for s in self.systems.iter_mut() {
+            s.init(&mut self.store);
+        }
+
         scene.on_start(&mut self.store);
 
+        'main_loop: loop {
+            for s in self.systems.iter_mut() {
+                s.run(&mut self.store);
+            }
+
+            match scene.update(&mut self.store) {
+                Trans::Quit => {
+                    println!("Quit transaction received");
+                    break 'main_loop;
+                }
+                _ => {}
+            }
+        }
+
         scene.on_stop(&mut self.store);
+
+        println!("Dispose Systems");
+        for s in self.systems.iter_mut() {
+            s.dispose(&mut self.store);
+        }
 
         println!("Engine Stop");
     }
