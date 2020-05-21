@@ -6,7 +6,7 @@ pub struct Vector2 {
 
 impl Vector2 {
     pub fn new(x: f32, y: f32) -> Vector2 {
-        Vector2 { x: x, y: y }
+        Vector2 { x, y }
     }
 
     pub fn zero() -> Vector2 {

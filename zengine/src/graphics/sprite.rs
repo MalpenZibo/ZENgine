@@ -1,7 +1,6 @@
 use crate::gl_utilities::gl_buffer::AttributeInfo;
 use crate::gl_utilities::gl_buffer::GLBuffer;
 use crate::gl_utilities::shader::Shader;
-use crate::graphics::color::Color;
 use crate::graphics::material::Material;
 use crate::graphics::vertex::Vertex;
 use crate::math::matrix4x4::Matrix4x4;
@@ -56,8 +55,8 @@ impl<'a> Sprite<'a> {
 
             vertices: [Vertex::new(0.0, 0.0, 0.0, 0.0, 0.0); 6],
 
-            shader: shader,
-            material: material,
+            shader,
+            material,
         }
     }
 

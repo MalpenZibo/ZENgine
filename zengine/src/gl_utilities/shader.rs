@@ -53,9 +53,9 @@ impl ShaderManager {
 
     pub fn get(&self, name: &str) -> &Shader {
         match self.shaders.get(name) {
-            Some(shader) => return shader,
+            Some(shader) => shader,
             _ => panic!("Unable to find shader {}", name),
-        };
+        }
     }
 }
 
@@ -84,7 +84,7 @@ impl Shader {
 
     pub fn get_attribute_location(&self, name: &str) -> u32 {
         match self.attributes.get(name) {
-            Some(&attribute) => return attribute,
+            Some(&attribute) => attribute,
             _ => panic!(
                 "Unable to find attribute name {} in shader name {}",
                 name, self.name
@@ -94,7 +94,7 @@ impl Shader {
 
     pub fn get_uniform_location(&self, name: &str) -> i32 {
         match self.uniforms.get(name) {
-            Some(&uniform) => return uniform,
+            Some(&uniform) => uniform,
             _ => panic!(
                 "Unable to find uniform name {} in shader name {}",
                 name, self.name

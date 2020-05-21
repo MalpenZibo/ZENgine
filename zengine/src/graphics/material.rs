@@ -8,9 +8,6 @@ pub struct Material<'a> {
 
 impl<'a> Material<'a> {
     pub fn new(tint: Color, texture: &'a Texture) -> Material {
-        Material {
-            tint: tint,
-            texture: texture,
-        }
+        Material { tint, texture }
     }
 }

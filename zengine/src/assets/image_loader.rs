@@ -26,11 +26,11 @@ pub fn load(image_name: &str) -> ImageAsset {
                         img => img.to_rgba(),
                     };
 
-                    return ImageAsset {
-                        width: width,
-                        height: height,
+                    ImageAsset {
+                        width,
+                        height,
                         data: img.into_raw(),
-                    };
+                    }
                 }
                 Err(e) => panic!("Could not load image {}: {}", image_name, e),
             }
