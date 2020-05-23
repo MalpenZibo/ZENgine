@@ -3,32 +3,18 @@ use crate::core::System;
 use crate::core::{Scene, Trans};
 
 #[derive(Default)]
-pub struct EngineBuilder {
-    systems: Vec<Box<dyn System>>,
-}
-
-impl EngineBuilder {
-    pub fn with_system<S: System>(mut self, system: S) -> Self {
-        self.systems.push(Box::new(system));
-
-        self
-    }
-
-    pub fn build(self) -> Engine {
-        Engine {
-            store: Store::default(),
-            systems: self.systems,
-        }
-    }
-}
-
-#[derive(Debug)]
 pub struct Engine {
     store: Store,
     systems: Vec<Box<dyn System>>,
 }
 
 impl Engine {
+    pub fn with_system<S: System>(mut self, system: S) -> Self {
+        self.systems.push(Box::new(system));
+
+        self
+    }
+
     pub fn run<S: Scene + 'static>(mut self, mut scene: S) {
         println!("Engine Start");
 

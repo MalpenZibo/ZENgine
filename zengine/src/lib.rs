@@ -5,4 +5,4 @@ mod gl_utilities;
 mod graphics;
 mod math;
 
-pub use self::engine::EngineBuilder;
+pub use self::engine::Engine;

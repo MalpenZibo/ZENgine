@@ -33,17 +33,28 @@ impl ComponentStorageResource {
         }
     }
 
+    pub fn get_mut<C: Component>(&mut self) -> Option<&mut ComponentStorage<C>> {
+        let type_id = TypeId::of::<C>();
+
+        match self.storages.get_mut(&type_id) {
+            Some(storage) => storage.downcast_mut::<ComponentStorage<C>>(),
+            None => None,
+        }
+    }
+
     pub fn add_component<C: Component>(&mut self, entity: &Entity, component: C) {
         let type_id = TypeId::of::<C>();
 
         match self.storages.get_mut(&type_id) {
-            Some(storage) => storage
-                .downcast_mut::<ComponentStorage<C>>()
-                .expect("downcast storage error")
-                .insert(entity, component),
+            Some(storage) => {
+                storage
+                    .downcast_mut::<ComponentStorage<C>>()
+                    .expect("downcast storage error")
+                    .insert(entity.clone(), component);
+            }
             None => {
                 let mut storage = ComponentStorage::<C>::default();
-                storage.insert(entity, component);
+                storage.insert(entity.clone(), component);
 
                 self.storages.insert(type_id, Box::new(storage));
             }
@@ -70,6 +81,18 @@ pub trait AnyStorage: Downcast + Debug {
 }
 downcast_rs::impl_downcast!(AnyStorage);
 
+pub type ComponentStorage<C> = HashMap<Entity, C>;
+impl<C: Component> AnyStorage for ComponentStorage<C> {
+    fn remove(&mut self, entity: &Entity) {
+        self.remove(&entity);
+    }
+
+    fn clear(&mut self) {
+        self.clear();
+    }
+}
+
+/*
 #[derive(Debug)]
 pub struct ComponentStorage<C> {
     data: HashMap<Entity, C>,
@@ -102,7 +125,7 @@ impl<C> ComponentStorage<C> {
         self.data.get(entity)
     }
 }
-
+*/
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -134,7 +157,7 @@ mod tests {
         let mut storage: ComponentStorage<Component1> = ComponentStorage::default();
 
         storage.insert(
-            &entity,
+            entity,
             Component1 {
                 data1: 3,
                 data2: 3.5,
@@ -142,7 +165,7 @@ mod tests {
         );
         let component = storage.get(&entity);
 
-        assert_eq!(storage.data.len(), 1);
+        assert_eq!(storage.len(), 1);
         assert_eq!(
             component,
             Some(&Component1 {
