@@ -27,7 +27,7 @@ impl Engine {
 
         'main_loop: loop {
             for s in self.systems.iter_mut() {
-                s.run(&mut self.store);
+                s.run(&self.store);
             }
 
             match scene.update(&mut self.store) {

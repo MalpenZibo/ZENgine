@@ -3,6 +3,9 @@ use crate::core::store::Resource;
 use downcast_rs::Downcast;
 use std::any::Any;
 use std::any::TypeId;
+use std::cell::Ref;
+use std::cell::RefCell;
+use std::cell::RefMut;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -10,7 +13,7 @@ pub trait Component: Any + Debug {}
 
 #[derive(Debug)]
 pub struct ComponentStorageResource {
-    storages: HashMap<TypeId, Box<dyn AnyStorage>>,
+    storages: HashMap<TypeId, RefCell<Box<dyn AnyStorage>>>,
 }
 
 impl Resource for ComponentStorageResource {}
@@ -24,20 +27,26 @@ impl Default for ComponentStorageResource {
 }
 
 impl ComponentStorageResource {
-    pub fn get<C: Component>(&self) -> Option<&ComponentStorage<C>> {
+    pub fn get<C: Component>(&self) -> Option<Ref<ComponentStorage<C>>> {
         let type_id = TypeId::of::<C>();
 
         match self.storages.get(&type_id) {
-            Some(storage) => storage.downcast_ref::<ComponentStorage<C>>(),
+            Some(storage) => Some(Ref::map(storage.borrow(), |b| {
+                b.downcast_ref::<ComponentStorage<C>>()
+                    .expect("downcast storage error")
+            })),
             None => None,
         }
     }
 
-    pub fn get_mut<C: Component>(&mut self) -> Option<&mut ComponentStorage<C>> {
+    pub fn get_mut<C: Component>(&self) -> Option<RefMut<ComponentStorage<C>>> {
         let type_id = TypeId::of::<C>();
 
-        match self.storages.get_mut(&type_id) {
-            Some(storage) => storage.downcast_mut::<ComponentStorage<C>>(),
+        match self.storages.get(&type_id) {
+            Some(storage) => Some(RefMut::map(storage.borrow_mut(), |b| {
+                b.downcast_mut::<ComponentStorage<C>>()
+                    .expect("downcast storage error")
+            })),
             None => None,
         }
     }
@@ -47,29 +56,31 @@ impl ComponentStorageResource {
 
         match self.storages.get_mut(&type_id) {
             Some(storage) => {
-                storage
-                    .downcast_mut::<ComponentStorage<C>>()
-                    .expect("downcast storage error")
-                    .insert(entity.clone(), component);
+                RefMut::map(storage.borrow_mut(), |b| {
+                    b.downcast_mut::<ComponentStorage<C>>()
+                        .expect("downcast storage error")
+                })
+                .insert(entity.clone(), component);
             }
             None => {
                 let mut storage = ComponentStorage::<C>::default();
                 storage.insert(entity.clone(), component);
 
-                self.storages.insert(type_id, Box::new(storage));
+                self.storages
+                    .insert(type_id, RefCell::new(Box::new(storage)));
             }
         }
     }
 
     pub fn delete_entity(&mut self, entity: &Entity) {
-        for s in self.storages.iter_mut() {
-            s.1.remove(entity);
+        for s in self.storages.iter() {
+            s.1.borrow_mut().remove(entity);
         }
     }
 
     pub fn delete_all(&mut self) {
         for s in self.storages.iter_mut() {
-            s.1.clear();
+            s.1.borrow_mut().clear();
         }
     }
 }

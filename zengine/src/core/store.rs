@@ -4,6 +4,8 @@ use crate::core::component_storage::ComponentStorageResource;
 use crate::core::entity::{EntitiesResource, Entity, EntityBuilder};
 use downcast_rs::Downcast;
 use std::any::TypeId;
+use std::cell::Ref;
+use std::cell::RefMut;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -67,11 +69,11 @@ impl Store {
         self.component_storage.delete_all();
     }
 
-    pub fn get_components<C: Component>(&self) -> Option<&ComponentStorage<C>> {
+    pub fn get_components<C: Component>(&self) -> Option<Ref<ComponentStorage<C>>> {
         self.component_storage.get::<C>()
     }
 
-    pub fn get_components_mut<C: Component>(&mut self) -> Option<&mut ComponentStorage<C>> {
+    pub fn get_components_mut<C: Component>(&self) -> Option<RefMut<ComponentStorage<C>>> {
         self.component_storage.get_mut::<C>()
     }
 
@@ -153,7 +155,7 @@ mod tests {
             })
             .build();
 
-        let components = store.get_component_storage::<Component1>().unwrap();
+        let components = store.get_components::<Component1>().unwrap();
         let component = components.get(&entity).unwrap();
         assert_eq!(
             component,
@@ -178,7 +180,7 @@ mod tests {
             entity = entity_builder.entity.clone();
         }
 
-        let components = store.get_component_storage::<Component1>().unwrap();
+        let components = store.get_components::<Component1>().unwrap();
         let component = components.get(&entity);
 
         assert_eq!(component, None);

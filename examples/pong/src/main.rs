@@ -83,11 +83,10 @@ impl System for System1 {
         println!("setup system 1");
     }
 
-    fn run(&mut self, store: &mut Store) {
+    fn run(&mut self, store: &Store) {
         println!("run {} system 1", self.run_count);
 
-        let c1: &mut ComponentStorage<Component1> =
-            store.get_components_mut::<Component1>().unwrap();
+        let mut c1 = store.get_components_mut::<Component1>().unwrap();
         //let c2 = store.get_components::<Component2>().unwrap();
 
         for c in c1.iter_mut() {
@@ -114,7 +113,7 @@ impl System for System2 {
         println!("setup system 2");
     }
 
-    fn run(&mut self, store: &mut Store) {
+    fn run(&mut self, store: &Store) {
         println!("run {} system 2", self.run_count);
 
         self.run_count += 1;
