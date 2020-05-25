@@ -15,21 +15,19 @@ impl Engine {
         self
     }
 
-    pub fn run<S: Scene + 'static>(mut self, mut scene: S) {
+    pub fn run<S: Scene + 'static>(&mut self, mut scene: S) {
         println!("Engine Start");
 
         println!("Init Systems");
         for s in self.systems.iter_mut() {
             s.init(&mut self.store);
         }
-
         scene.on_start(&mut self.store);
 
         'main_loop: loop {
             for s in self.systems.iter_mut() {
                 s.run(&self.store);
             }
-
             match scene.update(&mut self.store) {
                 Trans::Quit => {
                     println!("Quit transaction received");

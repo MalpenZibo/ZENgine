@@ -1,16 +1,16 @@
-use crate::core::component_storage::Component;
+use crate::core::component::Component;
 use crate::core::store::Resource;
 use crate::core::store::Store;
 use std::fmt::Debug;
 
 #[derive(Default, Debug)]
-pub struct EntitiesResource {
+pub struct Entities {
     max_id: u32,
 }
 
-impl Resource for EntitiesResource {}
+impl Resource for Entities {}
 
-impl EntitiesResource {
+impl Entities {
     pub fn create_entity(&mut self) -> Entity {
         let id = self.max_id;
         self.max_id += 1;
@@ -56,7 +56,7 @@ mod tests {
 
     #[test]
     fn create_entity() {
-        let mut er = EntitiesResource::default();
+        let mut er = Entities::default();
 
         let entity = er.create_entity();
 

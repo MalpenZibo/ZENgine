@@ -1,11 +1,11 @@
-mod component_storage;
+mod component;
 mod entity;
 mod scene;
 mod store;
-mod system;
+pub mod system;
 
-pub use self::component_storage::Component;
-pub use self::component_storage::ComponentStorage;
+pub use self::component::Component;
+pub use self::component::Components;
 pub use self::entity::Entity;
 pub use self::scene::Scene;
 pub use self::scene::Trans;
