@@ -1,3 +1,4 @@
+use crate::core::system::AnySystem;
 use crate::core::Store;
 use crate::core::System;
 use crate::core::{Scene, Trans};
@@ -5,17 +6,17 @@ use crate::core::{Scene, Trans};
 #[derive(Default)]
 pub struct Engine {
     store: Store,
-    systems: Vec<Box<dyn System>>,
+    systems: Vec<Box<dyn AnySystem>>,
 }
 
 impl Engine {
-    pub fn with_system<S: System>(mut self, system: S) -> Self {
+    pub fn with_system<S: for<'a> System<'a>>(mut self, system: S) -> Self {
         self.systems.push(Box::new(system));
 
         self
     }
 
-    pub fn run<S: Scene + 'static>(&mut self, mut scene: S) {
+    pub fn run<S: Scene + 'static>(mut self, mut scene: S) {
         println!("Engine Start");
 
         println!("Init Systems");
@@ -26,7 +27,7 @@ impl Engine {
 
         'main_loop: loop {
             for s in self.systems.iter_mut() {
-                s.run(&self.store);
+                s.run_now(&self.store);
             }
             match scene.update(&mut self.store) {
                 Trans::Quit => {

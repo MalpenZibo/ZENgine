@@ -6,11 +6,41 @@ use std::cell::Ref;
 use std::cell::RefMut;
 use std::fmt::Debug;
 
-pub trait System: Any + Debug {
+pub trait AnySystem {
     #[allow(unused_variables)]
     fn init(&mut self, store: &mut Store) {}
 
-    fn run(&mut self, store: &Store);
+    fn run_now(&mut self, store: &Store);
+
+    #[allow(unused_variables)]
+    fn dispose(&mut self, store: &mut Store) {}
+}
+
+impl<S> AnySystem for S
+where
+    S: for<'a> System<'a>,
+{
+    fn init(&mut self, store: &mut Store) {
+        self.init(store);
+    }
+
+    fn run_now(&mut self, store: &Store) {
+        let data = S::Data::get(store);
+        self.run(data);
+    }
+
+    fn dispose(&mut self, store: &mut Store) {
+        self.dispose(store);
+    }
+}
+
+pub trait System<'a>: Any + Debug {
+    type Data: Data<'a>;
+
+    #[allow(unused_variables)]
+    fn init(&mut self, store: &mut Store) {}
+
+    fn run(&mut self, data: Self::Data);
 
     #[allow(unused_variables)]
     fn dispose(&mut self, store: &mut Store) {}
@@ -18,6 +48,13 @@ pub trait System: Any + Debug {
 
 pub trait Data<'a> {
     fn get(store: &'a Store) -> Self;
+}
+
+impl<'a> Data<'a> for () {
+    #[allow(unused_variables)]
+    fn get(store: &Store) -> Self {
+        ()
+    }
 }
 
 pub type ReadSet<'a, C> = Ref<'a, Set<C>>;
@@ -35,36 +72,40 @@ impl<'a, C: Component> Data<'a> for WriteSet<'a, C> {
     }
 }
 
-#[macro_export]
-macro_rules! unpack {
-    ( $store:expr, $($ty:ident<$r:ident>),* ) => {
-        ( $( <$ty<$r> as Data>::get($store), )* )
-    };
+macro_rules! impl_data {
+    ( $($ty:ident),* ) => {
+        impl<'a, $($ty),*> Data<'a> for ( $( $ty, )* )
+            where $( $ty: Data<'a> ),*
+            {
+                fn get(store: &'a Store) -> Self {
+                    ( $( $ty::get(store), )* )
+                }
+            }
+        }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[derive(Debug)]
-    struct Test {
-        data: u32,
-    }
-    impl Component for Test {}
-
-    #[derive(Debug)]
-    struct Test2 {
-        data2: u32,
-    }
-    impl Component for Test2 {}
-
-    #[test]
-    fn test_unpack() {
-        let store = Store::default();
-
-        let (test1, test2) = unpack!(&store, ReadSet<Test>, ReadSet<Test2>);
-
-        println!("test 1 {:?}", test1);
-        println!("test 2 {:?}", test2);
-    }
-}
+impl_data!(A);
+impl_data!(A, B);
+impl_data!(A, B, C);
+impl_data!(A, B, C, D);
+impl_data!(A, B, C, D, E);
+impl_data!(A, B, C, D, E, F);
+impl_data!(A, B, C, D, E, F, G);
+impl_data!(A, B, C, D, E, F, G, H);
+impl_data!(A, B, C, D, E, F, G, H, I);
+impl_data!(A, B, C, D, E, F, G, H, I, J);
+impl_data!(A, B, C, D, E, F, G, H, I, J, K);
+impl_data!(A, B, C, D, E, F, G, H, I, J, K, L);
+impl_data!(A, B, C, D, E, F, G, H, I, J, K, L, M);
+impl_data!(A, B, C, D, E, F, G, H, I, J, K, L, M, N);
+impl_data!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O);
+impl_data!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P);
+impl_data!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q);
+impl_data!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R);
+impl_data!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S);
+impl_data!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T);
+impl_data!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U);
+impl_data!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V);
+impl_data!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W);
+impl_data!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X);
+impl_data!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y);
+impl_data!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z);

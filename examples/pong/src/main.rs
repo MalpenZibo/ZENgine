@@ -1,7 +1,6 @@
-#[macro_use]
 extern crate zengine;
 
-use zengine::core::system::{Data, ReadSet, WriteSet};
+use zengine::core::system::{ReadSet, WriteSet};
 use zengine::core::Component;
 use zengine::core::Scene;
 use zengine::core::Store;
@@ -63,20 +62,29 @@ pub struct Component2 {
 
 impl Component for Component2 {}
 
+#[derive(Debug)]
+pub struct Component3 {
+    data2: u32,
+}
+
+impl Component for Component3 {}
+
 #[derive(Debug, Default)]
 pub struct System1 {
     run_count: u32,
 }
 
-impl System for System1 {
+impl<'a> System<'a> for System1 {
+    type Data = (ReadSet<'a, Component1>, WriteSet<'a, Component2>);
+
     fn init(&mut self, store: &mut Store) {
         println!("setup system 1");
     }
 
-    fn run(&mut self, store: &Store) {
+    fn run(&mut self, data: Self::Data) {
         println!("run {} system 1", self.run_count);
 
-        let (c1, mut c2) = unpack!(store, ReadSet<Component1>, WriteSet<Component2>);
+        let (c1, mut c2) = data; //unpack!(store, );
 
         for c in c2.values_mut() {
             c.data2 += 1;
@@ -98,13 +106,17 @@ pub struct System2 {
     run_count: u32,
 }
 
-impl System for System2 {
+impl<'a> System<'a> for System2 {
+    type Data = ReadSet<'a, Component1>;
+
     fn init(&mut self, store: &mut Store) {
         println!("setup system 2");
     }
 
-    fn run(&mut self, store: &Store) {
+    fn run(&mut self, data: Self::Data) {
         println!("run {} system 2", self.run_count);
+
+        println!("data 2: {:?}", data);
 
         self.run_count += 1;
     }
