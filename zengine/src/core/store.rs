@@ -1,7 +1,7 @@
 use crate::core::component::Component;
-use crate::core::component::Components;
+use crate::core::component::ComponentsResource;
 use crate::core::component::Set;
-use crate::core::entity::{Entities, Entity, EntityBuilder};
+use crate::core::entity::{EntitiesResource, Entity, EntityBuilder};
 use downcast_rs::Downcast;
 use std::any::TypeId;
 use std::cell::Ref;
@@ -15,16 +15,16 @@ downcast_rs::impl_downcast!(Resource);
 
 #[derive(Debug)]
 pub struct Store {
-    entities: Entities,
-    components: Components,
+    entities: EntitiesResource,
+    components: ComponentsResource,
     resources: HashMap<TypeId, RefCell<Box<dyn Resource>>>,
 }
 
 impl Default for Store {
     fn default() -> Self {
         Store {
-            entities: Entities::default(),
-            components: Components::default(),
+            entities: EntitiesResource::default(),
+            components: ComponentsResource::default(),
             resources: HashMap::new(),
         }
     }
@@ -42,7 +42,7 @@ impl Store {
         }
     }
 
-    pub fn get_resource_mut<R: Resource>(&mut self) -> Option<RefMut<R>> {
+    pub fn get_resource_mut<R: Resource>(&self) -> Option<RefMut<R>> {
         let type_id = TypeId::of::<R>();
 
         match self.resources.get(&type_id) {
@@ -51,6 +51,10 @@ impl Store {
             })),
             None => None,
         }
+    }
+
+    pub fn get_entities(&self) -> &EntitiesResource {
+        &self.entities
     }
 
     pub fn insert_resource<R: Resource>(&mut self, res: R) {

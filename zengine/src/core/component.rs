@@ -12,21 +12,21 @@ use std::fmt::Debug;
 pub trait Component: Any + Debug {}
 
 #[derive(Debug)]
-pub struct Components {
+pub struct ComponentsResource {
     storages: HashMap<TypeId, RefCell<Box<dyn AnySet>>>,
 }
 
-impl Resource for Components {}
+impl Resource for ComponentsResource {}
 
-impl Default for Components {
+impl Default for ComponentsResource {
     fn default() -> Self {
-        Components {
+        ComponentsResource {
             storages: HashMap::new(),
         }
     }
 }
 
-impl Components {
+impl ComponentsResource {
     pub fn get<C: Component>(&self) -> Option<Ref<Set<C>>> {
         let type_id = TypeId::of::<C>();
 

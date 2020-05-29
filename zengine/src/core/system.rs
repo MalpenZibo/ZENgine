@@ -1,5 +1,7 @@
 use crate::core::component::Component;
 use crate::core::component::Set;
+use crate::core::entity::EntitiesResource;
+use crate::core::store::Resource;
 use crate::core::store::Store;
 use std::any::Any;
 use std::cell::Ref;
@@ -57,8 +59,29 @@ impl<'a> Data<'a> for () {
     }
 }
 
+pub type Entities<'a> = &'a EntitiesResource;
+pub type Read<'a, R> = Ref<'a, R>;
+pub type Write<'a, R> = RefMut<'a, R>;
 pub type ReadSet<'a, C> = Ref<'a, Set<C>>;
 pub type WriteSet<'a, C> = RefMut<'a, Set<C>>;
+
+impl<'a> Data<'a> for Entities<'a> {
+    fn get(store: &'a Store) -> Self {
+        store.get_entities()
+    }
+}
+
+impl<'a, R: Resource> Data<'a> for Read<'a, R> {
+    fn get(store: &'a Store) -> Self {
+        store.get_resource::<R>().unwrap()
+    }
+}
+
+impl<'a, R: Resource> Data<'a> for Write<'a, R> {
+    fn get(store: &'a Store) -> Self {
+        store.get_resource_mut::<R>().unwrap()
+    }
+}
 
 impl<'a, C: Component> Data<'a> for ReadSet<'a, C> {
     fn get(store: &'a Store) -> Self {
