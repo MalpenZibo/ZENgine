@@ -1,9 +1,12 @@
-use crate::core::component_storage::Component;
-use crate::core::component_storage::ComponentStorage;
-use crate::core::component_storage::ComponentStorageResource;
+use crate::core::component::Component;
+use crate::core::component::ComponentsResource;
+use crate::core::component::Set;
 use crate::core::entity::{EntitiesResource, Entity, EntityBuilder};
 use downcast_rs::Downcast;
 use std::any::TypeId;
+use std::cell::Ref;
+use std::cell::RefCell;
+use std::cell::RefMut;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -13,42 +16,50 @@ downcast_rs::impl_downcast!(Resource);
 #[derive(Debug)]
 pub struct Store {
     entities: EntitiesResource,
-    component_storage: ComponentStorageResource,
-    resources: HashMap<TypeId, Box<dyn Resource>>,
+    components: ComponentsResource,
+    resources: HashMap<TypeId, RefCell<Box<dyn Resource>>>,
 }
 
 impl Default for Store {
     fn default() -> Self {
         Store {
             entities: EntitiesResource::default(),
-            component_storage: ComponentStorageResource::default(),
+            components: ComponentsResource::default(),
             resources: HashMap::new(),
         }
     }
 }
 
 impl Store {
-    pub fn get_resource<R: Resource>(&self) -> Option<&R> {
+    pub fn get_resource<R: Resource>(&self) -> Option<Ref<R>> {
         let type_id = TypeId::of::<R>();
 
         match self.resources.get(&type_id) {
-            Some(res) => res.downcast_ref::<R>(),
+            Some(res) => Some(Ref::map(res.borrow(), |b| {
+                b.downcast_ref::<R>().expect("downcast resource error")
+            })),
             None => None,
         }
     }
 
-    pub fn get_resource_mut<R: Resource>(&mut self) -> Option<&mut R> {
+    pub fn get_resource_mut<R: Resource>(&self) -> Option<RefMut<R>> {
         let type_id = TypeId::of::<R>();
 
-        match self.resources.get_mut(&type_id) {
-            Some(res) => res.downcast_mut::<R>(),
+        match self.resources.get(&type_id) {
+            Some(res) => Some(RefMut::map(res.borrow_mut(), |b| {
+                b.downcast_mut::<R>().expect("downcast resource error")
+            })),
             None => None,
         }
+    }
+
+    pub fn get_entities(&self) -> &EntitiesResource {
+        &self.entities
     }
 
     pub fn insert_resource<R: Resource>(&mut self, res: R) {
         let type_id = TypeId::of::<R>();
-        self.resources.insert(type_id, Box::new(res));
+        self.resources.insert(type_id, RefCell::new(Box::new(res)));
     }
 
     pub fn build_entity(&mut self) -> EntityBuilder {
@@ -60,19 +71,23 @@ impl Store {
     }
 
     pub fn delete_entity(&mut self, entity: &Entity) {
-        self.component_storage.delete_entity(entity);
+        self.components.delete_entity(entity);
     }
 
     pub fn delete_all(&mut self) {
-        self.component_storage.delete_all();
+        self.components.delete_all();
     }
 
-    pub fn get_component_storage<C: Component>(&self) -> Option<&ComponentStorage<C>> {
-        self.component_storage.get::<C>()
+    pub fn get_components<C: Component>(&self) -> Option<Ref<Set<C>>> {
+        self.components.get::<C>()
+    }
+
+    pub fn get_components_mut<C: Component>(&self) -> Option<RefMut<Set<C>>> {
+        self.components.get_mut::<C>()
     }
 
     pub fn insert_component<C: Component>(&mut self, entity: &Entity, component: C) {
-        self.component_storage.add_component(entity, component);
+        self.components.add_component(entity, component);
     }
 }
 
@@ -113,7 +128,7 @@ mod tests {
 
         store.insert_resource(Resource1 { possible_data: 3 });
 
-        let immut_res: &Resource1 = store.get_resource().unwrap();
+        let immut_res: Ref<Resource1> = store.get_resource().unwrap();
 
         assert_eq!(immut_res.double_data(), 6);
     }
@@ -124,7 +139,7 @@ mod tests {
 
         store.insert_resource(Resource1 { possible_data: 3 });
 
-        let mut_res: &mut Resource1 = store.get_resource_mut().unwrap();
+        let mut mut_res: RefMut<Resource1> = store.get_resource_mut().unwrap();
 
         assert_eq!(mut_res.change_data(8), 8);
     }
@@ -149,7 +164,7 @@ mod tests {
             })
             .build();
 
-        let components = store.get_component_storage::<Component1>().unwrap();
+        let components = store.get_components::<Component1>().unwrap();
         let component = components.get(&entity).unwrap();
         assert_eq!(
             component,
@@ -174,7 +189,7 @@ mod tests {
             entity = entity_builder.entity.clone();
         }
 
-        let components = store.get_component_storage::<Component1>().unwrap();
+        let components = store.get_components::<Component1>().unwrap();
         let component = components.get(&entity);
 
         assert_eq!(component, None);

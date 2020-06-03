@@ -1,4 +1,4 @@
-use crate::core::component_storage::Component;
+use crate::core::component::Component;
 use crate::core::store::Resource;
 use crate::core::store::Store;
 use std::fmt::Debug;

@@ -3,32 +3,48 @@ use crate::core::store::Resource;
 use downcast_rs::Downcast;
 use std::any::Any;
 use std::any::TypeId;
+use std::cell::Ref;
+use std::cell::RefCell;
+use std::cell::RefMut;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
 pub trait Component: Any + Debug {}
 
 #[derive(Debug)]
-pub struct ComponentStorageResource {
-    storages: HashMap<TypeId, Box<dyn AnyStorage>>,
+pub struct ComponentsResource {
+    storages: HashMap<TypeId, RefCell<Box<dyn AnySet>>>,
 }
 
-impl Resource for ComponentStorageResource {}
+impl Resource for ComponentsResource {}
 
-impl Default for ComponentStorageResource {
+impl Default for ComponentsResource {
     fn default() -> Self {
-        ComponentStorageResource {
+        ComponentsResource {
             storages: HashMap::new(),
         }
     }
 }
 
-impl ComponentStorageResource {
-    pub fn get<C: Component>(&self) -> Option<&ComponentStorage<C>> {
+impl ComponentsResource {
+    pub fn get<C: Component>(&self) -> Option<Ref<Set<C>>> {
         let type_id = TypeId::of::<C>();
 
         match self.storages.get(&type_id) {
-            Some(storage) => storage.downcast_ref::<ComponentStorage<C>>(),
+            Some(storage) => Some(Ref::map(storage.borrow(), |b| {
+                b.downcast_ref::<Set<C>>().expect("downcast set error")
+            })),
+            None => None,
+        }
+    }
+
+    pub fn get_mut<C: Component>(&self) -> Option<RefMut<Set<C>>> {
+        let type_id = TypeId::of::<C>();
+
+        match self.storages.get(&type_id) {
+            Some(storage) => Some(RefMut::map(storage.borrow_mut(), |b| {
+                b.downcast_mut::<Set<C>>().expect("downcast set error")
+            })),
             None => None,
         }
     }
@@ -37,69 +53,50 @@ impl ComponentStorageResource {
         let type_id = TypeId::of::<C>();
 
         match self.storages.get_mut(&type_id) {
-            Some(storage) => storage
-                .downcast_mut::<ComponentStorage<C>>()
-                .expect("downcast storage error")
-                .insert(entity, component),
+            Some(storage) => {
+                RefMut::map(storage.borrow_mut(), |b| {
+                    b.downcast_mut::<Set<C>>().expect("downcast set error")
+                })
+                .insert(entity.clone(), component);
+            }
             None => {
-                let mut storage = ComponentStorage::<C>::default();
-                storage.insert(entity, component);
+                let mut storage = Set::<C>::default();
+                storage.insert(entity.clone(), component);
 
-                self.storages.insert(type_id, Box::new(storage));
+                self.storages
+                    .insert(type_id, RefCell::new(Box::new(storage)));
             }
         }
     }
 
     pub fn delete_entity(&mut self, entity: &Entity) {
-        for s in self.storages.iter_mut() {
-            s.1.remove(entity);
+        for s in self.storages.iter() {
+            s.1.borrow_mut().remove(entity);
         }
     }
 
     pub fn delete_all(&mut self) {
         for s in self.storages.iter_mut() {
-            s.1.clear();
+            s.1.borrow_mut().clear();
         }
     }
 }
 
-pub trait AnyStorage: Downcast + Debug {
+pub trait AnySet: Downcast + Debug {
     fn remove(&mut self, entity: &Entity);
 
     fn clear(&mut self);
 }
-downcast_rs::impl_downcast!(AnyStorage);
+downcast_rs::impl_downcast!(AnySet);
 
-#[derive(Debug)]
-pub struct ComponentStorage<C> {
-    data: HashMap<Entity, C>,
-}
-
-impl<C> Default for ComponentStorage<C> {
-    fn default() -> Self {
-        ComponentStorage {
-            data: HashMap::new(),
-        }
-    }
-}
-
-impl<C: Component> AnyStorage for ComponentStorage<C> {
+pub type Set<C> = HashMap<Entity, C>;
+impl<C: Component> AnySet for Set<C> {
     fn remove(&mut self, entity: &Entity) {
-        self.data.remove(&entity);
+        self.remove(&entity);
     }
 
     fn clear(&mut self) {
-        self.data.clear();
-    }
-}
-
-impl<C> ComponentStorage<C> {
-    pub fn insert(&mut self, entity: &Entity, data: C) {
-        self.data.insert(entity.clone(), data);
-    }
-
-    pub fn get(&self, entity: &Entity) -> Option<&C> {
-        self.data.get(entity)
+        self.clear();
     }
 }
 
@@ -121,7 +118,7 @@ mod tests {
         let mut store = Store::default();
         let entity = store.build_entity().build();
 
-        let storage: ComponentStorage<Component1> = ComponentStorage::default();
+        let storage: Set<Component1> = Set::default();
         let component = storage.get(&entity);
 
         assert_eq!(component, None);
@@ -131,10 +128,10 @@ mod tests {
     fn insert_and_get_from_storage() {
         let mut store = Store::default();
         let entity = store.build_entity().build();
-        let mut storage: ComponentStorage<Component1> = ComponentStorage::default();
+        let mut storage: Set<Component1> = Set::default();
 
         storage.insert(
-            &entity,
+            entity,
             Component1 {
                 data1: 3,
                 data2: 3.5,
@@ -142,7 +139,7 @@ mod tests {
         );
         let component = storage.get(&entity);
 
-        assert_eq!(storage.data.len(), 1);
+        assert_eq!(storage.len(), 1);
         assert_eq!(
             component,
             Some(&Component1 {
