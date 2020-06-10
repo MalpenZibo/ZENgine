@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use fnv::FnvHashMap;
 use std::ffi::CString;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -17,7 +17,7 @@ fn create_whitespace_cstring_with_len(len: usize) -> CString {
 static IS_SHADER_MANAGER_ALIVE: AtomicBool = AtomicBool::new(false);
 
 pub struct ShaderManager {
-    shaders: HashMap<String, Shader>,
+    shaders: FnvHashMap<String, Shader>,
 }
 
 impl ShaderManager {
@@ -26,7 +26,7 @@ impl ShaderManager {
 
         if !was_alive {
             ShaderManager {
-                shaders: HashMap::new(),
+                shaders: FnvHashMap::default(),
             }
         } else {
             panic!("Cannot create two instance of AssetManager");
@@ -37,8 +37,8 @@ impl ShaderManager {
         let mut shader = Shader {
             name: String::from(name),
             program: 0,
-            attributes: HashMap::new(),
-            uniforms: HashMap::new(),
+            attributes: FnvHashMap::default(),
+            uniforms: FnvHashMap::default(),
         };
 
         shader.load(
@@ -62,8 +62,8 @@ impl ShaderManager {
 pub struct Shader {
     pub name: String,
     pub program: u32,
-    attributes: HashMap<String, u32>,
-    uniforms: HashMap<String, i32>,
+    attributes: FnvHashMap<String, u32>,
+    uniforms: FnvHashMap<String, i32>,
 }
 
 impl Drop for Shader {
