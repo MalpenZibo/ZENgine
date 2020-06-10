@@ -1,19 +1,19 @@
 use crate::core::entity::Entity;
 use crate::core::store::Resource;
 use downcast_rs::Downcast;
+use fnv::FnvHashMap;
 use std::any::Any;
 use std::any::TypeId;
 use std::cell::Ref;
 use std::cell::RefCell;
 use std::cell::RefMut;
-use std::collections::HashMap;
 use std::fmt::Debug;
 
 pub trait Component: Any + Debug {}
 
 #[derive(Debug)]
 pub struct ComponentsResource {
-    storages: HashMap<TypeId, RefCell<Box<dyn AnySet>>>,
+    storages: FnvHashMap<TypeId, RefCell<Box<dyn AnySet>>>,
 }
 
 impl Resource for ComponentsResource {}
@@ -21,7 +21,7 @@ impl Resource for ComponentsResource {}
 impl Default for ComponentsResource {
     fn default() -> Self {
         ComponentsResource {
-            storages: HashMap::new(),
+            storages: FnvHashMap::default(),
         }
     }
 }
@@ -89,7 +89,7 @@ pub trait AnySet: Downcast + Debug {
 }
 downcast_rs::impl_downcast!(AnySet);
 
-pub type Set<C> = HashMap<Entity, C>;
+pub type Set<C> = FnvHashMap<Entity, C>;
 impl<C: Component> AnySet for Set<C> {
     fn remove(&mut self, entity: &Entity) {
         self.remove(&entity);

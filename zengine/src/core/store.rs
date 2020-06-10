@@ -3,11 +3,11 @@ use crate::core::component::ComponentsResource;
 use crate::core::component::Set;
 use crate::core::entity::{EntitiesResource, Entity, EntityBuilder};
 use downcast_rs::Downcast;
+use fnv::FnvHashMap;
 use std::any::TypeId;
 use std::cell::Ref;
 use std::cell::RefCell;
 use std::cell::RefMut;
-use std::collections::HashMap;
 use std::fmt::Debug;
 
 pub trait Resource: Downcast + Debug + 'static {}
@@ -17,7 +17,7 @@ downcast_rs::impl_downcast!(Resource);
 pub struct Store {
     entities: EntitiesResource,
     components: ComponentsResource,
-    resources: HashMap<TypeId, RefCell<Box<dyn Resource>>>,
+    resources: FnvHashMap<TypeId, RefCell<Box<dyn Resource>>>,
 }
 
 impl Default for Store {
@@ -25,7 +25,7 @@ impl Default for Store {
         Store {
             entities: EntitiesResource::default(),
             components: ComponentsResource::default(),
-            resources: HashMap::new(),
+            resources: FnvHashMap::default(),
         }
     }
 }
