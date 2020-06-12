@@ -1,6 +1,6 @@
 use crate::core::component::Component;
 use crate::core::component::Set;
-use crate::core::entity::EntitiesResource;
+use crate::core::entity::Entities;
 use crate::core::store::Resource;
 use crate::core::store::Store;
 use std::any::Any;
@@ -27,7 +27,7 @@ where
     }
 
     fn run_now(&mut self, store: &Store) {
-        let data = S::Data::get(store);
+        let data = S::Data::fetch(store);
         self.run(data);
     }
 
@@ -49,48 +49,48 @@ pub trait System<'a>: Any + Debug {
 }
 
 pub trait Data<'a> {
-    fn get(store: &'a Store) -> Self;
+    fn fetch(store: &'a Store) -> Self;
 }
 
 impl<'a> Data<'a> for () {
     #[allow(unused_variables)]
-    fn get(store: &Store) -> Self {
+    fn fetch(store: &Store) -> Self {
         ()
     }
 }
 
-pub type Entities<'a> = &'a EntitiesResource;
+pub type ReadEntities<'a> = &'a Entities;
 pub type Read<'a, R> = Ref<'a, R>;
 pub type Write<'a, R> = RefMut<'a, R>;
 pub type ReadSet<'a, C> = Ref<'a, Set<C>>;
 pub type WriteSet<'a, C> = RefMut<'a, Set<C>>;
 
-impl<'a> Data<'a> for Entities<'a> {
-    fn get(store: &'a Store) -> Self {
+impl<'a> Data<'a> for ReadEntities<'a> {
+    fn fetch(store: &'a Store) -> Self {
         store.get_entities()
     }
 }
 
 impl<'a, R: Resource> Data<'a> for Read<'a, R> {
-    fn get(store: &'a Store) -> Self {
+    fn fetch(store: &'a Store) -> Self {
         store.get_resource::<R>().unwrap()
     }
 }
 
 impl<'a, R: Resource> Data<'a> for Write<'a, R> {
-    fn get(store: &'a Store) -> Self {
+    fn fetch(store: &'a Store) -> Self {
         store.get_resource_mut::<R>().unwrap()
     }
 }
 
 impl<'a, C: Component> Data<'a> for ReadSet<'a, C> {
-    fn get(store: &'a Store) -> Self {
+    fn fetch(store: &'a Store) -> Self {
         store.get_components::<C>().unwrap()
     }
 }
 
 impl<'a, C: Component> Data<'a> for WriteSet<'a, C> {
-    fn get(store: &'a Store) -> Self {
+    fn fetch(store: &'a Store) -> Self {
         store.get_components_mut::<C>().unwrap()
     }
 }
@@ -100,8 +100,8 @@ macro_rules! impl_data {
         impl<'a, $($ty),*> Data<'a> for ( $( $ty, )* )
             where $( $ty: Data<'a> ),*
             {
-                fn get(store: &'a Store) -> Self {
-                    ( $( $ty::get(store), )* )
+                fn fetch(store: &'a Store) -> Self {
+                    ( $( $ty::fetch(store), )* )
                 }
             }
         }

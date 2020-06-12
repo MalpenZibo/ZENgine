@@ -12,21 +12,21 @@ use std::fmt::Debug;
 pub trait Component: Any + Debug {}
 
 #[derive(Debug)]
-pub struct ComponentsResource {
+pub struct Components {
     storages: FnvHashMap<TypeId, RefCell<Box<dyn AnySet>>>,
 }
 
-impl Resource for ComponentsResource {}
+impl Resource for Components {}
 
-impl Default for ComponentsResource {
+impl Default for Components {
     fn default() -> Self {
-        ComponentsResource {
+        Components {
             storages: FnvHashMap::default(),
         }
     }
 }
 
-impl ComponentsResource {
+impl Components {
     pub fn get<C: Component>(&self) -> Option<Ref<Set<C>>> {
         let type_id = TypeId::of::<C>();
 
@@ -49,7 +49,7 @@ impl ComponentsResource {
         }
     }
 
-    pub fn add_component<C: Component>(&mut self, entity: &Entity, component: C) {
+    pub fn insert_component<C: Component>(&mut self, entity: &Entity, component: C) {
         let type_id = TypeId::of::<C>();
 
         match self.storages.get_mut(&type_id) {
@@ -69,13 +69,13 @@ impl ComponentsResource {
         }
     }
 
-    pub fn delete_entity(&mut self, entity: &Entity) {
+    pub fn remove_entity(&mut self, entity: &Entity) {
         for s in self.storages.iter() {
             s.1.borrow_mut().remove(entity);
         }
     }
 
-    pub fn delete_all(&mut self) {
+    pub fn clear(&mut self) {
         for s in self.storages.iter_mut() {
             s.1.borrow_mut().clear();
         }

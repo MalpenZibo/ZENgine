@@ -1,7 +1,7 @@
 use crate::core::component::Component;
-use crate::core::component::ComponentsResource;
+use crate::core::component::Components;
 use crate::core::component::Set;
-use crate::core::entity::{EntitiesResource, Entity, EntityBuilder};
+use crate::core::entity::{Entities, Entity, EntityBuilder};
 use downcast_rs::Downcast;
 use fnv::FnvHashMap;
 use std::any::TypeId;
@@ -15,16 +15,16 @@ downcast_rs::impl_downcast!(Resource);
 
 #[derive(Debug)]
 pub struct Store {
-    entities: EntitiesResource,
-    components: ComponentsResource,
+    entities: Entities,
+    components: Components,
     resources: FnvHashMap<TypeId, RefCell<Box<dyn Resource>>>,
 }
 
 impl Default for Store {
     fn default() -> Self {
         Store {
-            entities: EntitiesResource::default(),
-            components: ComponentsResource::default(),
+            entities: Entities::default(),
+            components: Components::default(),
             resources: FnvHashMap::default(),
         }
     }
@@ -53,7 +53,7 @@ impl Store {
         }
     }
 
-    pub fn get_entities(&self) -> &EntitiesResource {
+    pub fn get_entities(&self) -> &Entities {
         &self.entities
     }
 
@@ -70,12 +70,12 @@ impl Store {
         }
     }
 
-    pub fn delete_entity(&mut self, entity: &Entity) {
-        self.components.delete_entity(entity);
+    pub fn remove_entity(&mut self, entity: &Entity) {
+        self.components.remove_entity(entity);
     }
 
     pub fn delete_all(&mut self) {
-        self.components.delete_all();
+        self.components.clear();
     }
 
     pub fn get_components<C: Component>(&self) -> Option<Ref<Set<C>>> {
@@ -87,7 +87,7 @@ impl Store {
     }
 
     pub fn insert_component<C: Component>(&mut self, entity: &Entity, component: C) {
-        self.components.add_component(entity, component);
+        self.components.insert_component(entity, component);
     }
 }
 
