@@ -69,6 +69,15 @@ impl Components {
         }
     }
 
+    pub fn register_component<C: Component>(&mut self) {
+        let type_id = TypeId::of::<C>();
+
+        if self.storages.get(&type_id).is_none() {
+            self.storages
+                .insert(type_id, RefCell::new(Box::new(Set::<C>::default())));
+        }
+    }
+
     pub fn remove_entity(&mut self, entity: &Entity) {
         for s in self.storages.iter() {
             s.1.borrow_mut().remove(entity);
