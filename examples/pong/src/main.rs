@@ -13,7 +13,7 @@ fn main() {
     Engine::default()
         .with_system(System1::default())
         .with_system(System2::default())
-        .with_system(FrameLimiter::new(60))
+        .with_system(FrameLimiter::new(1))
         .run(Game {
             execution_numer: 10,
         });

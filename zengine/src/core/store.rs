@@ -57,7 +57,7 @@ impl Store {
         &self.entities
     }
 
-    pub fn insert_resource<R: Resource>(&mut self, res: R) {
+    pub fn insert_resource<R: Resource + Default>(&mut self, res: R) {
         let type_id = TypeId::of::<R>();
         self.resources.insert(type_id, RefCell::new(Box::new(res)));
     }
@@ -89,13 +89,17 @@ impl Store {
     pub fn insert_component<C: Component>(&mut self, entity: &Entity, component: C) {
         self.components.insert_component(entity, component);
     }
+
+    pub fn register_component<C: Component>(&mut self) {
+        self.components.register_component::<C>();
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[derive(Debug)]
+    #[derive(Debug, Default)]
     struct Resource1 {
         possible_data: i32,
     }

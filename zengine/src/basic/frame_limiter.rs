@@ -5,7 +5,7 @@ use crate::core::Store;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Delta(f32);
 impl Resource for Delta {}
 
@@ -40,7 +40,6 @@ impl<'a> System<'a> for FrameLimiter {
     type Data = Write<'a, Delta>;
 
     fn init(&mut self, store: &mut Store) {
-        store.insert_resource(Delta(0.0));
         self.last_call = Instant::now();
     }
 

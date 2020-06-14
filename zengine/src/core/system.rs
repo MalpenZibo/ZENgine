@@ -23,6 +23,7 @@ where
     S: for<'a> System<'a>,
 {
     fn init(&mut self, store: &mut Store) {
+        S::Data::setup(store);
         self.init(store);
     }
 
@@ -49,12 +50,16 @@ pub trait System<'a>: Any + Debug {
 }
 
 pub trait Data<'a> {
+    fn setup(store: &mut Store);
+
     fn fetch(store: &'a Store) -> Self;
 }
 
 impl<'a> Data<'a> for () {
+    fn setup(store: &mut Store) {}
+
     #[allow(unused_variables)]
-    fn fetch(store: &Store) -> Self {
+    fn fetch(store: &'a Store) -> Self {
         ()
     }
 }
@@ -66,30 +71,52 @@ pub type ReadSet<'a, C> = Ref<'a, Set<C>>;
 pub type WriteSet<'a, C> = RefMut<'a, Set<C>>;
 
 impl<'a> Data<'a> for ReadEntities<'a> {
+    fn setup(store: &mut Store) {}
+
     fn fetch(store: &'a Store) -> Self {
         store.get_entities()
     }
 }
 
-impl<'a, R: Resource> Data<'a> for Read<'a, R> {
+impl<'a, R: Resource + Default> Data<'a> for Read<'a, R> {
+    fn setup(store: &mut Store) {
+        if store.get_resource::<R>().is_none() {
+            store.insert_resource::<R>(R::default())
+        }
+    }
+
     fn fetch(store: &'a Store) -> Self {
         store.get_resource::<R>().unwrap()
     }
 }
 
-impl<'a, R: Resource> Data<'a> for Write<'a, R> {
+impl<'a, R: Resource + Default> Data<'a> for Write<'a, R> {
+    fn setup(store: &mut Store) {
+        if store.get_resource::<R>().is_none() {
+            store.insert_resource::<R>(R::default())
+        }
+    }
+
     fn fetch(store: &'a Store) -> Self {
         store.get_resource_mut::<R>().unwrap()
     }
 }
 
 impl<'a, C: Component> Data<'a> for ReadSet<'a, C> {
+    fn setup(store: &mut Store) {
+        store.register_component::<C>()
+    }
+
     fn fetch(store: &'a Store) -> Self {
         store.get_components::<C>().unwrap()
     }
 }
 
 impl<'a, C: Component> Data<'a> for WriteSet<'a, C> {
+    fn setup(store: &mut Store) {
+        store.register_component::<C>()
+    }
+
     fn fetch(store: &'a Store) -> Self {
         store.get_components_mut::<C>().unwrap()
     }
@@ -100,6 +127,10 @@ macro_rules! impl_data {
         impl<'a, $($ty),*> Data<'a> for ( $( $ty, )* )
             where $( $ty: Data<'a> ),*
             {
+                fn setup(store: &mut Store) {
+                    $( $ty::setup(store); )*
+                }
+
                 fn fetch(store: &'a Store) -> Self {
                     ( $( $ty::fetch(store), )* )
                 }
