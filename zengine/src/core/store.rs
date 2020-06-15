@@ -8,12 +8,12 @@ use std::any::TypeId;
 use std::cell::Ref;
 use std::cell::RefCell;
 use std::cell::RefMut;
-use std::fmt::Debug;
 
-pub trait Resource: Downcast + Debug + 'static {}
+pub trait Resource: Downcast + 'static {}
 downcast_rs::impl_downcast!(Resource);
 
-#[derive(Debug)]
+pub trait DefaultResource: Resource {}
+
 pub struct Store {
     entities: Entities,
     components: Components,
@@ -57,7 +57,7 @@ impl Store {
         &self.entities
     }
 
-    pub fn insert_resource<R: Resource + Default>(&mut self, res: R) {
+    pub fn insert_resource<R: Resource>(&mut self, res: R) {
         let type_id = TypeId::of::<R>();
         self.resources.insert(type_id, RefCell::new(Box::new(res)));
     }
