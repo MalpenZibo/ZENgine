@@ -6,19 +6,21 @@ use std::thread::sleep;
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Default)]
-pub struct Delta(f32);
-impl Resource for Delta {}
+pub struct Time {
+    delta: f32,
+}
+impl Resource for Time {}
 
 #[derive(Debug)]
-pub struct FrameLimiter {
+pub struct FrameLimiterSystem {
     fps: u32,
     last_call: Instant,
     frame_duration: Duration,
 }
 
-impl FrameLimiter {
+impl FrameLimiterSystem {
     pub fn new(fps: u32) -> Self {
-        FrameLimiter {
+        FrameLimiterSystem {
             fps: fps,
             last_call: Instant::now(),
             frame_duration: Duration::from_secs(1) / fps,
@@ -26,9 +28,9 @@ impl FrameLimiter {
     }
 }
 
-impl Default for FrameLimiter {
+impl Default for FrameLimiterSystem {
     fn default() -> Self {
-        FrameLimiter {
+        FrameLimiterSystem {
             fps: 60,
             last_call: Instant::now(),
             frame_duration: Duration::from_secs(1) / 60,
@@ -36,8 +38,8 @@ impl Default for FrameLimiter {
     }
 }
 
-impl<'a> System<'a> for FrameLimiter {
-    type Data = Write<'a, Delta>;
+impl<'a> System<'a> for FrameLimiterSystem {
+    type Data = Write<'a, Time>;
 
     fn init(&mut self, store: &mut Store) {
         self.last_call = Instant::now();
@@ -52,7 +54,7 @@ impl<'a> System<'a> for FrameLimiter {
         }
 
         let finish = Instant::now();
-        data.0 = finish.duration_since(self.last_call).as_secs_f32();
+        data.delta = finish.duration_since(self.last_call).as_secs_f32();
         self.last_call = finish;
 
         /*

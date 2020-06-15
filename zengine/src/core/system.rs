@@ -1,12 +1,12 @@
 use crate::core::component::Component;
 use crate::core::component::Set;
 use crate::core::entity::Entities;
+use crate::core::store::DefaultResource;
 use crate::core::store::Resource;
 use crate::core::store::Store;
 use std::any::Any;
 use std::cell::Ref;
 use std::cell::RefMut;
-use std::fmt::Debug;
 
 pub trait AnySystem {
     #[allow(unused_variables)]
@@ -37,7 +37,7 @@ where
     }
 }
 
-pub trait System<'a>: Any + Debug {
+pub trait System<'a>: Any {
     type Data: Data<'a>;
 
     #[allow(unused_variables)]
@@ -67,6 +67,8 @@ impl<'a> Data<'a> for () {
 pub type ReadEntities<'a> = &'a Entities;
 pub type Read<'a, R> = Ref<'a, R>;
 pub type Write<'a, R> = RefMut<'a, R>;
+pub type ReadOption<'a, R> = Option<Ref<'a, R>>;
+pub type WriteOption<'a, R> = Option<RefMut<'a, R>>;
 pub type ReadSet<'a, C> = Ref<'a, Set<C>>;
 pub type WriteSet<'a, C> = RefMut<'a, Set<C>>;
 
@@ -99,6 +101,22 @@ impl<'a, R: Resource + Default> Data<'a> for Write<'a, R> {
 
     fn fetch(store: &'a Store) -> Self {
         store.get_resource_mut::<R>().unwrap()
+    }
+}
+
+impl<'a, R: Resource> Data<'a> for ReadOption<'a, R> {
+    fn setup(store: &mut Store) {}
+
+    fn fetch(store: &'a Store) -> Self {
+        store.get_resource::<R>()
+    }
+}
+
+impl<'a, R: Resource> Data<'a> for WriteOption<'a, R> {
+    fn setup(store: &mut Store) {}
+
+    fn fetch(store: &'a Store) -> Self {
+        store.get_resource_mut::<R>()
     }
 }
 

@@ -1,6 +1,7 @@
 extern crate zengine;
 
-use zengine::basic::frame_limiter::FrameLimiter;
+use zengine::basic::frame_limiter::FrameLimiterSystem;
+use zengine::basic::platform::{EventPumpSystem, WindowSystem};
 use zengine::core::system::{ReadSet, WriteSet};
 use zengine::core::Component;
 use zengine::core::Scene;
@@ -11,9 +12,11 @@ use zengine::Engine;
 
 fn main() {
     Engine::default()
+        .with_system(EventPumpSystem::default())
         .with_system(System1::default())
         .with_system(System2::default())
-        .with_system(FrameLimiter::new(1))
+        .with_system(WindowSystem::default())
+        .with_system(FrameLimiterSystem::new(1))
         .run(Game {
             execution_numer: 10,
         });
