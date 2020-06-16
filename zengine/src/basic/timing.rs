@@ -2,6 +2,7 @@ use crate::core::system::System;
 use crate::core::system::Write;
 use crate::core::Resource;
 use crate::core::Store;
+use log::trace;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
@@ -87,6 +88,6 @@ impl<'a> System<'a> for TimingSystem {
         data.delta = elapsed;
         self.last_call = finish;
 
-        //println!("time: {:?}", data);
+        trace!("time: {:?}", data);
     }
 }
