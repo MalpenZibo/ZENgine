@@ -1,7 +1,11 @@
+extern crate log_panics;
+
 use crate::core::system::AnySystem;
 use crate::core::Store;
 use crate::core::System;
 use crate::core::{Scene, Trans};
+use log::info;
+use simplelog::{Config, LevelFilter, SimpleLogger, TermLogger, TerminalMode};
 
 #[derive(Default)]
 pub struct Engine {
@@ -10,6 +14,15 @@ pub struct Engine {
 }
 
 impl Engine {
+    pub fn init_logger(level_filter: LevelFilter) {
+        if let Err(_) = TermLogger::init(level_filter, Config::default(), TerminalMode::Mixed) {
+            SimpleLogger::init(level_filter, Config::default())
+                .expect("An error occurred on logger initialization")
+        }
+
+        log_panics::init();
+    }
+
     pub fn with_system<S: for<'a> System<'a>>(mut self, system: S) -> Self {
         self.systems.push(Box::new(system));
 
@@ -17,12 +30,13 @@ impl Engine {
     }
 
     pub fn run<S: Scene + 'static>(mut self, mut scene: S) {
-        println!("Engine Start");
+        info!("Engine Start");
 
-        println!("Init Systems");
+        info!("Init Systems");
         for s in self.systems.iter_mut() {
             s.init(&mut self.store);
         }
+        info!("Scene Start");
         scene.on_start(&mut self.store);
 
         'main_loop: loop {
@@ -31,21 +45,22 @@ impl Engine {
             }
             match scene.update(&mut self.store) {
                 Trans::Quit => {
-                    println!("Quit transaction received");
+                    info!("Quit transaction received");
                     break 'main_loop;
                 }
                 _ => {}
             }
         }
 
+        info!("Scene Stop");
         scene.on_stop(&mut self.store);
 
-        println!("Dispose Systems");
+        info!("Dispose Systems");
         for s in self.systems.iter_mut() {
             s.dispose(&mut self.store);
         }
 
-        println!("Engine Stop");
+        info!("Engine Stop");
     }
 }
 

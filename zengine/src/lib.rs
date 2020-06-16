@@ -7,3 +7,4 @@ mod graphics;
 mod math;
 
 pub use self::engine::Engine;
+pub use log;
