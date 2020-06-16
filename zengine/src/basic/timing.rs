@@ -68,7 +68,7 @@ impl TimingSystem {
 impl<'a> System<'a> for TimingSystem {
     type Data = Write<'a, Time>;
 
-    fn init(&mut self, store: &mut Store) {
+    fn init(&mut self, _store: &mut Store) {
         self.last_call = Instant::now();
     }
 
