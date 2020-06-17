@@ -1,10 +1,10 @@
 use crate::core::component::Component;
 use crate::core::component::Set;
 use crate::core::entity::Entities;
-use crate::core::store::DefaultResource;
 use crate::core::store::Resource;
 use crate::core::store::Store;
 use std::any::Any;
+use std::any::TypeId;
 use std::cell::Ref;
 use std::cell::RefMut;
 
@@ -88,7 +88,12 @@ impl<'a, R: Resource + Default> Data<'a> for Read<'a, R> {
     }
 
     fn fetch(store: &'a Store) -> Self {
-        store.get_resource::<R>().unwrap()
+        store.get_resource::<R>().unwrap_or_else(|| {
+            panic!(
+                "An error occurred during the fetch of the resource. ResourceId: {:?}",
+                TypeId::of::<R>()
+            )
+        })
     }
 }
 
@@ -100,7 +105,12 @@ impl<'a, R: Resource + Default> Data<'a> for Write<'a, R> {
     }
 
     fn fetch(store: &'a Store) -> Self {
-        store.get_resource_mut::<R>().unwrap()
+        store.get_resource_mut::<R>().unwrap_or_else(|| {
+            panic!(
+                "An error occurred during the fetch of the resource. ResourceId: {:?}",
+                TypeId::of::<R>()
+            )
+        })
     }
 }
 
@@ -126,7 +136,12 @@ impl<'a, C: Component> Data<'a> for ReadSet<'a, C> {
     }
 
     fn fetch(store: &'a Store) -> Self {
-        store.get_components::<C>().unwrap()
+        store.get_components::<C>().unwrap_or_else(|| {
+            panic!(
+                "An error occurred during the fetch of the component set. ComponentId: {:?}",
+                TypeId::of::<C>()
+            )
+        })
     }
 }
 
@@ -136,7 +151,12 @@ impl<'a, C: Component> Data<'a> for WriteSet<'a, C> {
     }
 
     fn fetch(store: &'a Store) -> Self {
-        store.get_components_mut::<C>().unwrap()
+        store.get_components_mut::<C>().unwrap_or_else(|| {
+            panic!(
+                "An error occurred during the fetch of the component set. ComponentId: {:?}",
+                TypeId::of::<C>()
+            )
+        })
     }
 }
 

@@ -12,8 +12,6 @@ use std::cell::RefMut;
 pub trait Resource: Downcast + 'static {}
 downcast_rs::impl_downcast!(Resource);
 
-pub trait DefaultResource: Resource {}
-
 pub struct Store {
     entities: Entities,
     components: Components,

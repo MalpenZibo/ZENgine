@@ -5,6 +5,7 @@ use crate::basic::platform::resources::Platform;
 use crate::core::system::ReadOption;
 use crate::core::Store;
 use crate::core::System;
+use log::{error, info};
 use sdl2::video::{DisplayMode, FullscreenType, GLProfile, Window};
 use sdl2::VideoSubsystem;
 
@@ -18,7 +19,7 @@ extern "system" fn dbg_callback(
     _user_data: *mut std::ffi::c_void,
 ) {
     unsafe {
-        println!(
+        info!(
             "dbg_callback {:#X} {:#X} {:#X} {:?}",
             source,
             etype,
@@ -118,11 +119,11 @@ impl<'a> System<'a> for WindowSystem {
             gl::Enable(gl::BLEND);
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
         }
-        println!(
+        info!(
             "Pixel format of the window's GL context: {:?}",
             window.window_pixel_format()
         );
-        println!(
+        info!(
             "OpenGL Profile: {:?} - OpenGL version: {:?}",
             gl_attr.context_profile(),
             gl_attr.context_version()

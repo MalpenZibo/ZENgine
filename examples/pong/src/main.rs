@@ -8,9 +8,12 @@ use zengine::core::Scene;
 use zengine::core::Store;
 use zengine::core::System;
 use zengine::core::Trans;
+use zengine::log::{trace, LevelFilter};
 use zengine::Engine;
 
 fn main() {
+    Engine::init_logger(LevelFilter::Info);
+
     Engine::default()
         .with_system(EventPumpSystem::default())
         .with_system(System1::default())
@@ -28,7 +31,7 @@ pub struct Game {
 
 impl Scene for Game {
     fn on_start(&mut self, store: &mut Store) {
-        println!("Game scene on start");
+        trace!("Game scene on start");
 
         store.build_entity().with(Component1 { data: 3 }).build();
         store
@@ -39,7 +42,7 @@ impl Scene for Game {
     }
 
     fn on_stop(&mut self, store: &mut Store) {
-        println!("Game scene on stop");
+        trace!("Game scene on stop");
     }
 
     fn update(&mut self, store: &mut Store) -> Trans {
@@ -83,11 +86,11 @@ impl<'a> System<'a> for System1 {
     type Data = (ReadSet<'a, Component1>, WriteSet<'a, Component2>);
 
     fn init(&mut self, store: &mut Store) {
-        println!("setup system 1");
+        trace!("setup system 1");
     }
 
     fn run(&mut self, data: Self::Data) {
-        println!("run {} system 1", self.run_count);
+        trace!("run {} system 1", self.run_count);
 
         let (c1, mut c2) = data; //unpack!(store, );
 
@@ -95,14 +98,14 @@ impl<'a> System<'a> for System1 {
             c.data2 += 1;
         }
 
-        println!("c1 {:?}", c1);
-        println!("c2 {:?}", c2);
+        trace!("c1 {:?}", c1);
+        trace!("c2 {:?}", c2);
 
         self.run_count += 1;
     }
 
     fn dispose(&mut self, store: &mut Store) {
-        println!("dispose system 1");
+        trace!("dispose system 1");
     }
 }
 
@@ -115,18 +118,18 @@ impl<'a> System<'a> for System2 {
     type Data = ReadSet<'a, Component1>;
 
     fn init(&mut self, store: &mut Store) {
-        println!("setup system 2");
+        trace!("setup system 2");
     }
 
     fn run(&mut self, data: Self::Data) {
-        println!("run {} system 2", self.run_count);
+        trace!("run {} system 2", self.run_count);
 
-        println!("data 2: {:?}", data);
+        trace!("data 2: {:?}", data);
 
         self.run_count += 1;
     }
 
     fn dispose(&mut self, store: &mut Store) {
-        println!("dispose system 2");
+        trace!("dispose system 2");
     }
 }
