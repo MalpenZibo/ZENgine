@@ -2,6 +2,7 @@ extern crate zengine;
 
 use zengine::basic::platform::{EventPumpSystem, WindowSystem};
 use zengine::basic::timing::{FrameLimiter, TimingSystem};
+use zengine::core::system::ReadStream;
 use zengine::core::system::{ReadSet, WriteSet};
 use zengine::core::Component;
 use zengine::core::Scene;
@@ -12,7 +13,7 @@ use zengine::log::{trace, LevelFilter};
 use zengine::Engine;
 
 fn main() {
-    Engine::init_logger(LevelFilter::Info);
+    Engine::init_logger(LevelFilter::Warn);
 
     Engine::default()
         .with_system(EventPumpSystem::default())
@@ -45,9 +46,9 @@ impl Scene for Game {
         trace!("Game scene on stop");
     }
 
-    fn update(&mut self, store: &mut Store) -> Trans {
+    fn update(&mut self, store: &Store) -> Trans {
         match self.execution_numer {
-            0 => Trans::Quit,
+            0 => Trans::None,
             _ => {
                 self.execution_numer -= 1;
                 Trans::None
@@ -115,16 +116,17 @@ pub struct System2 {
 }
 
 impl<'a> System<'a> for System2 {
-    type Data = ReadSet<'a, Component1>;
+    type Data = (WriteSet<'a, Component2>, ReadStream<'a, u32>);
 
     fn init(&mut self, store: &mut Store) {
         trace!("setup system 2");
     }
 
-    fn run(&mut self, data: Self::Data) {
+    fn run(&mut self, (set, mut stream): Self::Data) {
         trace!("run {} system 2", self.run_count);
 
-        trace!("data 2: {:?}", data);
+        trace!("data 2: {:?}", set);
+        trace!("data 2: {:?}", stream.read());
 
         self.run_count += 1;
     }

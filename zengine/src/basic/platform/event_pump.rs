@@ -2,7 +2,11 @@ extern crate sdl2;
 
 use crate::basic::platform::resources::Platform;
 use crate::core::system::System;
+use crate::core::system::WriteStream;
 use crate::core::Store;
+use crate::core::Trans;
+use log::warn;
+use sdl2::event::Event;
 use sdl2::EventPump;
 use sdl2::Sdl;
 
@@ -24,7 +28,7 @@ impl Default for EventPumpSystem {
 }
 
 impl<'a> System<'a> for EventPumpSystem {
-    type Data = ();
+    type Data = WriteStream<'a, Trans>;
 
     fn init(&mut self, store: &mut Store) {
         let context = self.consumable_sdl_context.take();
@@ -34,9 +38,13 @@ impl<'a> System<'a> for EventPumpSystem {
         });
     }
 
-    fn run(&mut self, data: Self::Data) {
+    fn run(&mut self, mut data: Self::Data) {
         for event in self.event_pump.poll_iter() {
             match event {
+                Event::Quit { .. } => {
+                    warn!("quit event sended");
+                    data.publish(Trans::Quit);
+                }
                 _ => (),
             }
         }
