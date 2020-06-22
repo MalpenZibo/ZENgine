@@ -1,8 +1,9 @@
 extern crate sdl2;
 
 use crate::basic::platform::resources::Platform;
+use crate::core::event::EventStream;
 use crate::core::system::System;
-use crate::core::system::WriteStream;
+use crate::core::system::Write;
 use crate::core::Store;
 use crate::core::Trans;
 use log::warn;
@@ -28,7 +29,7 @@ impl Default for EventPumpSystem {
 }
 
 impl<'a> System<'a> for EventPumpSystem {
-    type Data = WriteStream<'a, Trans>;
+    type Data = Write<'a, EventStream<Trans>>;
 
     fn init(&mut self, store: &mut Store) {
         let context = self.consumable_sdl_context.take();

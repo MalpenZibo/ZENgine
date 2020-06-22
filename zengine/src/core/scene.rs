@@ -1,7 +1,7 @@
 use crate::core::event::EventStream;
 use crate::core::store::Store;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Trans {
     None,
     /// Stop and shut down the engine.
@@ -16,7 +16,7 @@ pub trait AnyScene {
     fn on_stop(&mut self, store: &mut Store);
 
     #[allow(unused_variables)]
-    fn update_wrapper(&mut self, store: &Store) -> Trans;
+    fn update(&mut self, store: &Store) -> Trans;
 }
 
 impl<S> AnyScene for S
@@ -33,7 +33,7 @@ where
         self.on_stop(store);
     }
 
-    fn update_wrapper(&mut self, store: &Store) -> Trans {
+    fn update(&mut self, store: &Store) -> Trans {
         let mut received_trans = Trans::None;
         if let Some(stream) = store.get_resource::<EventStream<Trans>>() {
             if let Some(trans) = stream.read_last() {

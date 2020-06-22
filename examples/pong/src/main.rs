@@ -2,7 +2,9 @@ extern crate zengine;
 
 use zengine::basic::platform::{EventPumpSystem, WindowSystem};
 use zengine::basic::timing::{FrameLimiter, TimingSystem};
-use zengine::core::system::ReadStream;
+use zengine::core::event::EventStream;
+use zengine::core::event::SubscriptionToken;
+use zengine::core::system::Read;
 use zengine::core::system::{ReadSet, WriteSet};
 use zengine::core::Component;
 use zengine::core::Scene;
@@ -113,20 +115,28 @@ impl<'a> System<'a> for System1 {
 #[derive(Debug, Default)]
 pub struct System2 {
     run_count: u32,
+    token: Option<SubscriptionToken>,
 }
 
 impl<'a> System<'a> for System2 {
-    type Data = (WriteSet<'a, Component2>, ReadStream<'a, u32>);
+    type Data = (WriteSet<'a, Component2>, Read<'a, EventStream<Trans>>);
 
     fn init(&mut self, store: &mut Store) {
         trace!("setup system 2");
+
+        self.token = Some(
+            store
+                .get_resource_mut::<EventStream<Trans>>()
+                .unwrap()
+                .subscribe(),
+        );
     }
 
-    fn run(&mut self, (set, mut stream): Self::Data) {
+    fn run(&mut self, (set, stream): Self::Data) {
         trace!("run {} system 2", self.run_count);
 
         trace!("data 2: {:?}", set);
-        trace!("data 2: {:?}", stream.read());
+        trace!("data 2: {:?}", stream.read(&self.token.unwrap()));
 
         self.run_count += 1;
     }
