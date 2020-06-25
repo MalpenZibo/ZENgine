@@ -4,12 +4,16 @@ use std::any::Any;
 use std::any::TypeId;
 use std::cell::RefCell;
 use std::cell::RefMut;
+use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::hash::Hash;
+
+const STREAM_SIZE_BLOCK: usize = 10;
 
 #[derive(Debug)]
 pub struct EventStream<E: Any> {
     buffer: Vec<E>,
+    head: Option<usize>,
     subscriptions: FnvHashMap<SubscriptionToken, RefCell<Subscription>>,
     token_serial: u64,
 }
@@ -17,7 +21,8 @@ pub struct EventStream<E: Any> {
 impl<E: Any> Default for EventStream<E> {
     fn default() -> Self {
         EventStream {
-            buffer: Vec::default(),
+            buffer: Vec::with_capacity(STREAM_SIZE_BLOCK),
+            head: None,
             subscriptions: FnvHashMap::default(),
             token_serial: 0,
         }
@@ -29,8 +34,12 @@ impl<E: Any> Resource for EventStream<E> {}
 impl<E: Any> EventStream<E> {
     pub fn subscribe(&mut self) -> SubscriptionToken {
         let token = self.generate_token();
-        self.subscriptions
-            .insert(token.clone(), RefCell::new(Subscription { position: 0 }));
+        self.subscriptions.insert(
+            token.clone(),
+            RefCell::new(Subscription {
+                position: self.head,
+            }),
+        );
 
         token
     }
@@ -40,19 +49,54 @@ impl<E: Any> EventStream<E> {
     }
 
     pub fn publish(&mut self, event: E) {
-        self.buffer.push(event);
+        if let Some(mut head) = self.head {
+            head += 1;
+            if head == self.buffer.capacity() {
+                head = 0;
+            }
+            let tail = self.tail();
+            if let Some(tail) = tail {
+                if head == tail && self.buffer.capacity() == self.buffer.len() {
+                    head = self.increase_capacity(tail);
+                }
+            }
+            if self.buffer.len() == self.buffer.capacity() {
+                self.buffer[head] = event;
+            } else {
+                self.buffer.push(event);
+            }
+
+            self.head = Some(head);
+        } else {
+            self.buffer.push(event);
+            self.head = Some(0)
+        }
     }
 
     pub fn read_last(&self) -> Option<&E> {
-        self.buffer.last()
+        match self.head {
+            Some(head) => self.buffer.get(head),
+            _ => None,
+        }
     }
 
-    pub fn read(&self, token: &SubscriptionToken) -> &[E] {
+    pub fn read(&self, token: &SubscriptionToken) -> impl Iterator<Item = &E> {
+        let head = self.head.unwrap_or_else(|| 0);
         let mut subscription = self.get_subscription(token);
-        let start_index = subscription.position;
-        subscription.position = self.buffer.len();
-
-        &self.buffer[start_index..]
+        let start = match subscription.position {
+            Some(pos) => pos + 1,
+            None => 0,
+        };
+        subscription.position = self.head;
+        self.buffer
+            .iter()
+            .cycle()
+            .skip(start)
+            .take(if head > start {
+                head - start + 1
+            } else {
+                self.buffer.len() - (start - head) + 1
+            })
     }
 
     fn get_subscription(&self, token: &SubscriptionToken) -> RefMut<Subscription> {
@@ -68,6 +112,42 @@ impl<E: Any> EventStream<E> {
 
         SubscriptionToken(new_token)
     }
+
+    fn tail(&self) -> Option<usize> {
+        self.subscriptions
+            .values()
+            .min()
+            .map(|sub| sub.borrow().position.unwrap_or_else(|| 0))
+    }
+
+    fn increase_capacity(&mut self, tail: usize) -> usize {
+        let mut new_buffer: Vec<E> = Vec::with_capacity(self.buffer.capacity() + STREAM_SIZE_BLOCK);
+
+        for e in self.buffer.drain(tail..) {
+            new_buffer.push(e);
+        }
+
+        for e in self.buffer.drain(0..tail) {
+            new_buffer.push(e);
+        }
+
+        for s in self.subscriptions.values_mut() {
+            let mut sub = s.borrow_mut();
+            if let Some(pos) = sub.position {
+                if sub.position > self.head {
+                    sub.position = Some(pos - tail);
+                } else {
+                    sub.position = Some(pos + tail);
+                }
+            }
+        }
+
+        let new_head = new_buffer.len();
+        self.head = Some(new_head);
+        self.buffer = new_buffer;
+
+        new_head
+    }
 }
 
 #[derive(Hash, Eq, PartialEq, Debug)]
@@ -79,137 +159,144 @@ pub struct SubscriptionKey {
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Copy)]
 pub struct SubscriptionToken(u64);
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Subscription {
-    pub position: usize,
-}
-/*
-pub struct StreamReader<'a, E: Event> {
-    stream: Ref<'a, EventStream<E>>,
-    subscription: RefMut<'a, Subscription>,
+    pub position: Option<usize>,
 }
 
-impl<'a, E: Event> StreamReader<'a, E> {
-    pub fn read(&self) -> &[E] {
-        self.stream.read(&mut self.subscription)
+impl Ord for Subscription {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.position.cmp(&other.position)
     }
 }
 
-#[derive(Debug, Default)]
-pub struct EventBus {
-    streams: FnvHashMap<TypeId, RefCell<Box<dyn AnyStream>>>,
-    subscribers: FnvHashMap<SubscriptionKey, RefCell<Subscription>>,
-    subscriber_id: u64,
+impl PartialOrd for Subscription {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
-impl Resource for EventBus {}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-impl EventBus {
-    pub fn register_stream<E: Event>(&mut self) {
-        let event_id = TypeId::of::<E>();
+    fn publish(stream: &mut EventStream<u32>, events: &[u32]) {
+        for e in events {
+            stream.publish(e.clone());
+        }
+    }
 
-        self.streams.insert(
-            event_id,
-            RefCell::new(Box::new(EventStream::<E>::default())),
+    #[test]
+    fn produce() {
+        let mut stream = EventStream::<u32>::default();
+
+        publish(&mut stream, &[4; 4]);
+
+        assert_eq!(stream.head, Some(3));
+        assert_eq!(stream.buffer.len(), 4);
+    }
+
+    #[test]
+    fn produce_and_read() {
+        let mut stream = EventStream::<u32>::default();
+
+        let token1 = stream.subscribe();
+
+        publish(&mut stream, &[4; 4]);
+
+        assert_eq!(stream.read(&token1).count(), 4);
+    }
+
+    #[test]
+    fn produce_cycling() {
+        let mut stream = EventStream::<u32>::default();
+
+        publish(&mut stream, &[4; 15]);
+
+        assert_eq!(stream.head, Some(4));
+        assert_eq!(stream.buffer.len(), STREAM_SIZE_BLOCK);
+        assert_eq!(stream.buffer.capacity(), STREAM_SIZE_BLOCK);
+    }
+
+    #[test]
+    fn buffer_increase() {
+        let mut stream = EventStream::<u32>::default();
+
+        stream.subscribe();
+        publish(&mut stream, &[4; 15]);
+
+        assert_eq!(stream.head, Some(14));
+        assert_eq!(stream.buffer.len(), 15);
+        assert_eq!(stream.buffer.capacity(), STREAM_SIZE_BLOCK * 2);
+    }
+
+    #[allow(unused_must_use)]
+    #[test]
+    fn stream_with_lazy_subscriber() {
+        let mut stream = EventStream::<u32>::default();
+
+        let token1 = stream.subscribe();
+        let token2 = stream.subscribe();
+        let token3 = stream.subscribe();
+
+        publish(&mut stream, &[4; 4]);
+        stream.read(&token1);
+        publish(&mut stream, &[4; 10]);
+        stream.read(&token1);
+        stream.read(&token2);
+        publish(&mut stream, &[4; 50]);
+        stream.read(&token1);
+        publish(&mut stream, &[4; 3]);
+        stream.read(&token1);
+        stream.read(&token2);
+        stream.read(&token3);
+
+        assert_eq!(stream.buffer.capacity(), STREAM_SIZE_BLOCK * 7);
+        assert_eq!(stream.buffer.len(), 67);
+        assert_eq!(stream.head, Some(66));
+    }
+
+    #[test]
+    fn sequence_correctness() {
+        let mut stream = EventStream::<u32>::default();
+
+        let token1 = stream.subscribe();
+
+        publish(&mut stream, &[1, 2, 3, 4]);
+        assert_eq!(stream.tail(), Some(0));
+        let mut result: Vec<u32> = Vec::new();
+        for u in stream.read(&token1) {
+            result.push(u.clone())
+        }
+        assert_eq!(stream.head, Some(3));
+        assert_eq!(result, [1, 2, 3, 4]);
+
+        publish(&mut stream, &[5, 6, 7, 8, 9, 10, 11]);
+        let mut result: Vec<u32> = Vec::new();
+        assert_eq!(stream.tail(), Some(3));
+        for u in stream.read(&token1) {
+            result.push(u.clone())
+        }
+        assert_eq!(stream.head, Some(0));
+        assert_eq!(result, [5, 6, 7, 8, 9, 10, 11]);
+
+        publish(
+            &mut stream,
+            &[
+                12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+            ],
+        );
+
+        assert_eq!(stream.tail(), Some(0));
+        let mut result: Vec<u32> = Vec::new();
+        for u in stream.read(&token1) {
+            result.push(u.clone())
+        }
+        assert_eq!(stream.head, Some(19));
+        assert_eq!(stream.tail(), Some(19));
+        assert_eq!(
+            result,
+            [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
         );
     }
-
-    pub fn get_reader<E: Event>(&self, token: SubscriptionToken) -> Option<StreamReader<E>> {
-        let event_id = TypeId::of::<E>();
-
-        let stream = match self.streams.get(&event_id) {
-            Some(stream) => Some(Ref::map(stream.borrow(), |b| {
-                b.downcast_ref::<EventStream<E>>()
-                    .expect("downcast set error")
-            })),
-            None => None,
-        };
-
-        let subscription = match self.subscribers.get_mut(&SubscriptionKey {
-            event_id: event_id,
-            token: token,
-        }) {
-            Some(subscription) => Some(subscription.borrow_mut()),
-            None => None,
-        };
-
-        match (stream, subscription) {
-            (Some(stream), Some(subscription)) => Some(StreamReader {
-                stream: stream,
-                subscription: subscription,
-            }),
-            _ => None,
-        }
-    }
-
-    pub fn get_publisher<E: Event>(&self) -> Option<RefMut<EventStream<E>>> {
-        let type_id = TypeId::of::<E>();
-
-        match self.streams.get_mut(&type_id) {
-            Some(stream) => Some(RefMut::map(stream.borrow_mut(), |b| {
-                b.downcast_mut::<EventStream<E>>()
-                    .expect("downcast set error")
-            })),
-            None => None,
-        }
-    }
-
-    pub fn subscribe<E: Event>(mut self) -> SubscriptionToken {
-        let event_id = TypeId::of::<E>();
-
-        let stream = self.streams.get(&event_id).or_else(|| {
-            self.streams.insert(
-                event_id,
-                RefCell::new(Box::new(EventStream::<E>::default())),
-            );
-            self.streams.get(&event_id)
-        });
-
-        let key = self.generate_key::<E>();
-        let token = key.token;
-
-        self.subscribers
-            .insert(key, RefCell::new(Subscription { position: 0 }));
-
-        token
-    }
-
-    fn generate_key<E: Event>(&mut self) -> SubscriptionKey {
-        let event_id = TypeId::of::<E>();
-        let token = self.subscriber_id;
-        self.subscriber_id += 1;
-
-        SubscriptionKey {
-            event_id: event_id,
-            token: SubscriptionToken(token),
-        }
-    }
 }
-
-#[derive(Copy, Clone)]
-pub enum SubscriptionState {
-    Enabled,
-    Disabled,
-}
-
-pub trait AnyReader: Downcast {
-    fn get_position(&self) -> usize;
-
-    fn set_position(&mut self, new_position: usize);
-}
-downcast_rs::impl_downcast!(AnyReader);
-*/
-/*
-impl<'a, E: Any, T: Any> AnyReader for Reader<E, T> {
-    fn get_position(&self) -> usize {
-        self.position
-    }
-
-    fn set_position(&mut self, new_position: usize) {
-        self.position = new_position;
-    }
-}
-*/
-//impl<E: Any, T: Any> Resource for Reader<E, T> {}
-
-//impl<E: Any> Resource for EventStream<E> {}

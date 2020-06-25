@@ -15,14 +15,14 @@ use zengine::log::{trace, LevelFilter};
 use zengine::Engine;
 
 fn main() {
-    Engine::init_logger(LevelFilter::Warn);
+    Engine::init_logger(LevelFilter::Info);
 
     Engine::default()
         .with_system(EventPumpSystem::default())
         .with_system(System1::default())
         .with_system(System2::default())
         .with_system(WindowSystem::default())
-        .with_system(TimingSystem::default().with_limiter(FrameLimiter::new(1)))
+        .with_system(TimingSystem::default().with_limiter(FrameLimiter::new(60)))
         .run(Game {
             execution_numer: 10,
         });
@@ -95,7 +95,7 @@ impl<'a> System<'a> for System1 {
     fn run(&mut self, data: Self::Data) {
         trace!("run {} system 1", self.run_count);
 
-        let (c1, mut c2) = data; //unpack!(store, );
+        let (c1, mut c2) = data;
 
         for c in c2.values_mut() {
             c.data2 += 1;
@@ -136,7 +136,7 @@ impl<'a> System<'a> for System2 {
         trace!("run {} system 2", self.run_count);
 
         trace!("data 2: {:?}", set);
-        trace!("data 2: {:?}", stream.read(&self.token.unwrap()));
+        //trace!("data 2: {:?}", stream.read(&self.token.unwrap()));
 
         self.run_count += 1;
     }

@@ -4,7 +4,7 @@ use crate::core::scene::AnyScene;
 use crate::core::system::AnySystem;
 use crate::core::Store;
 use crate::core::System;
-use crate::core::{Scene, Trans};
+use crate::core::Trans;
 use log::info;
 use simplelog::{Config, LevelFilter, SimpleLogger, TermLogger, TerminalMode};
 
