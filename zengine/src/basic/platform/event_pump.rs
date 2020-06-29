@@ -6,7 +6,7 @@ use crate::core::system::System;
 use crate::core::system::Write;
 use crate::core::Store;
 use crate::core::Trans;
-use log::warn;
+use log::info;
 use sdl2::event::Event;
 use sdl2::EventPump;
 use sdl2::Sdl;
@@ -43,7 +43,7 @@ impl<'a> System<'a> for EventPumpSystem {
         for event in self.event_pump.poll_iter() {
             match event {
                 Event::Quit { .. } => {
-                    warn!("quit event sended");
+                    info!("quit event sended");
                     data.publish(Trans::Quit);
                 }
                 _ => (),

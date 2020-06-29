@@ -1,9 +1,7 @@
 use crate::core::store::Resource;
 use fnv::FnvHashMap;
-use std::any::Any;
-use std::any::TypeId;
-use std::cell::RefCell;
-use std::cell::RefMut;
+use std::any::{Any, TypeId};
+use std::cell::{RefCell, RefMut};
 use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::hash::Hash;
