@@ -2,8 +2,6 @@ extern crate zengine;
 
 use zengine::basic::platform::{EventPumpSystem, WindowSystem};
 use zengine::basic::timing::{FrameLimiter, TimingSystem};
-use zengine::core::event::EventStream;
-use zengine::core::event::SubscriptionToken;
 use zengine::core::system::Read;
 use zengine::core::system::{ReadSet, WriteSet};
 use zengine::core::Component;
@@ -11,6 +9,8 @@ use zengine::core::Scene;
 use zengine::core::Store;
 use zengine::core::System;
 use zengine::core::Trans;
+use zengine::event::event_stream::EventStream;
+use zengine::event::event_stream::SubscriptionToken;
 use zengine::log::{trace, LevelFilter};
 use zengine::Engine;
 

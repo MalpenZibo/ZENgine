@@ -1,4 +1,4 @@
-use crate::core::store::Resource;
+use crate::core::Resource;
 use fnv::FnvHashMap;
 use std::any::{Any, TypeId};
 use std::cell::{RefCell, RefMut};

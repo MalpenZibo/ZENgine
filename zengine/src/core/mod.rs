@@ -1,6 +1,5 @@
 mod component;
 mod entity;
-pub mod event;
 pub mod scene;
 mod store;
 pub mod system;

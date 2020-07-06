@@ -2,10 +2,9 @@ extern crate gl;
 extern crate sdl2;
 
 use crate::basic::platform::resources::Platform;
-use crate::core::system::ReadOption;
 use crate::core::Store;
 use crate::core::System;
-use log::{error, info};
+use log::info;
 use sdl2::video::{DisplayMode, FullscreenType, GLProfile, Window};
 use sdl2::VideoSubsystem;
 
@@ -79,7 +78,7 @@ impl WindowSystem {
 }
 
 impl<'a> System<'a> for WindowSystem {
-    type Data = ReadOption<'a, Platform>;
+    type Data = ();
 
     fn init(&mut self, store: &mut Store) {
         let platform = store
@@ -132,5 +131,9 @@ impl<'a> System<'a> for WindowSystem {
         self.window = Some(window);
     }
 
-    fn run(&mut self, mut data: Self::Data) {}
+    fn run(&mut self, data: Self::Data) {
+        if let Some(window) = &self.window {
+            window.gl_swap_window();
+        }
+    }
 }
