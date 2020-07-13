@@ -2,6 +2,7 @@ mod assets;
 pub mod basic;
 pub mod core;
 mod engine;
+pub mod event;
 mod gl_utilities;
 mod graphics;
 mod math;

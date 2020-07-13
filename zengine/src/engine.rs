@@ -1,9 +1,10 @@
 extern crate log_panics;
 
+use crate::core::scene::AnyScene;
 use crate::core::system::AnySystem;
 use crate::core::Store;
 use crate::core::System;
-use crate::core::{Scene, Trans};
+use crate::core::Trans;
 use log::info;
 use simplelog::{Config, LevelFilter, SimpleLogger, TermLogger, TerminalMode};
 
@@ -29,7 +30,7 @@ impl Engine {
         self
     }
 
-    pub fn run<S: Scene + 'static>(mut self, mut scene: S) {
+    pub fn run<S: AnyScene + 'static>(mut self, mut scene: S) {
         info!("Engine Start");
 
         info!("Init Systems");
@@ -41,9 +42,9 @@ impl Engine {
 
         'main_loop: loop {
             for s in self.systems.iter_mut() {
-                s.run_now(&self.store);
+                s.run(&self.store);
             }
-            match scene.update(&mut self.store) {
+            match scene.update(&self.store) {
                 Trans::Quit => {
                     info!("Quit transaction received");
                     break 'main_loop;

@@ -1,6 +1,6 @@
 mod event_pump;
 mod resources;
-mod window;
+pub mod window;
 
 pub use event_pump::EventPumpSystem;
 pub use resources::Platform;

@@ -2,8 +2,11 @@ use crate::core::component::Component;
 use crate::core::component::Components;
 use crate::core::component::Set;
 use crate::core::entity::{Entities, Entity, EntityBuilder};
+use crate::event::event_stream::EventStream;
+use crate::event::event_stream::SubscriptionToken;
 use downcast_rs::Downcast;
 use fnv::FnvHashMap;
+use std::any::Any;
 use std::any::TypeId;
 use std::cell::Ref;
 use std::cell::RefCell;
@@ -90,6 +93,19 @@ impl Store {
 
     pub fn register_component<C: Component>(&mut self) {
         self.components.register_component::<C>();
+    }
+
+    pub fn subscribe<E: Any>(&mut self) -> SubscriptionToken {
+        let mut stream = self
+            .get_resource_mut::<EventStream<E>>()
+            .unwrap_or_else(|| {
+                panic!(
+                    "No stream registered for event of type: {:?}",
+                    TypeId::of::<E>()
+                )
+            });
+
+        stream.subscribe()
     }
 }
 

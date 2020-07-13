@@ -5,14 +5,13 @@ use crate::core::store::Resource;
 use crate::core::store::Store;
 use std::any::Any;
 use std::any::TypeId;
-use std::cell::Ref;
-use std::cell::RefMut;
+use std::cell::{Ref, RefMut};
 
 pub trait AnySystem {
     #[allow(unused_variables)]
     fn init(&mut self, store: &mut Store) {}
 
-    fn run_now(&mut self, store: &Store);
+    fn run(&mut self, store: &Store);
 
     #[allow(unused_variables)]
     fn dispose(&mut self, store: &mut Store) {}
@@ -27,7 +26,7 @@ where
         self.init(store);
     }
 
-    fn run_now(&mut self, store: &Store) {
+    fn run(&mut self, store: &Store) {
         let data = S::Data::fetch(store);
         self.run(data);
     }
@@ -37,7 +36,7 @@ where
     }
 }
 
-pub trait System<'a>: Any {
+pub trait System<'a>: Any + Default {
     type Data: Data<'a>;
 
     #[allow(unused_variables)]
@@ -56,6 +55,7 @@ pub trait Data<'a> {
 }
 
 impl<'a> Data<'a> for () {
+    #[allow(unused_variables)]
     fn setup(store: &mut Store) {}
 
     #[allow(unused_variables)]
@@ -73,6 +73,7 @@ pub type ReadSet<'a, C> = Ref<'a, Set<C>>;
 pub type WriteSet<'a, C> = RefMut<'a, Set<C>>;
 
 impl<'a> Data<'a> for ReadEntities<'a> {
+    #[allow(unused_variables)]
     fn setup(store: &mut Store) {}
 
     fn fetch(store: &'a Store) -> Self {
@@ -115,6 +116,7 @@ impl<'a, R: Resource + Default> Data<'a> for Write<'a, R> {
 }
 
 impl<'a, R: Resource> Data<'a> for ReadOption<'a, R> {
+    #[allow(unused_variables)]
     fn setup(store: &mut Store) {}
 
     fn fetch(store: &'a Store) -> Self {
@@ -123,6 +125,7 @@ impl<'a, R: Resource> Data<'a> for ReadOption<'a, R> {
 }
 
 impl<'a, R: Resource> Data<'a> for WriteOption<'a, R> {
+    #[allow(unused_variables)]
     fn setup(store: &mut Store) {}
 
     fn fetch(store: &'a Store) -> Self {
