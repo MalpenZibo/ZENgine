@@ -39,7 +39,7 @@ pub struct InputSystem<T: InputType> {
 }
 
 pub struct InputHandler<T: InputType> {
-    actions_value: FnvHashMap<T, f32>,
+    actions_value: FnvHashMap<T, bool>,
     axes_value: FnvHashMap<T, f32>,
 }
 impl<T: InputType> Default for InputHandler<T> {
@@ -53,8 +53,20 @@ impl<T: InputType> Default for InputHandler<T> {
 
 impl<T: InputType> Resource for InputHandler<T> {}
 
+impl<T: InputType> InputHandler<T> {
+    pub fn axis_value(&self, input_type: T) -> Option<f32> {
+        self.axes_value.get(&input_type).map(|value| value.clone())
+    }
+
+    pub fn action_value(&self, input_type: T) -> Option<bool> {
+        self.actions_value
+            .get(&input_type)
+            .map(|value| value.clone())
+    }
+}
+
 impl<T: InputType> InputSystem<T> {
-    pub fn from_bindings(bindings: Bindings<T>) -> Self {
+    pub fn new(bindings: Bindings<T>) -> Self {
         InputSystem {
             input_stream_token: None,
             bindings: bindings,
@@ -84,7 +96,7 @@ impl<'a, T: InputType> System<'a> for InputSystem<T> {
                     {
                         input_handler
                             .actions_value
-                            .insert(actions.0.clone(), e.value);
+                            .insert(actions.0.clone(), e.value > 0.0);
                     }
                 }
                 for axes in self.bindings.axis_mappings.iter() {
@@ -111,6 +123,7 @@ impl<'a, T: InputType> System<'a> for InputSystem<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::system::AnySystem;
     use crate::event::keyboard::Key;
 
     #[derive(Eq, PartialEq, Hash, Deserialize, Clone)]
@@ -120,6 +133,35 @@ mod tests {
     }
 
     impl InputType for UserInput {}
+
+    fn setup_test() -> (Store, InputSystem<UserInput>) {
+        let mut store = Store::default();
+        store.insert_resource(EventStream::<InputEvent>::default());
+
+        let content = "
+            axis_mappings: 
+                X:
+                - source:
+                    Keyboard:
+                        key: D
+                  scale: 1.0
+                - source:
+                    Keyboard:
+                        key: A
+                  scale: -1.0
+            action_mappings:
+                Jump:
+                - source: 
+                    Keyboard: 
+                        key: Space
+        ";
+
+        let bindings: Bindings<UserInput> = serde_yaml::from_str(&content).unwrap();
+
+        let input_system = InputSystem::<UserInput>::new(bindings);
+
+        (store, input_system)
+    }
 
     #[test]
     fn decode_typed_bindings_from_yaml() {
@@ -164,7 +206,7 @@ mod tests {
             )
         );
 
-        InputSystem::from_bindings(bindings);
+        InputSystem::new(bindings);
     }
 
     #[test]
@@ -210,6 +252,94 @@ mod tests {
             )
         );
 
-        InputSystem::from_bindings(bindings);
+        InputSystem::new(bindings);
+    }
+
+    #[test]
+    fn retrieve_action_value() {
+        let (mut store, mut input_system) = setup_test();
+
+        AnySystem::init(&mut input_system, &mut store);
+        {
+            {
+                let mut input_stream = store.get_resource_mut::<EventStream<InputEvent>>().unwrap();
+                input_stream.publish(InputEvent {
+                    input: Input::Keyboard { key: Key::Space },
+                    value: 1.0,
+                });
+            }
+            AnySystem::run(&mut input_system, &store);
+            let input_handler = store.get_resource::<InputHandler<UserInput>>().unwrap();
+            assert_eq!(input_handler.action_value(UserInput::Jump), Some(true));
+        }
+
+        AnySystem::dispose(&mut input_system, &mut store);
+    }
+
+    #[test]
+    fn retrieve_axis_value() {
+        let (mut store, mut input_system) = setup_test();
+
+        AnySystem::init(&mut input_system, &mut store);
+        {
+            {
+                let mut input_stream = store.get_resource_mut::<EventStream<InputEvent>>().unwrap();
+                input_stream.publish(InputEvent {
+                    input: Input::Keyboard { key: Key::D },
+                    value: 1.0,
+                });
+            }
+            AnySystem::run(&mut input_system, &store);
+            let input_handler = store.get_resource::<InputHandler<UserInput>>().unwrap();
+            assert_eq!(input_handler.axis_value(UserInput::X), Some(1.0));
+        }
+
+        AnySystem::dispose(&mut input_system, &mut store);
+    }
+
+    #[test]
+    fn retrieve_axis_value_with_scale() {
+        let (mut store, mut input_system) = setup_test();
+
+        AnySystem::init(&mut input_system, &mut store);
+        {
+            {
+                let mut input_stream = store.get_resource_mut::<EventStream<InputEvent>>().unwrap();
+                input_stream.publish(InputEvent {
+                    input: Input::Keyboard { key: Key::A },
+                    value: 1.0,
+                });
+            }
+            AnySystem::run(&mut input_system, &store);
+            let input_handler = store.get_resource::<InputHandler<UserInput>>().unwrap();
+            assert_eq!(input_handler.axis_value(UserInput::X), Some(-1.0));
+        }
+
+        AnySystem::dispose(&mut input_system, &mut store);
+    }
+
+    #[test]
+    fn retrieve_axis_value_with_override() {
+        let (mut store, mut input_system) = setup_test();
+
+        AnySystem::init(&mut input_system, &mut store);
+        {
+            {
+                let mut input_stream = store.get_resource_mut::<EventStream<InputEvent>>().unwrap();
+                input_stream.publish(InputEvent {
+                    input: Input::Keyboard { key: Key::A },
+                    value: 1.0,
+                });
+                input_stream.publish(InputEvent {
+                    input: Input::Keyboard { key: Key::D },
+                    value: 1.0,
+                });
+            }
+            AnySystem::run(&mut input_system, &store);
+            let input_handler = store.get_resource::<InputHandler<UserInput>>().unwrap();
+            assert_eq!(input_handler.axis_value(UserInput::X), Some(1.0));
+        }
+
+        AnySystem::dispose(&mut input_system, &mut store);
     }
 }

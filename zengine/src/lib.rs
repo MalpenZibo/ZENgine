@@ -9,3 +9,5 @@ mod math;
 
 pub use self::engine::Engine;
 pub use log;
+pub use serde;
+pub use serde_yaml;
