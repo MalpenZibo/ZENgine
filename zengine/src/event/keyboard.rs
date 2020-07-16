@@ -1,4 +1,6 @@
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+use serde::Deserialize;
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Deserialize)]
 #[repr(i32)]
 pub enum Key {
     Backspace = sdl2::keyboard::Keycode::Backspace as i32,

@@ -1,4 +1,6 @@
-#[derive(Eq, PartialEq, Hash, Debug)]
+use serde::Deserialize;
+
+#[derive(Eq, PartialEq, Hash, Debug, Deserialize)]
 #[repr(u8)]
 pub enum MouseButton {
     Left = sdl2::mouse::MouseButton::Left as u8,

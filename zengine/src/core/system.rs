@@ -36,7 +36,7 @@ where
     }
 }
 
-pub trait System<'a>: Any + Default {
+pub trait System<'a>: Any {
     type Data: Data<'a>;
 
     #[allow(unused_variables)]

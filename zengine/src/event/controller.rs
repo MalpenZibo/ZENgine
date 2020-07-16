@@ -1,4 +1,6 @@
-#[derive(Eq, PartialEq, Hash, Debug)]
+use serde::Deserialize;
+
+#[derive(Eq, PartialEq, Hash, Debug, Deserialize)]
 #[repr(i32)]
 pub enum ControllerButton {
     A = sdl2::controller::Button::A as i32,
@@ -30,7 +32,7 @@ impl ControllerButton {
     }
 }
 
-#[derive(Eq, PartialEq, Hash, Debug)]
+#[derive(Eq, PartialEq, Hash, Debug, Deserialize)]
 pub enum Which {
     Left,
     Right,
