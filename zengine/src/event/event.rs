@@ -2,12 +2,15 @@ use crate::event::controller::ControllerButton;
 use crate::event::controller::Which;
 use crate::event::keyboard::Key;
 use crate::event::mouse::MouseButton;
+use serde::Deserialize;
 
+#[derive(Debug, Deserialize, Eq, PartialEq)]
 pub enum Axis {
     X,
     Y,
 }
 
+#[derive(Debug, Deserialize, Eq, PartialEq)]
 pub enum Input {
     Keyboard {
         key: Key,

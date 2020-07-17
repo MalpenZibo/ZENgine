@@ -7,3 +7,4 @@ edition = "2018"
 
 [dependencies]
 zengine = { path = "../../zengine/" }
+serde = { version = "1.0", features = ["derive"] }

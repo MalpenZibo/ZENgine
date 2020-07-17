@@ -90,7 +90,9 @@ impl<E: Any> EventStream<E> {
             .iter()
             .cycle()
             .skip(start)
-            .take(if head > start {
+            .take(if start >= self.buffer.len() {
+                0
+            } else if head >= start {
                 head - start + 1
             } else {
                 self.buffer.len() - (start - head) + 1
@@ -252,6 +254,35 @@ mod tests {
         assert_eq!(stream.buffer.capacity(), STREAM_SIZE_BLOCK * 7);
         assert_eq!(stream.buffer.len(), 67);
         assert_eq!(stream.head, Some(66));
+    }
+
+    #[test]
+    fn publish_subscribe_and_read() {
+        let mut stream = EventStream::<u32>::default();
+
+        publish(&mut stream, &[1]);
+        let token1 = stream.subscribe();
+        let mut result: Vec<u32> = Vec::new();
+        for u in stream.read(&token1) {
+            result.push(u.clone())
+        }
+        assert_eq!(stream.head, Some(0));
+        assert_eq!(result, Vec::<u32>::new());
+    }
+
+    #[test]
+    fn publish_and_read_one_element_after_subscribe() {
+        let mut stream = EventStream::<u32>::default();
+
+        let token1 = stream.subscribe();
+
+        publish(&mut stream, &[1]);
+        let mut result: Vec<u32> = Vec::new();
+        for u in stream.read(&token1) {
+            result.push(u.clone())
+        }
+        assert_eq!(stream.head, Some(0));
+        assert_eq!(result, [1]);
     }
 
     #[test]

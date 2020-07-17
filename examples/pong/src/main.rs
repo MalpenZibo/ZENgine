@@ -1,5 +1,8 @@
 extern crate zengine;
 
+use zengine::basic::input::Bindings;
+use zengine::basic::input::InputType;
+use zengine::basic::input::{InputHandler, InputSystem};
 use zengine::basic::platform::{EventPumpSystem, WindowSystem};
 use zengine::basic::timing::{FrameLimiter, TimingSystem};
 use zengine::core::system::Read;
@@ -11,14 +14,37 @@ use zengine::core::System;
 use zengine::core::Trans;
 use zengine::event::event_stream::EventStream;
 use zengine::event::event_stream::SubscriptionToken;
-use zengine::log::{trace, LevelFilter};
+use zengine::log::{info, trace, LevelFilter};
+use zengine::serde::Deserialize;
+use zengine::serde_yaml;
 use zengine::Engine;
 
 fn main() {
     Engine::init_logger(LevelFilter::Info);
 
+    let content = "
+        axis_mappings: 
+            X:
+            - source:
+                Keyboard:
+                    key: D
+              scale: 1.0
+            - source:
+                Keyboard:
+                    key: A
+              scale: -1.0
+        action_mappings:
+            Jump:
+            - source: 
+                Keyboard: 
+                    key: Space
+    ";
+
+    let bindings: Bindings<UserInput> = serde_yaml::from_str(&content).unwrap();
+
     Engine::default()
         .with_system(EventPumpSystem::default())
+        .with_system(InputSystem::<UserInput>::new(bindings))
         .with_system(System1::default())
         .with_system(System2::default())
         .with_system(WindowSystem::default())
@@ -27,6 +53,13 @@ fn main() {
             execution_numer: 10,
         });
 }
+
+#[derive(Deserialize, Hash, Eq, PartialEq, Clone)]
+pub enum UserInput {
+    X,
+    Jump,
+}
+impl InputType for UserInput {}
 
 pub struct Game {
     execution_numer: u32,
@@ -86,7 +119,11 @@ pub struct System1 {
 }
 
 impl<'a> System<'a> for System1 {
-    type Data = (ReadSet<'a, Component1>, WriteSet<'a, Component2>);
+    type Data = (
+        ReadSet<'a, Component1>,
+        WriteSet<'a, Component2>,
+        Read<'a, InputHandler<UserInput>>,
+    );
 
     fn init(&mut self, store: &mut Store) {
         trace!("setup system 1");
@@ -95,7 +132,10 @@ impl<'a> System<'a> for System1 {
     fn run(&mut self, data: Self::Data) {
         trace!("run {} system 1", self.run_count);
 
-        let (c1, mut c2) = data;
+        let (c1, mut c2, input) = data;
+
+        info!("user x input: {:?}", input.axis_value(UserInput::X));
+        info!("user jump input: {:?}", input.action_value(UserInput::Jump));
 
         for c in c2.values_mut() {
             c.data2 += 1;
