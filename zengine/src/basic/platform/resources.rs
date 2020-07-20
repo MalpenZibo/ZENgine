@@ -1,9 +1,10 @@
 extern crate sdl2;
 
 use crate::core::Resource;
+use sdl2::video::GLContext;
 use sdl2::Sdl;
+use sdl2::VideoSubsystem;
 
-pub struct Platform {
-    pub context: Sdl,
-}
-impl Resource for Platform {}
+impl Resource for VideoSubsystem {}
+
+impl Resource for Sdl {}

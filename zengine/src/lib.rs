@@ -4,8 +4,8 @@ pub mod core;
 mod engine;
 pub mod event;
 mod gl_utilities;
-mod graphics;
-mod math;
+pub mod graphics;
+pub mod math;
 
 pub use self::engine::Engine;
 pub use log;

@@ -1,7 +1,7 @@
+use crate::core::Resource;
 use fnv::FnvHashMap;
 use std::ffi::CString;
 use std::str::FromStr;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 fn create_whitespace_cstring_with_len(len: usize) -> CString {
     // allocate buffer of correct size
@@ -12,27 +12,13 @@ fn create_whitespace_cstring_with_len(len: usize) -> CString {
     unsafe { CString::from_vec_unchecked(buffer) }
 }
 
-/// Only one ShaderManager can be alive at time
-/// Set to false by default (not alive)
-static IS_SHADER_MANAGER_ALIVE: AtomicBool = AtomicBool::new(false);
-
+#[derive(Default)]
 pub struct ShaderManager {
     shaders: FnvHashMap<String, Shader>,
 }
+impl Resource for ShaderManager {}
 
 impl ShaderManager {
-    pub fn init() -> ShaderManager {
-        let was_alive = IS_SHADER_MANAGER_ALIVE.swap(true, Ordering::Relaxed);
-
-        if !was_alive {
-            ShaderManager {
-                shaders: FnvHashMap::default(),
-            }
-        } else {
-            panic!("Cannot create two instance of AssetManager");
-        }
-    }
-
     pub fn register(&mut self, name: &str, vert_source: &str, frag_source: &str) -> &Shader {
         let mut shader = Shader {
             name: String::from(name),

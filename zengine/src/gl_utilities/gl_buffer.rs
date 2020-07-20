@@ -3,6 +3,7 @@ pub struct AttributeInfo {
     pub component_size: i32,
 }
 
+#[derive(Default)]
 pub struct GLBuffer {
     type_size: usize,
 
