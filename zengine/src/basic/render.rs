@@ -6,19 +6,18 @@ use crate::core::Resource;
 use crate::core::Store;
 use crate::gl_utilities::gl_buffer::AttributeInfo;
 use crate::gl_utilities::gl_buffer::GLBuffer;
+use crate::gl_utilities::shader::Shader;
 use crate::gl_utilities::shader::ShaderManager;
 use crate::graphics::color::Color;
-use crate::graphics::material::Material;
-use crate::graphics::texture::Texture;
 use crate::graphics::vertex::Vertex;
 use crate::math::matrix4x4::Matrix4x4;
 use crate::math::transform::Transform;
 use crate::math::vector3::Vector3;
-use sdl2::video::GLContext;
-use sdl2::VideoSubsystem;
-
 use log::info;
+use sdl2::video::GLContext;
 use sdl2::video::{DisplayMode, FullscreenType, GLProfile, Window};
+use sdl2::VideoSubsystem;
+use std::fmt::Debug;
 
 pub struct WindowSpecs {
     title: String,
@@ -60,6 +59,7 @@ pub struct Sprite {
     pub width: f32,
     pub height: f32,
     pub origin: Vector3,
+    pub color: Color,
 }
 impl Component for Sprite {}
 
@@ -88,9 +88,7 @@ pub struct RenderSystem {
     window: Option<Window>,
     ctx: Option<GLContext>,
     buffer: Option<GLBuffer>,
-    vertices: [Vertex; 6],
-    shaders: ShaderManager,
-    texture: Option<Texture>,
+    //texture: Option<Texture>,
 }
 
 impl RenderSystem {
@@ -98,11 +96,9 @@ impl RenderSystem {
         RenderSystem {
             window_specs: specs,
             buffer: None,
-            vertices: [Vertex::default(); 6],
-            shaders: ShaderManager::default(),
             window: None,
             ctx: None,
-            texture: None,
+            //texture: None,
         }
     }
 
@@ -113,30 +109,66 @@ impl RenderSystem {
         let min_y = -(height * origin.y);
         let max_y = height * (1.0 - origin.y);
 
-        self.vertices[0] = Vertex::new(min_x, min_y, 0.0, 0.0, 0.0);
-        self.vertices[1] = Vertex::new(min_x, max_y, 0.0, 0.0, 1.0);
-        self.vertices[2] = Vertex::new(max_x, max_y, 0.0, 1.0, 1.0);
-
-        self.vertices[3] = Vertex::new(max_x, max_y, 0.0, 1.0, 1.0);
-        self.vertices[4] = Vertex::new(max_x, min_y, 0.0, 1.0, 0.0);
-        self.vertices[5] = Vertex::new(min_x, min_y, 0.0, 0.0, 0.0);
-
         if let Some(buffer) = &mut self.buffer {
             buffer.upload(
-                &self
-                    .vertices
-                    .iter()
-                    .flat_map(|v| {
-                        vec![
-                            v.position.x,
-                            v.position.y,
-                            v.position.z,
-                            v.tex_coord.x,
-                            v.tex_coord.y,
-                        ]
-                    })
-                    .collect::<Vec<f32>>(),
+                &[
+                    Vertex::new(min_x, min_y, 0.0, 0.0, 0.0),
+                    Vertex::new(min_x, max_y, 0.0, 0.0, 1.0),
+                    Vertex::new(max_x, max_y, 0.0, 1.0, 1.0),
+                    Vertex::new(max_x, max_y, 0.0, 1.0, 1.0),
+                    Vertex::new(max_x, min_y, 0.0, 1.0, 0.0),
+                    Vertex::new(min_x, min_y, 0.0, 0.0, 0.0),
+                ]
+                .iter()
+                .flat_map(|v| {
+                    vec![
+                        v.position.x,
+                        v.position.y,
+                        v.position.z,
+                        v.tex_coord.x,
+                        v.tex_coord.y,
+                    ]
+                })
+                .collect::<Vec<f32>>(),
             );
+        }
+    }
+
+    fn render_sprites(
+        &mut self,
+        shader: &Shader,
+        sprites: ReadSet<Sprite>,
+        transforms: ReadSet<Transform>,
+    ) {
+        let u_color_position = shader.get_uniform_location("u_tint");
+        let u_model_location = shader.get_uniform_location("u_model");
+        //let u_diffuse_location = shader.get_uniform_location("u_diffuse");
+        for s in sprites.iter() {
+            if let Some(transform) = transforms.get(s.0) {
+                self.calculate_vertices(s.1.width, s.1.height, s.1.origin);
+                //if let Some(texture) = &self.texture {
+                unsafe {
+                    gl::UniformMatrix4fv(
+                        u_model_location,
+                        1,
+                        gl::FALSE,
+                        transform.get_transformation_matrix().data.as_ptr(),
+                    );
+                    gl::Uniform4f(
+                        u_color_position,
+                        s.1.color.r,
+                        s.1.color.g,
+                        s.1.color.b,
+                        s.1.color.a,
+                    );
+                    //texture.activate();
+                    //gl::Uniform1i(u_diffuse_location, 0);
+                }
+                if let Some(buffer) = &self.buffer {
+                    buffer.draw();
+                }
+                //}
+            }
         }
     }
 
@@ -159,54 +191,59 @@ impl RenderSystem {
 
 impl<'a> System<'a> for RenderSystem {
     type Data = (
+        Read<'a, ShaderManager>,
         ReadSet<'a, Sprite>,
         ReadSet<'a, Transform>,
         Read<'a, Background>,
     );
 
     fn init(&mut self, store: &mut Store) {
-        let video_subsystem = store
-            .get_resource::<VideoSubsystem>()
-            .expect("No VideoSubsystem resource found. Consider to register an PlatformSystem");
+        {
+            let video_subsystem = store
+                .get_resource::<VideoSubsystem>()
+                .expect("No VideoSubsystem resource found. Consider to register an PlatformSystem");
 
-        let gl_attr = video_subsystem.gl_attr();
-        gl_attr.set_context_profile(GLProfile::Core);
-        if cfg!(target_os = "macos") {
-            gl_attr.set_context_version(4, 1);
-        } else {
-            gl_attr.set_context_version(4, 6);
+            let gl_attr = video_subsystem.gl_attr();
+            gl_attr.set_context_profile(GLProfile::Core);
+            if cfg!(target_os = "macos") {
+                gl_attr.set_context_version(4, 1);
+            } else {
+                gl_attr.set_context_version(4, 6);
+            }
+            gl_attr.set_double_buffer(true);
+
+            let mut window = video_subsystem
+                .window(
+                    self.window_specs.title.as_ref(),
+                    self.window_specs.width,
+                    self.window_specs.height,
+                )
+                .opengl()
+                .allow_highdpi()
+                .build()
+                .unwrap();
+
+            if self.window_specs.fullscreen {
+                let display_mode = self.get_display_mode(&video_subsystem);
+                window.set_display_mode(display_mode).unwrap();
+                window.set_fullscreen(FullscreenType::True).unwrap();
+            }
+
+            self.ctx = Some(window.gl_create_context().unwrap());
+            gl::load_with(|name| video_subsystem.gl_get_proc_address(name) as *const _);
+
+            info!(
+                "Pixel format of the window's GL context: {:?}",
+                window.window_pixel_format()
+            );
+            println!(
+                "OpenGL Profile: {:?} - OpenGL version: {:?}",
+                gl_attr.context_profile(),
+                gl_attr.context_version()
+            );
+
+            self.window = Some(window);
         }
-        gl_attr.set_double_buffer(true);
-
-        let mut window = video_subsystem
-            .window(
-                self.window_specs.title.as_ref(),
-                self.window_specs.width,
-                self.window_specs.height,
-            )
-            .opengl()
-            .allow_highdpi()
-            .build()
-            .unwrap();
-
-        if self.window_specs.fullscreen {
-            let display_mode = self.get_display_mode(&video_subsystem);
-            window.set_display_mode(display_mode).unwrap();
-            window.set_fullscreen(FullscreenType::True).unwrap();
-        }
-
-        self.ctx = Some(window.gl_create_context().unwrap());
-        gl::load_with(|name| video_subsystem.gl_get_proc_address(name) as *const _);
-        info!(
-            "Pixel format of the window's GL context: {:?}",
-            window.window_pixel_format()
-        );
-        println!(
-            "OpenGL Profile: {:?} - OpenGL version: {:?}",
-            gl_attr.context_profile(),
-            gl_attr.context_version()
-        );
-        self.window = Some(window);
 
         unsafe {
             if !cfg!(target_os = "macos") {
@@ -217,7 +254,8 @@ impl<'a> System<'a> for RenderSystem {
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
         }
 
-        let basic_shader = self.shaders.register(
+        let mut shaders = ShaderManager::default();
+        let basic_shader = shaders.register(
             "basic",
             include_str!("../basic.vert"),
             include_str!("../basic.frag"),
@@ -242,13 +280,15 @@ impl<'a> System<'a> for RenderSystem {
             false,
         );
 
-        let texture = Texture::new("duck.png");
-        self.texture = Some(texture);
+        //let texture = Texture::new("duck.png");
+        //self.texture = Some(texture);
 
         self.buffer = Some(buffer);
+
+        store.insert_resource(shaders);
     }
 
-    fn run(&mut self, (sprites, transforms, background): Self::Data) {
+    fn run(&mut self, (shaders, sprites, transforms, background): Self::Data) {
         unsafe {
             gl::Clear(gl::COLOR_BUFFER_BIT);
             gl::ClearColor(
@@ -260,15 +300,9 @@ impl<'a> System<'a> for RenderSystem {
         }
         let projection = Matrix4x4::orthographics(0.0, 800.0, 0.0, 600.0, -100.0, 100.0);
 
-        let shader = self.shaders.get("basic");
+        let shader = shaders.get("basic");
         shader.use_shader();
-
         let u_projection_location = shader.get_uniform_location("u_projection");
-
-        let u_color_position = shader.get_uniform_location("u_tint");
-        let u_model_location = shader.get_uniform_location("u_model");
-        let u_diffuse_location = shader.get_uniform_location("u_diffuse");
-
         unsafe {
             gl::UniformMatrix4fv(
                 u_projection_location,
@@ -277,28 +311,7 @@ impl<'a> System<'a> for RenderSystem {
                 projection.data.as_ptr(),
             );
         }
-
-        for s in sprites.iter() {
-            if let Some(transform) = transforms.get(s.0) {
-                self.calculate_vertices(s.1.width, s.1.height, s.1.origin);
-                if let Some(texture) = &self.texture {
-                    unsafe {
-                        gl::UniformMatrix4fv(
-                            u_model_location,
-                            1,
-                            gl::FALSE,
-                            transform.get_transformation_matrix().data.as_ptr(),
-                        );
-                        gl::Uniform4f(u_color_position, 1.0, 0.0, 1.0, 1.0);
-                        texture.activate();
-                        gl::Uniform1i(u_diffuse_location, 0);
-                    }
-                    if let Some(buffer) = &self.buffer {
-                        buffer.draw();
-                    }
-                }
-            }
-        }
+        self.render_sprites(shader, sprites, transforms);
 
         if let Some(window) = &self.window {
             window.gl_swap_window();

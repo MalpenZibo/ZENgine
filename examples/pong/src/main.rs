@@ -85,8 +85,24 @@ impl Scene for Game {
                 width: 40.0,
                 height: 40.0,
                 origin: Vector3::zero(),
+                color: Color::black(),
             })
             .with(Transform::default())
+            .build();
+
+        store
+            .build_entity()
+            .with(Sprite {
+                width: 20.0,
+                height: 20.0,
+                origin: Vector3::zero(),
+                color: Color::blue(),
+            })
+            .with(Transform::new(
+                Vector3::new(200.0, 100.0, 0.0),
+                Vector3::zero(),
+                Vector3::one(),
+            ))
             .build();
         store.build_entity().with(Component1 { data: 3 }).build();
         store

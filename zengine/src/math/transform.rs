@@ -21,6 +21,14 @@ impl Default for Transform {
 }
 
 impl Transform {
+    pub fn new(position: Vector3, rotation: Vector3, scale: Vector3) -> Self {
+        Transform {
+            position,
+            rotation,
+            scale,
+        }
+    }
+
     pub fn get_transformation_matrix(&self) -> Matrix4x4 {
         let translation = Matrix4x4::translation(self.position);
         let rotation = Matrix4x4::rotation(self.rotation);
