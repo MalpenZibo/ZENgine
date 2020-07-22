@@ -88,7 +88,6 @@ pub struct RenderSystem {
     window: Option<Window>,
     ctx: Option<GLContext>,
     buffer: Option<GLBuffer>,
-    //texture: Option<Texture>,
 }
 
 impl RenderSystem {
@@ -98,7 +97,6 @@ impl RenderSystem {
             buffer: None,
             window: None,
             ctx: None,
-            //texture: None,
         }
     }
 
@@ -187,6 +185,49 @@ impl RenderSystem {
             self.window_specs.width, self.window_specs.height
         );
     }
+
+    fn create_window_and_opengl_context(&mut self, video_subsystem: &VideoSubsystem) {
+        let gl_attr = video_subsystem.gl_attr();
+        gl_attr.set_context_profile(GLProfile::Core);
+        if cfg!(target_os = "macos") {
+            gl_attr.set_context_version(4, 1);
+        } else {
+            gl_attr.set_context_version(4, 6);
+        }
+        gl_attr.set_double_buffer(true);
+
+        let mut window = video_subsystem
+            .window(
+                self.window_specs.title.as_ref(),
+                self.window_specs.width,
+                self.window_specs.height,
+            )
+            .opengl()
+            .allow_highdpi()
+            .build()
+            .unwrap();
+
+        if self.window_specs.fullscreen {
+            let display_mode = self.get_display_mode(&video_subsystem);
+            window.set_display_mode(display_mode).unwrap();
+            window.set_fullscreen(FullscreenType::True).unwrap();
+        }
+
+        self.ctx = Some(window.gl_create_context().unwrap());
+        gl::load_with(|name| video_subsystem.gl_get_proc_address(name) as *const _);
+
+        info!(
+            "Pixel format of the window's GL context: {:?}",
+            window.window_pixel_format()
+        );
+        println!(
+            "OpenGL Profile: {:?} - OpenGL version: {:?}",
+            gl_attr.context_profile(),
+            gl_attr.context_version()
+        );
+
+        self.window = Some(window);
+    }
 }
 
 impl<'a> System<'a> for RenderSystem {
@@ -203,46 +244,7 @@ impl<'a> System<'a> for RenderSystem {
                 .get_resource::<VideoSubsystem>()
                 .expect("No VideoSubsystem resource found. Consider to register an PlatformSystem");
 
-            let gl_attr = video_subsystem.gl_attr();
-            gl_attr.set_context_profile(GLProfile::Core);
-            if cfg!(target_os = "macos") {
-                gl_attr.set_context_version(4, 1);
-            } else {
-                gl_attr.set_context_version(4, 6);
-            }
-            gl_attr.set_double_buffer(true);
-
-            let mut window = video_subsystem
-                .window(
-                    self.window_specs.title.as_ref(),
-                    self.window_specs.width,
-                    self.window_specs.height,
-                )
-                .opengl()
-                .allow_highdpi()
-                .build()
-                .unwrap();
-
-            if self.window_specs.fullscreen {
-                let display_mode = self.get_display_mode(&video_subsystem);
-                window.set_display_mode(display_mode).unwrap();
-                window.set_fullscreen(FullscreenType::True).unwrap();
-            }
-
-            self.ctx = Some(window.gl_create_context().unwrap());
-            gl::load_with(|name| video_subsystem.gl_get_proc_address(name) as *const _);
-
-            info!(
-                "Pixel format of the window's GL context: {:?}",
-                window.window_pixel_format()
-            );
-            println!(
-                "OpenGL Profile: {:?} - OpenGL version: {:?}",
-                gl_attr.context_profile(),
-                gl_attr.context_version()
-            );
-
-            self.window = Some(window);
+            self.create_window_and_opengl_context(&video_subsystem);
         }
 
         unsafe {
@@ -279,9 +281,6 @@ impl<'a> System<'a> for RenderSystem {
             ],
             false,
         );
-
-        //let texture = Texture::new("duck.png");
-        //self.texture = Some(texture);
 
         self.buffer = Some(buffer);
 
