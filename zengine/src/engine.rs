@@ -16,7 +16,7 @@ pub struct Engine {
 
 impl Engine {
     pub fn init_logger(level_filter: LevelFilter) {
-        if let Err(_) = TermLogger::init(level_filter, Config::default(), TerminalMode::Mixed) {
+        if TermLogger::init(level_filter, Config::default(), TerminalMode::Mixed).is_err() {
             SimpleLogger::init(level_filter, Config::default())
                 .expect("An error occurred on logger initialization")
         }
@@ -44,12 +44,9 @@ impl Engine {
             for s in self.systems.iter_mut() {
                 s.run(&self.store);
             }
-            match scene.update(&self.store) {
-                Trans::Quit => {
-                    info!("Quit transaction received");
-                    break 'main_loop;
-                }
-                _ => {}
+            if let Trans::Quit = scene.update(&self.store) {
+                info!("Quit transaction received");
+                break 'main_loop;
             }
         }
 

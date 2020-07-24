@@ -1,5 +1,5 @@
 use crate::core::store::Store;
-use crate::event::event_stream::EventStream;
+use crate::event::EventStream;
 
 #[derive(Clone, Debug)]
 pub enum Trans {

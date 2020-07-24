@@ -1,67 +1,18 @@
-use crate::core::system::Read;
-use crate::core::system::ReadSet;
-use crate::core::system::System;
-use crate::core::Component;
-use crate::core::Resource;
+use crate::core::system::{Read, ReadSet, System};
 use crate::core::Store;
 use crate::gl_utilities::gl_buffer::AttributeInfo;
 use crate::gl_utilities::gl_buffer::GLBuffer;
 use crate::gl_utilities::shader::Shader;
 use crate::gl_utilities::shader::ShaderManager;
-use crate::graphics::color::Color;
 use crate::graphics::vertex::Vertex;
 use crate::math::matrix4x4::Matrix4x4;
 use crate::math::transform::Transform;
 use crate::math::vector3::Vector3;
+use crate::render::{Background, Sprite, WindowSpecs};
 use log::info;
 use sdl2::video::GLContext;
 use sdl2::video::{DisplayMode, FullscreenType, GLProfile, Window};
 use sdl2::VideoSubsystem;
-use std::fmt::Debug;
-
-pub struct WindowSpecs {
-    title: String,
-    width: u32,
-    height: u32,
-    fullscreen: bool,
-}
-
-impl WindowSpecs {
-    pub fn new(title: String, width: u32, height: u32, fullscreen: bool) -> Self {
-        WindowSpecs {
-            title: title,
-            width: width,
-            height: height,
-            fullscreen: fullscreen,
-        }
-    }
-}
-
-impl Default for WindowSpecs {
-    fn default() -> Self {
-        WindowSpecs {
-            title: String::from("zengine"),
-            width: 800,
-            height: 600,
-            fullscreen: false,
-        }
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct Background {
-    pub color: Color,
-}
-impl Resource for Background {}
-
-#[derive(Debug)]
-pub struct Sprite {
-    pub width: f32,
-    pub height: f32,
-    pub origin: Vector3,
-    pub color: Color,
-}
-impl Component for Sprite {}
 
 extern "system" fn dbg_callback(
     source: gl::types::GLenum,

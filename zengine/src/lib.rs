@@ -1,11 +1,13 @@
 mod assets;
-pub mod basic;
 pub mod core;
 mod engine;
 pub mod event;
 mod gl_utilities;
 pub mod graphics;
 pub mod math;
+pub mod platform;
+pub mod render;
+pub mod timing;
 
 pub use self::engine::Engine;
 pub use log;
