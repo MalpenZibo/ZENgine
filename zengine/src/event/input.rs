@@ -1,7 +1,7 @@
-use crate::event::controller::ControllerButton;
-use crate::event::controller::Which;
-use crate::event::keyboard::Key;
-use crate::event::mouse::MouseButton;
+use crate::device::controller::ControllerButton;
+use crate::device::controller::Which;
+use crate::device::keyboard::Key;
+use crate::device::mouse::MouseButton;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]

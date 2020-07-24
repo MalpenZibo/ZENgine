@@ -70,8 +70,8 @@ impl<'a, T: InputType> System<'a> for InputSystem<T> {
 mod tests {
     use super::*;
     use crate::core::system::AnySystem;
+    use crate::device::keyboard::Key;
     use crate::event::input::Input;
-    use crate::event::keyboard::Key;
     use crate::event::{ActionBind, AxisBind};
     use serde::Deserialize;
 

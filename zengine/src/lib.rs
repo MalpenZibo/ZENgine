@@ -1,5 +1,6 @@
 mod assets;
 pub mod core;
+pub mod device;
 mod engine;
 pub mod event;
 mod gl_utilities;

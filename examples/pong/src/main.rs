@@ -1,8 +1,6 @@
 extern crate zengine;
 
-use zengine::core::system::Read;
-use zengine::core::system::ReadSet;
-use zengine::core::system::WriteSet;
+use zengine::core::system::*;
 use zengine::core::*;
 use zengine::event::*;
 use zengine::graphics::color::Color;

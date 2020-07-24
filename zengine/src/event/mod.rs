@@ -10,10 +10,7 @@ use serde::Deserialize;
 use std::any::Any;
 use std::hash::Hash;
 
-pub mod controller;
 pub mod input;
-pub mod keyboard;
-pub mod mouse;
 pub mod system;
 
 pub use self::system::InputSystem;
