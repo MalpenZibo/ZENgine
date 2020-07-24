@@ -78,6 +78,7 @@ impl<E: Any> EventStream<E> {
         }
     }
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn read(&self, token: &SubscriptionToken) -> impl Iterator<Item = &E> {
         let head = self.head.unwrap_or_else(|| 0);
         let mut subscription = self.get_subscription(token);

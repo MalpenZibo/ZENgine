@@ -9,10 +9,10 @@ pub enum MouseButton {
 }
 
 impl MouseButton {
-    pub fn from_sdl_button(button: &sdl2::mouse::MouseButton) -> MouseButton {
-        match unsafe { std::mem::transmute(*button as u8) } {
+    pub fn from_sdl_button(button: sdl2::mouse::MouseButton) -> MouseButton {
+        match unsafe { std::mem::transmute(button as u8) } {
             Some(button) => button,
-            None => panic!("Cannot convert number {} to `MouseButton`", *(button) as u8),
+            None => panic!("Cannot convert number {} to `MouseButton`", (button) as u8),
         }
     }
 }

@@ -82,7 +82,7 @@ impl<'a> System<'a> for PlatformSystem {
                     ..
                 } => input.publish(InputEvent {
                     input: Input::Keyboard {
-                        key: Key::from_sdl2_key(&keycode),
+                        key: Key::from_sdl2_key(keycode),
                     },
                     value: 1.0,
                 }),
@@ -91,7 +91,7 @@ impl<'a> System<'a> for PlatformSystem {
                     ..
                 } => input.publish(InputEvent {
                     input: Input::Keyboard {
-                        key: Key::from_sdl2_key(&keycode),
+                        key: Key::from_sdl2_key(keycode),
                     },
                     value: 0.0,
                 }),
@@ -141,13 +141,13 @@ impl<'a> System<'a> for PlatformSystem {
                 }
                 Event::MouseButtonDown { mouse_btn, .. } => input.publish(InputEvent {
                     input: Input::MouseButton {
-                        button: MouseButton::from_sdl_button(&mouse_btn),
+                        button: MouseButton::from_sdl_button(mouse_btn),
                     },
                     value: 1.0,
                 }),
                 Event::MouseButtonUp { mouse_btn, .. } => input.publish(InputEvent {
                     input: Input::MouseButton {
-                        button: MouseButton::from_sdl_button(&mouse_btn),
+                        button: MouseButton::from_sdl_button(mouse_btn),
                     },
                     value: 0.0,
                 }),
@@ -155,14 +155,14 @@ impl<'a> System<'a> for PlatformSystem {
                 Event::ControllerButtonDown { which, button, .. } => input.publish(InputEvent {
                     input: Input::ControllerButton {
                         device_id: which,
-                        button: ControllerButton::from_sdl_button(&button),
+                        button: ControllerButton::from_sdl_button(button),
                     },
                     value: 1.0,
                 }),
                 Event::ControllerButtonUp { which, button, .. } => input.publish(InputEvent {
                     input: Input::ControllerButton {
                         device_id: which,
-                        button: ControllerButton::from_sdl_button(&button),
+                        button: ControllerButton::from_sdl_button(button),
                     },
                     value: 0.0,
                 }),

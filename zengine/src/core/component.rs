@@ -49,6 +49,7 @@ impl Components {
         }
     }
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn insert_component<C: Component>(&mut self, entity: &Entity, component: C) {
         let type_id = TypeId::of::<C>();
 
@@ -78,6 +79,7 @@ impl Components {
         }
     }
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn remove_entity(&mut self, entity: &Entity) {
         for s in self.storages.iter() {
             s.1.borrow_mut().remove(entity);
@@ -92,6 +94,7 @@ impl Components {
 }
 
 pub trait AnySet: Downcast + Debug {
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     fn remove(&mut self, entity: &Entity);
 
     fn clear(&mut self);

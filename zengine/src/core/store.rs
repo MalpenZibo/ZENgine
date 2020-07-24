@@ -71,6 +71,7 @@ impl Store {
         }
     }
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn remove_entity(&mut self, entity: &Entity) {
         self.components.remove_entity(entity);
     }
@@ -87,6 +88,7 @@ impl Store {
         self.components.get_mut::<C>()
     }
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn insert_component<C: Component>(&mut self, entity: &Entity, component: C) {
         self.components.insert_component(entity, component);
     }

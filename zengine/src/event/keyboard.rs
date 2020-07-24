@@ -241,10 +241,10 @@ pub enum Key {
 }
 
 impl Key {
-    pub fn from_sdl2_key(key: &sdl2::keyboard::Keycode) -> Key {
-        match unsafe { std::mem::transmute(*key as i32) } {
+    pub fn from_sdl2_key(key: sdl2::keyboard::Keycode) -> Key {
+        match unsafe { std::mem::transmute(key as i32) } {
             Some(key) => key,
-            None => panic!("Cannot convert number {} to `Key`", *(key) as i32),
+            None => panic!("Cannot convert number {} to `Key`", (key) as i32),
         }
     }
 }
