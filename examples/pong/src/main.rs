@@ -3,7 +3,10 @@ extern crate zengine;
 use zengine::basic::input::Bindings;
 use zengine::basic::input::InputType;
 use zengine::basic::input::{InputHandler, InputSystem};
-use zengine::basic::platform::{EventPumpSystem, WindowSystem};
+use zengine::basic::platform::PlatformSystem;
+use zengine::basic::render::Background;
+use zengine::basic::render::WindowSpecs;
+use zengine::basic::render::{RenderSystem, Sprite};
 use zengine::basic::timing::{FrameLimiter, TimingSystem};
 use zengine::core::system::Read;
 use zengine::core::system::{ReadSet, WriteSet};
@@ -14,7 +17,10 @@ use zengine::core::System;
 use zengine::core::Trans;
 use zengine::event::event_stream::EventStream;
 use zengine::event::event_stream::SubscriptionToken;
+use zengine::graphics::color::Color;
 use zengine::log::{info, trace, LevelFilter};
+use zengine::math::transform::Transform;
+use zengine::math::vector3::Vector3;
 use zengine::serde::Deserialize;
 use zengine::serde_yaml;
 use zengine::Engine;
@@ -43,11 +49,11 @@ fn main() {
     let bindings: Bindings<UserInput> = serde_yaml::from_str(&content).unwrap();
 
     Engine::default()
-        .with_system(EventPumpSystem::default())
+        .with_system(PlatformSystem::default())
         .with_system(InputSystem::<UserInput>::new(bindings))
         .with_system(System1::default())
         .with_system(System2::default())
-        .with_system(WindowSystem::default())
+        .with_system(RenderSystem::new(WindowSpecs::default()))
         .with_system(TimingSystem::default().with_limiter(FrameLimiter::new(60)))
         .run(Game {
             execution_numer: 10,
@@ -69,6 +75,35 @@ impl Scene for Game {
     fn on_start(&mut self, store: &mut Store) {
         trace!("Game scene on start");
 
+        store.insert_resource(Background {
+            color: Color::white(),
+        });
+
+        store
+            .build_entity()
+            .with(Sprite {
+                width: 40.0,
+                height: 40.0,
+                origin: Vector3::zero(),
+                color: Color::black(),
+            })
+            .with(Transform::default())
+            .build();
+
+        store
+            .build_entity()
+            .with(Sprite {
+                width: 20.0,
+                height: 20.0,
+                origin: Vector3::zero(),
+                color: Color::blue(),
+            })
+            .with(Transform::new(
+                Vector3::new(200.0, 100.0, 0.0),
+                Vector3::zero(),
+                Vector3::one(),
+            ))
+            .build();
         store.build_entity().with(Component1 { data: 3 }).build();
         store
             .build_entity()

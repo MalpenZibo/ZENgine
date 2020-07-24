@@ -1,18 +1,31 @@
+use crate::core::Component;
 use crate::math::matrix4x4::Matrix4x4;
 use crate::math::vector3::Vector3;
 
+#[derive(Debug)]
 pub struct Transform {
     pub position: Vector3,
     pub rotation: Vector3,
     pub scale: Vector3,
 }
+impl Component for Transform {}
 
-impl Transform {
-    pub fn new() -> Transform {
+impl Default for Transform {
+    fn default() -> Self {
         Transform {
             position: Vector3::zero(),
             rotation: Vector3::zero(),
             scale: Vector3::one(),
+        }
+    }
+}
+
+impl Transform {
+    pub fn new(position: Vector3, rotation: Vector3, scale: Vector3) -> Self {
+        Transform {
+            position,
+            rotation,
+            scale,
         }
     }
 

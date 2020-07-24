@@ -1,6 +1,5 @@
 extern crate sdl2;
 
-use crate::basic::platform::resources::Platform;
 use crate::core::system::System;
 use crate::core::system::Write;
 use crate::core::Store;
@@ -14,15 +13,16 @@ use crate::event::keyboard::Key;
 use crate::event::mouse::MouseButton;
 use log::{info, trace};
 use sdl2::event::Event;
+use sdl2::video::GLProfile;
 use sdl2::EventPump;
 use sdl2::Sdl;
 
-pub struct EventPumpSystem {
-    consumable_sdl_context: Option<Sdl>,
+pub struct PlatformSystem {
+    sdl_context: Sdl,
     event_pump: EventPump,
 }
 
-impl Default for EventPumpSystem {
+impl Default for PlatformSystem {
     fn default() -> Self {
         let sdl_context = sdl2::init().unwrap();
         let event_pump = sdl_context.event_pump().unwrap();
@@ -54,25 +54,23 @@ impl Default for EventPumpSystem {
                 }
             }
         }
-        EventPumpSystem {
-            consumable_sdl_context: Some(sdl_context),
+        PlatformSystem {
+            sdl_context: sdl_context,
             event_pump: event_pump,
         }
     }
 }
 
-impl<'a> System<'a> for EventPumpSystem {
+impl<'a> System<'a> for PlatformSystem {
     type Data = (
         Write<'a, EventStream<Trans>>,
         Write<'a, EventStream<InputEvent>>,
     );
 
     fn init(&mut self, store: &mut Store) {
-        let context = self.consumable_sdl_context.take();
+        let video_subsystem = self.sdl_context.video().unwrap();
 
-        store.insert_resource(Platform {
-            context: context.unwrap(),
-        });
+        store.insert_resource(video_subsystem);
     }
 
     fn run(&mut self, (mut trans, mut input): Self::Data) {
