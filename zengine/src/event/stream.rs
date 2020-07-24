@@ -33,7 +33,7 @@ impl<E: Any> EventStream<E> {
     pub fn subscribe(&mut self) -> SubscriptionToken {
         let token = self.generate_token();
         self.subscriptions.insert(
-            token.clone(),
+            token,
             RefCell::new(Subscription {
                 position: self.head,
             }),

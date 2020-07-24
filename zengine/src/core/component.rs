@@ -58,11 +58,11 @@ impl Components {
                 RefMut::map(storage.borrow_mut(), |b| {
                     b.downcast_mut::<Set<C>>().expect("downcast set error")
                 })
-                .insert(entity.clone(), component);
+                .insert(*entity, component);
             }
             None => {
                 let mut storage = Set::<C>::default();
-                storage.insert(entity.clone(), component);
+                storage.insert(*entity, component);
 
                 self.storages
                     .insert(type_id, RefCell::new(Box::new(storage)));
