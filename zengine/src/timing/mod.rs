@@ -28,11 +28,11 @@ impl Default for FrameLimiter {
     }
 }
 
-#[derive(Debug)]
+#[derive(Resource, Debug)]
 pub struct Time {
     pub delta: Duration,
 }
-impl Resource for Time {}
+
 impl Default for Time {
     fn default() -> Self {
         Time {

@@ -12,6 +12,7 @@ use zengine::render::*;
 use zengine::serde::Deserialize;
 use zengine::serde_yaml;
 use zengine::timing::*;
+use zengine::Component;
 use zengine::Engine;
 
 fn main() {
@@ -116,26 +117,20 @@ impl Scene for Game {
     }
 }
 
-#[derive(Debug)]
+#[derive(Component, Debug)]
 pub struct Component1 {
     data: u32,
 }
 
-impl Component for Component1 {}
-
-#[derive(Debug)]
+#[derive(Component, Debug)]
 pub struct Component2 {
     data2: u32,
 }
 
-impl Component for Component2 {}
-
-#[derive(Debug)]
+#[derive(Component, Debug)]
 pub struct Component3 {
     data2: u32,
 }
-
-impl Component for Component3 {}
 
 #[derive(Debug, Default)]
 pub struct System1 {

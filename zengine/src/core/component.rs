@@ -11,12 +11,10 @@ use std::fmt::Debug;
 
 pub trait Component: Any + Debug {}
 
-#[derive(Debug)]
+#[derive(Resource, Debug)]
 pub struct Components {
     storages: FnvHashMap<TypeId, RefCell<Box<dyn AnySet>>>,
 }
-
-impl Resource for Components {}
 
 impl Default for Components {
     fn default() -> Self {
@@ -117,13 +115,11 @@ mod tests {
     use super::*;
     use crate::core::store::Store;
 
-    #[derive(PartialEq, Debug)]
+    #[derive(Component, PartialEq, Debug)]
     struct Component1 {
         data1: i32,
         data2: f32,
     }
-
-    impl Component for Component1 {}
 
     #[test]
     fn get_from_empty_storage() {

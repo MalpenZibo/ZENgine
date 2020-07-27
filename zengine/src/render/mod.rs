@@ -35,17 +35,15 @@ impl Default for WindowSpecs {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Resource, Debug, Default)]
 pub struct Background {
     pub color: Color,
 }
-impl Resource for Background {}
 
-#[derive(Debug)]
+#[derive(Component, Debug)]
 pub struct Sprite {
     pub width: f32,
     pub height: f32,
     pub origin: Vector3,
     pub color: Color,
 }
-impl Component for Sprite {}

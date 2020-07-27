@@ -14,3 +14,8 @@ pub use self::engine::Engine;
 pub use log;
 pub use serde;
 pub use serde_yaml;
+
+#[allow(unused_imports)]
+#[macro_use]
+extern crate zengine_macro_derive;
+pub use zengine_macro_derive::*;

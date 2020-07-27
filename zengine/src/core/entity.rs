@@ -3,12 +3,10 @@ use crate::core::store::Resource;
 use crate::core::store::Store;
 use std::fmt::Debug;
 
-#[derive(Default, Debug)]
+#[derive(Resource, Default, Debug)]
 pub struct Entities {
     max_id: u32,
 }
-
-impl Resource for Entities {}
 
 impl Entities {
     pub fn create_entity(&mut self) -> Entity {
