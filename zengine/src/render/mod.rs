@@ -1,6 +1,6 @@
-mod system;
+mod render_system;
 
-pub use self::system::RenderSystem;
+pub use self::render_system::RenderSystem;
 use crate::core::Component;
 use crate::core::Resource;
 use crate::graphics::color::Color;

@@ -1,5 +1,5 @@
-mod system;
-pub use self::system::TimingSystem;
+mod timing_system;
+pub use self::timing_system::TimingSystem;
 
 use crate::core::Resource;
 use std::time::Duration;

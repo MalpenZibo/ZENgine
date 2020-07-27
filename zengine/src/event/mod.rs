@@ -11,9 +11,9 @@ use std::any::Any;
 use std::hash::Hash;
 
 pub mod input;
-pub mod system;
+mod input_system;
 
-pub use self::system::InputSystem;
+pub use self::input_system::InputSystem;
 
 pub trait InputType: Any + Eq + PartialEq + Hash + Clone {}
 
