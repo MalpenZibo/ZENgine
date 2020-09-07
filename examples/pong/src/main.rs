@@ -1,28 +1,18 @@
 extern crate zengine;
 
-use zengine::basic::input::Bindings;
-use zengine::basic::input::InputType;
-use zengine::basic::input::{InputHandler, InputSystem};
-use zengine::basic::platform::PlatformSystem;
-use zengine::basic::render::Background;
-use zengine::basic::render::WindowSpecs;
-use zengine::basic::render::{RenderSystem, Sprite};
-use zengine::basic::timing::{FrameLimiter, TimingSystem};
-use zengine::core::system::Read;
-use zengine::core::system::{ReadSet, WriteSet};
-use zengine::core::Component;
-use zengine::core::Scene;
-use zengine::core::Store;
-use zengine::core::System;
-use zengine::core::Trans;
-use zengine::event::event_stream::EventStream;
-use zengine::event::event_stream::SubscriptionToken;
+use zengine::core::system::*;
+use zengine::core::*;
+use zengine::event::*;
 use zengine::graphics::color::Color;
 use zengine::log::{info, trace, LevelFilter};
 use zengine::math::transform::Transform;
 use zengine::math::vector3::Vector3;
+use zengine::platform::*;
+use zengine::render::*;
 use zengine::serde::Deserialize;
 use zengine::serde_yaml;
+use zengine::timing::*;
+use zengine::Component;
 use zengine::Engine;
 
 fn main() {
@@ -112,11 +102,11 @@ impl Scene for Game {
             .build();
     }
 
-    fn on_stop(&mut self, store: &mut Store) {
+    fn on_stop(&mut self, _store: &mut Store) {
         trace!("Game scene on stop");
     }
 
-    fn update(&mut self, store: &Store) -> Trans {
+    fn update(&mut self, _store: &Store) -> Trans {
         match self.execution_numer {
             0 => Trans::None,
             _ => {
@@ -127,26 +117,20 @@ impl Scene for Game {
     }
 }
 
-#[derive(Debug)]
+#[derive(Component, Debug)]
 pub struct Component1 {
     data: u32,
 }
 
-impl Component for Component1 {}
-
-#[derive(Debug)]
+#[derive(Component, Debug)]
 pub struct Component2 {
     data2: u32,
 }
 
-impl Component for Component2 {}
-
-#[derive(Debug)]
+#[derive(Component, Debug)]
 pub struct Component3 {
     data2: u32,
 }
-
-impl Component for Component3 {}
 
 #[derive(Debug, Default)]
 pub struct System1 {
@@ -160,7 +144,7 @@ impl<'a> System<'a> for System1 {
         Read<'a, InputHandler<UserInput>>,
     );
 
-    fn init(&mut self, store: &mut Store) {
+    fn init(&mut self, _store: &mut Store) {
         trace!("setup system 1");
     }
 
@@ -182,7 +166,7 @@ impl<'a> System<'a> for System1 {
         self.run_count += 1;
     }
 
-    fn dispose(&mut self, store: &mut Store) {
+    fn dispose(&mut self, _store: &mut Store) {
         trace!("dispose system 1");
     }
 }
@@ -207,7 +191,7 @@ impl<'a> System<'a> for System2 {
         );
     }
 
-    fn run(&mut self, (set, stream): Self::Data) {
+    fn run(&mut self, (set, _stream): Self::Data) {
         trace!("run {} system 2", self.run_count);
 
         trace!("data 2: {:?}", set);
@@ -216,7 +200,7 @@ impl<'a> System<'a> for System2 {
         self.run_count += 1;
     }
 
-    fn dispose(&mut self, store: &mut Store) {
+    fn dispose(&mut self, _store: &mut Store) {
         trace!("dispose system 2");
     }
 }

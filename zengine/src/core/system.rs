@@ -59,9 +59,7 @@ impl<'a> Data<'a> for () {
     fn setup(store: &mut Store) {}
 
     #[allow(unused_variables)]
-    fn fetch(store: &'a Store) -> Self {
-        ()
-    }
+    fn fetch(store: &'a Store) -> Self {}
 }
 
 pub type ReadEntities<'a> = &'a Entities;

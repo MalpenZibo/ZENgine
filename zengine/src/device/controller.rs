@@ -21,12 +21,12 @@ pub enum ControllerButton {
 }
 
 impl ControllerButton {
-    pub fn from_sdl_button(button: &sdl2::controller::Button) -> ControllerButton {
-        match unsafe { std::mem::transmute(*button as i32) } {
+    pub fn from_sdl_button(button: sdl2::controller::Button) -> ControllerButton {
+        match unsafe { std::mem::transmute(button as i32) } {
             Some(button) => button,
             None => panic!(
                 "Cannot convert number {} to `ControllerButton`",
-                *(button) as i32
+                (button) as i32
             ),
         }
     }

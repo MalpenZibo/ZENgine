@@ -33,7 +33,7 @@ impl<E: Any> EventStream<E> {
     pub fn subscribe(&mut self) -> SubscriptionToken {
         let token = self.generate_token();
         self.subscriptions.insert(
-            token.clone(),
+            token,
             RefCell::new(Subscription {
                 position: self.head,
             }),
@@ -78,6 +78,7 @@ impl<E: Any> EventStream<E> {
         }
     }
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn read(&self, token: &SubscriptionToken) -> impl Iterator<Item = &E> {
         let head = self.head.unwrap_or_else(|| 0);
         let mut subscription = self.get_subscription(token);

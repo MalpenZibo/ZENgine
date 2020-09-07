@@ -12,11 +12,10 @@ fn create_whitespace_cstring_with_len(len: usize) -> CString {
     unsafe { CString::from_vec_unchecked(buffer) }
 }
 
-#[derive(Default)]
+#[derive(Resource, Default)]
 pub struct ShaderManager {
     shaders: FnvHashMap<String, Shader>,
 }
-impl Resource for ShaderManager {}
 
 impl ShaderManager {
     pub fn register(&mut self, name: &str, vert_source: &str, frag_source: &str) -> &Shader {

@@ -1,47 +1,10 @@
 use crate::core::system::System;
 use crate::core::system::Write;
-use crate::core::Resource;
 use crate::core::Store;
+use crate::timing::{FrameLimiter, Time};
 use log::trace;
 use std::thread::sleep;
-use std::time::{Duration, Instant};
-
-#[derive(Debug)]
-pub struct Time {
-    delta: Duration,
-}
-impl Resource for Time {}
-impl Default for Time {
-    fn default() -> Self {
-        Time {
-            delta: Duration::from_secs(1),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct FrameLimiter {
-    fps: u32,
-    frame_duration: Duration,
-}
-
-impl FrameLimiter {
-    pub fn new(fps: u32) -> Self {
-        FrameLimiter {
-            fps: fps,
-            frame_duration: Duration::from_secs(1) / fps,
-        }
-    }
-}
-
-impl Default for FrameLimiter {
-    fn default() -> Self {
-        FrameLimiter {
-            fps: 60,
-            frame_duration: Duration::from_secs(1) / 60,
-        }
-    }
-}
+use std::time::Instant;
 
 #[derive(Debug)]
 pub struct TimingSystem {

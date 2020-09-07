@@ -11,12 +11,10 @@ use std::fmt::Debug;
 
 pub trait Component: Any + Debug {}
 
-#[derive(Debug)]
+#[derive(Resource, Debug)]
 pub struct Components {
     storages: FnvHashMap<TypeId, RefCell<Box<dyn AnySet>>>,
 }
-
-impl Resource for Components {}
 
 impl Default for Components {
     fn default() -> Self {
@@ -49,6 +47,7 @@ impl Components {
         }
     }
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn insert_component<C: Component>(&mut self, entity: &Entity, component: C) {
         let type_id = TypeId::of::<C>();
 
@@ -57,11 +56,11 @@ impl Components {
                 RefMut::map(storage.borrow_mut(), |b| {
                     b.downcast_mut::<Set<C>>().expect("downcast set error")
                 })
-                .insert(entity.clone(), component);
+                .insert(*entity, component);
             }
             None => {
                 let mut storage = Set::<C>::default();
-                storage.insert(entity.clone(), component);
+                storage.insert(*entity, component);
 
                 self.storages
                     .insert(type_id, RefCell::new(Box::new(storage)));
@@ -78,6 +77,7 @@ impl Components {
         }
     }
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn remove_entity(&mut self, entity: &Entity) {
         for s in self.storages.iter() {
             s.1.borrow_mut().remove(entity);
@@ -92,6 +92,7 @@ impl Components {
 }
 
 pub trait AnySet: Downcast + Debug {
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     fn remove(&mut self, entity: &Entity);
 
     fn clear(&mut self);
@@ -114,13 +115,11 @@ mod tests {
     use super::*;
     use crate::core::store::Store;
 
-    #[derive(PartialEq, Debug)]
+    #[derive(Component, PartialEq, Debug)]
     struct Component1 {
         data1: i32,
         data2: f32,
     }
-
-    impl Component for Component1 {}
 
     #[test]
     fn get_from_empty_storage() {

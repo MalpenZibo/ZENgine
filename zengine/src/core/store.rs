@@ -2,8 +2,8 @@ use crate::core::component::Component;
 use crate::core::component::Components;
 use crate::core::component::Set;
 use crate::core::entity::{Entities, Entity, EntityBuilder};
-use crate::event::event_stream::EventStream;
-use crate::event::event_stream::SubscriptionToken;
+use crate::event::EventStream;
+use crate::event::SubscriptionToken;
 use downcast_rs::Downcast;
 use fnv::FnvHashMap;
 use std::any::Any;
@@ -71,6 +71,7 @@ impl Store {
         }
     }
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn remove_entity(&mut self, entity: &Entity) {
         self.components.remove_entity(entity);
     }
@@ -87,6 +88,7 @@ impl Store {
         self.components.get_mut::<C>()
     }
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn insert_component<C: Component>(&mut self, entity: &Entity, component: C) {
         self.components.insert_component(entity, component);
     }
@@ -113,12 +115,10 @@ impl Store {
 mod tests {
     use super::*;
 
-    #[derive(Debug, Default)]
+    #[derive(Resource, Debug, Default)]
     struct Resource1 {
         possible_data: i32,
     }
-
-    impl Resource for Resource1 {}
 
     impl Resource1 {
         pub fn double_data(&self) -> i32 {
@@ -162,13 +162,11 @@ mod tests {
         assert_eq!(mut_res.change_data(8), 8);
     }
 
-    #[derive(PartialEq, Debug)]
+    #[derive(Component, PartialEq, Debug)]
     struct Component1 {
         data1: i32,
         data2: f32,
     }
-
-    impl Component for Component1 {}
 
     #[test]
     fn create_entity_with_builder() {

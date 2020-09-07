@@ -4,16 +4,13 @@ use crate::core::system::System;
 use crate::core::system::Write;
 use crate::core::Store;
 use crate::core::Trans;
-use crate::event::controller::ControllerButton;
-use crate::event::controller::Which;
-use crate::event::event::InputEvent;
-use crate::event::event::{Axis, Input};
-use crate::event::event_stream::EventStream;
-use crate::event::keyboard::Key;
-use crate::event::mouse::MouseButton;
+use crate::device::controller::{ControllerButton, Which};
+use crate::device::keyboard::Key;
+use crate::device::mouse::MouseButton;
+use crate::event::input::{Axis, Input, InputEvent};
+use crate::event::EventStream;
 use log::{info, trace};
 use sdl2::event::Event;
-use sdl2::video::GLProfile;
 use sdl2::EventPump;
 use sdl2::Sdl;
 
@@ -55,8 +52,8 @@ impl Default for PlatformSystem {
             }
         }
         PlatformSystem {
-            sdl_context: sdl_context,
-            event_pump: event_pump,
+            sdl_context,
+            event_pump,
         }
     }
 }
@@ -85,7 +82,7 @@ impl<'a> System<'a> for PlatformSystem {
                     ..
                 } => input.publish(InputEvent {
                     input: Input::Keyboard {
-                        key: Key::from_sdl2_key(&keycode),
+                        key: Key::from_sdl2_key(keycode),
                     },
                     value: 1.0,
                 }),
@@ -94,7 +91,7 @@ impl<'a> System<'a> for PlatformSystem {
                     ..
                 } => input.publish(InputEvent {
                     input: Input::Keyboard {
-                        key: Key::from_sdl2_key(&keycode),
+                        key: Key::from_sdl2_key(keycode),
                     },
                     value: 0.0,
                 }),
@@ -103,24 +100,20 @@ impl<'a> System<'a> for PlatformSystem {
                         input: Input::MouseMotion { axis: Axis::X },
                         value: if x > -8000i32 && x < 8000i32 {
                             0.0
+                        } else if (x).is_positive() {
+                            (x) as f32 / std::i32::MAX as f32
                         } else {
-                            if (x).is_positive() {
-                                (x) as f32 / std::i32::MAX as f32
-                            } else {
-                                ((x) as f32).abs() / std::i32::MIN as f32
-                            }
+                            ((x) as f32).abs() / std::i32::MIN as f32
                         },
                     });
                     input.publish(InputEvent {
                         input: Input::MouseMotion { axis: Axis::Y },
                         value: if y > -8000i32 && y < 8000i32 {
                             0.0
+                        } else if (y).is_positive() {
+                            (y) as f32 / std::i32::MAX as f32
                         } else {
-                            if (y).is_positive() {
-                                (y) as f32 / std::i32::MAX as f32
-                            } else {
-                                ((y) as f32).abs() / std::i32::MIN as f32
-                            }
+                            ((y) as f32).abs() / std::i32::MIN as f32
                         },
                     });
                 }
@@ -129,36 +122,32 @@ impl<'a> System<'a> for PlatformSystem {
                         input: Input::MouseWheel { axis: Axis::X },
                         value: if x > -8000i32 && x < 8000i32 {
                             0.0
+                        } else if (x).is_positive() {
+                            (x) as f32 / std::i32::MAX as f32
                         } else {
-                            if (x).is_positive() {
-                                (x) as f32 / std::i32::MAX as f32
-                            } else {
-                                ((x) as f32).abs() / std::i32::MIN as f32
-                            }
+                            ((x) as f32).abs() / std::i32::MIN as f32
                         },
                     });
                     input.publish(InputEvent {
                         input: Input::MouseWheel { axis: Axis::Y },
                         value: if y > -8000i32 && y < 8000i32 {
                             0.0
+                        } else if (y).is_positive() {
+                            (y) as f32 / std::i32::MAX as f32
                         } else {
-                            if (y).is_positive() {
-                                (y) as f32 / std::i32::MAX as f32
-                            } else {
-                                ((y) as f32).abs() / std::i32::MIN as f32
-                            }
+                            ((y) as f32).abs() / std::i32::MIN as f32
                         },
                     });
                 }
                 Event::MouseButtonDown { mouse_btn, .. } => input.publish(InputEvent {
                     input: Input::MouseButton {
-                        button: MouseButton::from_sdl_button(&mouse_btn),
+                        button: MouseButton::from_sdl_button(mouse_btn),
                     },
                     value: 1.0,
                 }),
                 Event::MouseButtonUp { mouse_btn, .. } => input.publish(InputEvent {
                     input: Input::MouseButton {
-                        button: MouseButton::from_sdl_button(&mouse_btn),
+                        button: MouseButton::from_sdl_button(mouse_btn),
                     },
                     value: 0.0,
                 }),
@@ -166,14 +155,14 @@ impl<'a> System<'a> for PlatformSystem {
                 Event::ControllerButtonDown { which, button, .. } => input.publish(InputEvent {
                     input: Input::ControllerButton {
                         device_id: which,
-                        button: ControllerButton::from_sdl_button(&button),
+                        button: ControllerButton::from_sdl_button(button),
                     },
                     value: 1.0,
                 }),
                 Event::ControllerButtonUp { which, button, .. } => input.publish(InputEvent {
                     input: Input::ControllerButton {
                         device_id: which,
-                        button: ControllerButton::from_sdl_button(&button),
+                        button: ControllerButton::from_sdl_button(button),
                     },
                     value: 0.0,
                 }),
@@ -214,12 +203,10 @@ impl<'a> System<'a> for PlatformSystem {
                     value: {
                         if value > -8000i16 && value < 8000i16 {
                             0.0
+                        } else if (value).is_positive() {
+                            (value) as f32 / std::i16::MAX as f32
                         } else {
-                            if (value).is_positive() {
-                                (value) as f32 / std::i16::MAX as f32
-                            } else {
-                                ((value) as f32).abs() / std::i16::MIN as f32
-                            }
+                            ((value) as f32).abs() / std::i16::MIN as f32
                         }
                     },
                 }),
