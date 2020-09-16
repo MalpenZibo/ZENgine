@@ -76,17 +76,19 @@ impl Scene for Game {
             let mut textures = store
                 .get_resource_mut::<TextureManager<String, Sprites>>()
                 .unwrap();
-            let mut sprite_sheet = SpriteSheet::default();
-            sprite_sheet.insert(
-                Sprites::Duck,
-                SpriteDescriptor {
-                    width: 900,
-                    height: 1160,
-                    x: 0,
-                    y: 0,
-                },
-            );
-            textures.load("duck.png".to_string(), sprite_sheet);
+
+            textures
+                .create("duck.png".to_string())
+                .with_sprite(
+                    Sprites::Duck,
+                    SpriteDescriptor {
+                        width: 900,
+                        height: 1160,
+                        x: 0,
+                        y: 0,
+                    },
+                )
+                .load();
         }
         store.insert_resource(Background {
             color: Color::white(),

@@ -34,6 +34,24 @@ pub struct SpriteHandle {
     pub texture_id: u32,
 }
 
+pub struct TextureLoader<'a, TT: TextureType, ST: SpriteType> {
+    texture_type: TT,
+    texture_manager: &'a mut TextureManager<TT, ST>,
+    sprites: FnvHashMap<ST, SpriteDescriptor>,
+}
+
+impl<'a, TT: TextureType, ST: SpriteType> TextureLoader<'a, TT, ST> {
+    pub fn with_sprite(mut self, sprite_type: ST, descriptor: SpriteDescriptor) -> Self {
+        self.sprites.insert(sprite_type, descriptor);
+
+        self
+    }
+
+    pub fn load(self) -> Result<(), LoadError> {
+        self.texture_manager.load(self.texture_type, self.sprites)
+    }
+}
+
 #[derive(Resource)]
 pub struct TextureManager<TT: TextureType, ST: SpriteType> {
     textures: FnvHashMap<TT, u32>,
@@ -55,16 +73,16 @@ impl<TT: TextureType, ST: SpriteType> Default for TextureManager<TT, ST> {
 }
 
 impl<TT: TextureType, ST: SpriteType> TextureManager<TT, ST> {
-    pub fn load(
+    pub(super) fn load(
         &mut self,
         texture_type: TT,
-        sprite_sheet: SpriteSheet<ST>,
+        sprites: FnvHashMap<ST, SpriteDescriptor>,
     ) -> Result<(), LoadError> {
         if self.textures.get(&texture_type).is_none() {
             let img = image_loader::load(texture_type.get_path());
             let texture_id = Self::generate_texture(img.width, img.height, &img.data);
 
-            for entry in sprite_sheet {
+            for entry in sprites {
                 self.sprites.insert(
                     entry.0,
                     SpriteHandle {
@@ -79,7 +97,15 @@ impl<TT: TextureType, ST: SpriteType> TextureManager<TT, ST> {
         }
     }
 
-    pub fn unload(&mut self, texture_type: TT) -> Result<(), LoadError> {
+    pub fn create(&mut self, texture_type: TT) -> TextureLoader<TT, ST> {
+        TextureLoader {
+            texture_manager: self,
+            texture_type: texture_type,
+            sprites: FnvHashMap::default(),
+        }
+    }
+
+    pub fn destroy(&mut self, texture_type: TT) -> Result<(), LoadError> {
         match self.textures.remove_entry(&texture_type) {
             Some(texture) => {
                 Self::destroy_texture(texture.1);
