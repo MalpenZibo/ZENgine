@@ -1,11 +1,11 @@
 use crate::gl_utilities::gl_buffer::AttributeInfo;
 use crate::gl_utilities::gl_buffer::GLBuffer;
 use crate::gl_utilities::shader::Shader;
-use crate::graphics::material::Material;
+//use crate::graphics::material::Material;
 use crate::graphics::vertex::Vertex;
 use crate::math::matrix4x4::Matrix4x4;
 use crate::math::vector3::Vector3;
-
+/*
 pub struct Sprite<'a> {
     pub name: String,
 
@@ -132,3 +132,4 @@ impl<'a> Sprite<'a> {
         self.buffer.draw();
     }
 }
+*/

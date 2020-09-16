@@ -2,33 +2,32 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use quote::quote;
-
-fn impl_component_macro(ast: &syn::DeriveInput) -> TokenStream {
-    let name = &ast.ident;
-    let gen = quote! {
-        impl Component for #name {}
-    };
-    gen.into()
-}
+use syn::{parse_macro_input, DeriveInput};
 
 #[proc_macro_derive(Component)]
 pub fn component_macro_derive(input: TokenStream) -> TokenStream {
-    let ast = syn::parse(input).unwrap();
+    let input = parse_macro_input!(input as DeriveInput);
 
-    impl_component_macro(&ast)
-}
+    let name = input.ident;
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
-fn impl_resource_macro(ast: &syn::DeriveInput) -> TokenStream {
-    let name = &ast.ident;
-    let gen = quote! {
-        impl Resource for #name {}
+    let expanded = quote! {
+        impl #impl_generics Component for #name #ty_generics #where_clause {}
     };
-    gen.into()
+
+    TokenStream::from(expanded)
 }
 
 #[proc_macro_derive(Resource)]
 pub fn resource_macro_derive(input: TokenStream) -> TokenStream {
-    let ast = syn::parse(input).unwrap();
+    let input = parse_macro_input!(input as DeriveInput);
 
-    impl_resource_macro(&ast)
+    let name = input.ident;
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+    let expanded = quote! {
+        impl #impl_generics Resource for #name #ty_generics #where_clause {}
+    };
+
+    TokenStream::from(expanded)
 }

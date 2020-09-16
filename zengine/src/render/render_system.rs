@@ -4,6 +4,8 @@ use crate::gl_utilities::gl_buffer::AttributeInfo;
 use crate::gl_utilities::gl_buffer::GLBuffer;
 use crate::gl_utilities::shader::Shader;
 use crate::gl_utilities::shader::ShaderManager;
+use crate::graphics::texture::TextureType;
+use crate::graphics::texture::{SpriteType, TextureManager};
 use crate::graphics::vertex::Vertex;
 use crate::math::matrix4x4::Matrix4x4;
 use crate::math::transform::Transform;
@@ -13,6 +15,7 @@ use log::info;
 use sdl2::video::GLContext;
 use sdl2::video::{DisplayMode, FullscreenType, GLProfile, Window};
 use sdl2::VideoSubsystem;
+use std::marker::PhantomData;
 
 extern "system" fn dbg_callback(
     source: gl::types::GLenum,
@@ -34,20 +37,24 @@ extern "system" fn dbg_callback(
     }
 }
 
-pub struct RenderSystem {
+pub struct RenderSystem<TT: TextureType, ST: SpriteType> {
     window_specs: WindowSpecs,
     window: Option<Window>,
     ctx: Option<GLContext>,
     buffer: Option<GLBuffer>,
+    texture_type: PhantomData<TT>,
+    sprite_type: PhantomData<ST>,
 }
 
-impl RenderSystem {
+impl<TT: TextureType, ST: SpriteType> RenderSystem<TT, ST> {
     pub fn new(specs: WindowSpecs) -> Self {
         RenderSystem {
             window_specs: specs,
             buffer: None,
             window: None,
             ctx: None,
+            sprite_type: PhantomData,
+            texture_type: PhantomData,
         }
     }
 
@@ -85,17 +92,18 @@ impl RenderSystem {
 
     fn render_sprites(
         &mut self,
+        texture_manager: &TextureManager<TT, ST>,
         shader: &Shader,
-        sprites: ReadSet<Sprite>,
+        sprites: ReadSet<Sprite<ST>>,
         transforms: ReadSet<Transform>,
     ) {
         let u_color_position = shader.get_uniform_location("u_tint");
         let u_model_location = shader.get_uniform_location("u_model");
-        //let u_diffuse_location = shader.get_uniform_location("u_diffuse");
+        let u_diffuse_location = shader.get_uniform_location("u_diffuse");
         for s in sprites.iter() {
             if let Some(transform) = transforms.get(s.0) {
+                let texture_handle = texture_manager.get_sprite_handle(&s.1.sprite_type).unwrap();
                 self.calculate_vertices(s.1.width, s.1.height, s.1.origin);
-                //if let Some(texture) = &self.texture {
                 unsafe {
                     gl::UniformMatrix4fv(
                         u_model_location,
@@ -110,13 +118,12 @@ impl RenderSystem {
                         s.1.color.b,
                         s.1.color.a,
                     );
-                    //texture.activate();
-                    //gl::Uniform1i(u_diffuse_location, 0);
+                    texture_manager.activate(texture_handle.texture_id);
+                    gl::Uniform1i(u_diffuse_location, 0);
                 }
                 if let Some(buffer) = &self.buffer {
                     buffer.draw();
                 }
-                //}
             }
         }
     }
@@ -181,10 +188,11 @@ impl RenderSystem {
     }
 }
 
-impl<'a> System<'a> for RenderSystem {
+impl<'a, TT: TextureType, ST: SpriteType> System<'a> for RenderSystem<TT, ST> {
     type Data = (
+        Read<'a, TextureManager<TT, ST>>,
         Read<'a, ShaderManager>,
-        ReadSet<'a, Sprite>,
+        ReadSet<'a, Sprite<ST>>,
         ReadSet<'a, Transform>,
         Read<'a, Background>,
     );
@@ -235,10 +243,11 @@ impl<'a> System<'a> for RenderSystem {
 
         self.buffer = Some(buffer);
 
+        store.insert_resource(TextureManager::<TT, ST>::default());
         store.insert_resource(shaders);
     }
 
-    fn run(&mut self, (shaders, sprites, transforms, background): Self::Data) {
+    fn run(&mut self, (texture_manager, shaders, sprites, transforms, background): Self::Data) {
         unsafe {
             gl::Clear(gl::COLOR_BUFFER_BIT);
             gl::ClearColor(
@@ -261,7 +270,7 @@ impl<'a> System<'a> for RenderSystem {
                 projection.data.as_ptr(),
             );
         }
-        self.render_sprites(shader, sprites, transforms);
+        self.render_sprites(&texture_manager, shader, sprites, transforms);
 
         if let Some(window) = &self.window {
             window.gl_swap_window();

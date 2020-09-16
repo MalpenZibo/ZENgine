@@ -4,6 +4,7 @@ use zengine::core::system::*;
 use zengine::core::*;
 use zengine::event::*;
 use zengine::graphics::color::Color;
+use zengine::graphics::texture::{SpriteDescriptor, SpriteSheet, SpriteType, TextureManager};
 use zengine::log::{info, trace, LevelFilter};
 use zengine::math::transform::Transform;
 use zengine::math::vector3::Vector3;
@@ -43,7 +44,7 @@ fn main() {
         .with_system(InputSystem::<UserInput>::new(bindings))
         .with_system(System1::default())
         .with_system(System2::default())
-        .with_system(RenderSystem::new(WindowSpecs::default()))
+        .with_system(RenderSystem::<String, Sprites>::new(WindowSpecs::default()))
         .with_system(TimingSystem::default().with_limiter(FrameLimiter::new(60)))
         .run(Game {
             execution_numer: 10,
@@ -57,6 +58,12 @@ pub enum UserInput {
 }
 impl InputType for UserInput {}
 
+#[derive(Hash, Eq, PartialEq, Clone, Debug)]
+pub enum Sprites {
+    Duck,
+}
+impl SpriteType for Sprites {}
+
 pub struct Game {
     execution_numer: u32,
 }
@@ -65,17 +72,34 @@ impl Scene for Game {
     fn on_start(&mut self, store: &mut Store) {
         trace!("Game scene on start");
 
+        {
+            let mut textures = store
+                .get_resource_mut::<TextureManager<String, Sprites>>()
+                .unwrap();
+            let mut sprite_sheet = SpriteSheet::default();
+            sprite_sheet.insert(
+                Sprites::Duck,
+                SpriteDescriptor {
+                    width: 900,
+                    height: 1160,
+                    x: 0,
+                    y: 0,
+                },
+            );
+            textures.load("duck.png".to_string(), sprite_sheet);
+        }
         store.insert_resource(Background {
             color: Color::white(),
         });
 
         store
             .build_entity()
-            .with(Sprite {
-                width: 40.0,
-                height: 40.0,
+            .with(Sprite::<Sprites> {
+                width: 240.0,
+                height: 240.0,
                 origin: Vector3::zero(),
-                color: Color::black(),
+                color: Color::white(),
+                sprite_type: Sprites::Duck,
             })
             .with(Transform::default())
             .build();
@@ -87,6 +111,7 @@ impl Scene for Game {
                 height: 20.0,
                 origin: Vector3::zero(),
                 color: Color::blue(),
+                sprite_type: Sprites::Duck,
             })
             .with(Transform::new(
                 Vector3::new(200.0, 100.0, 0.0),

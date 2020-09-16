@@ -1,5 +1,5 @@
 use crate::graphics::color::Color;
-use crate::graphics::texture::Texture;
+/*use crate::graphics::texture::Texture;
 
 pub struct Material<'a> {
     pub tint: Color,
@@ -11,3 +11,4 @@ impl<'a> Material<'a> {
         Material { tint, texture }
     }
 }
+*/
