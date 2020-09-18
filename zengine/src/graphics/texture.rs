@@ -73,7 +73,7 @@ impl<TT: TextureType, ST: SpriteType> Default for TextureManager<TT, ST> {
 }
 
 impl<TT: TextureType, ST: SpriteType> TextureManager<TT, ST> {
-    pub(super) fn load(
+    pub(self) fn load(
         &mut self,
         texture_type: TT,
         sprites: FnvHashMap<ST, SpriteDescriptor>,
