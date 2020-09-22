@@ -10,6 +10,7 @@ use crate::graphics::vertex::Vertex;
 use crate::math::matrix4x4::Matrix4x4;
 use crate::math::transform::Transform;
 use crate::math::vector3::Vector3;
+use crate::math::vector2::Vector2;
 use crate::render::{Background, Sprite, WindowSpecs};
 use log::info;
 use sdl2::video::GLContext;
@@ -58,22 +59,28 @@ impl<TT: TextureType, ST: SpriteType> RenderSystem<TT, ST> {
         }
     }
 
-    pub fn calculate_vertices(&mut self, width: f32, height: f32, origin: Vector3) {
+    pub fn calculate_vertices(&mut self, width: f32, height: f32, origin: Vector3, relative_min: Vector2, relative_max: Vector2) {
         let min_x = -(width * origin.x);
         let max_x = width * (1.0 - origin.x);
 
         let min_y = -(height * origin.y);
         let max_y = height * (1.0 - origin.y);
 
+        let min_u = relative_min.x;
+        let max_u = relative_max.x;
+
+        let min_v = relative_min.y;
+        let max_v = relative_max.y;
+
         if let Some(buffer) = &mut self.buffer {
             buffer.upload(
                 &[
-                    Vertex::new(min_x, min_y, 0.0, 0.0, 0.0),
-                    Vertex::new(min_x, max_y, 0.0, 0.0, 1.0),
-                    Vertex::new(max_x, max_y, 0.0, 1.0, 1.0),
-                    Vertex::new(max_x, max_y, 0.0, 1.0, 1.0),
-                    Vertex::new(max_x, min_y, 0.0, 1.0, 0.0),
-                    Vertex::new(min_x, min_y, 0.0, 0.0, 0.0),
+                    Vertex::new(min_x, min_y, 0.0, min_u, min_v),
+                    Vertex::new(min_x, max_y, 0.0, min_u, max_v),
+                    Vertex::new(max_x, max_y, 0.0, max_u, max_v),
+                    Vertex::new(max_x, max_y, 0.0, max_u, max_v),
+                    Vertex::new(max_x, min_y, 0.0, max_u, min_v),
+                    Vertex::new(min_x, min_y, 0.0, min_u, min_v),
                 ]
                 .iter()
                 .flat_map(|v| {
@@ -103,7 +110,7 @@ impl<TT: TextureType, ST: SpriteType> RenderSystem<TT, ST> {
         for s in sprites.iter() {
             if let Some(transform) = transforms.get(s.0) {
                 let texture_handle = texture_manager.get_sprite_handle(&s.1.sprite_type).unwrap();
-                self.calculate_vertices(s.1.width, s.1.height, s.1.origin);
+                self.calculate_vertices(s.1.width, s.1.height, s.1.origin, texture_handle.relative_min, texture_handle.relative_max);
                 unsafe {
                     gl::UniformMatrix4fv(
                         u_model_location,

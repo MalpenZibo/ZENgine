@@ -1,5 +1,6 @@
 use crate::assets::image_loader;
 use crate::core::Resource;
+use crate::math::vector2::Vector2;
 use fnv::FnvHashMap;
 use std::any::Any;
 use std::fmt::Debug;
@@ -30,7 +31,10 @@ pub struct SpriteDescriptor {
 }
 
 pub struct SpriteHandle {
-    pub descriptor: SpriteDescriptor,
+    pub relative_min: Vector2,
+    pub relative_max: Vector2,
+    pub width: u32,
+    pub height: u32,
     pub texture_id: u32,
 }
 
@@ -47,7 +51,7 @@ impl<'a, TT: TextureType, ST: SpriteType> TextureLoader<'a, TT, ST> {
         self
     }
 
-    pub fn load(self) -> Result<(), LoadError> {
+    pub fn load(self) -> Result<(), TextureError> {
         self.texture_manager.load(self.texture_type, self.sprites)
     }
 }
@@ -58,7 +62,7 @@ pub struct TextureManager<TT: TextureType, ST: SpriteType> {
     sprites: FnvHashMap<ST, SpriteHandle>,
 }
 
-pub enum LoadError {
+pub enum TextureError {
     AlreadyLoaded,
     NotLoaded,
 }
@@ -77,23 +81,34 @@ impl<TT: TextureType, ST: SpriteType> TextureManager<TT, ST> {
         &mut self,
         texture_type: TT,
         sprites: FnvHashMap<ST, SpriteDescriptor>,
-    ) -> Result<(), LoadError> {
+    ) -> Result<(), TextureError> {
         if self.textures.get(&texture_type).is_none() {
             let img = image_loader::load(texture_type.get_path());
             let texture_id = Self::generate_texture(img.width, img.height, &img.data);
+
+            self.textures.insert(texture_type, texture_id);
 
             for entry in sprites {
                 self.sprites.insert(
                     entry.0,
                     SpriteHandle {
-                        descriptor: entry.1,
+                        relative_min: Vector2::new(
+                            entry.1.x as f32 / img.width as f32,
+                            entry.1.y as f32 / img.height as f32,
+                        ),
+                        relative_max: Vector2::new(
+                            (entry.1.x + entry.1.width) as f32 / img.width as f32,
+                            (entry.1.y + entry.1.height) as f32 / img.height as f32,
+                        ),
+                        width: entry.1.width,
+                        height: entry.1.height,
                         texture_id,
                     },
                 );
             }
             Ok(())
         } else {
-            Err(LoadError::AlreadyLoaded)
+            Err(TextureError::AlreadyLoaded)
         }
     }
 
@@ -105,7 +120,7 @@ impl<TT: TextureType, ST: SpriteType> TextureManager<TT, ST> {
         }
     }
 
-    pub fn destroy(&mut self, texture_type: TT) -> Result<(), LoadError> {
+    pub fn destroy(&mut self, texture_type: TT) -> Result<(), TextureError> {
         match self.textures.remove_entry(&texture_type) {
             Some(texture) => {
                 Self::destroy_texture(texture.1);
@@ -119,9 +134,11 @@ impl<TT: TextureType, ST: SpriteType> TextureManager<TT, ST> {
                 for key in key_to_remove {
                     self.sprites.remove(&key);
                 }
+
+                self.textures.remove(&texture_type);
                 Ok(())
             }
-            _ => Err(LoadError::NotLoaded),
+            _ => Err(TextureError::NotLoaded),
         }
     }
 
@@ -171,57 +188,3 @@ impl<TT: TextureType, ST: SpriteType> TextureManager<TT, ST> {
         texture_id
     }
 }
-
-/*
-pub struct Texture {
-    width: u32,
-    height: u32,
-
-    texture_id: u32,
-}
-
-impl Texture {
-    pub fn new(image_name: &str) -> Texture {
-        let img = image_loader::load(image_name);
-
-        let mut t = Texture {
-            width: img.width,
-            height: img.height,
-
-            texture_id: 0,
-        };
-
-        unsafe {
-            gl::GenTextures(1, &mut t.texture_id);
-            gl::BindTexture(gl::TEXTURE_2D, t.texture_id);
-
-            gl::TexImage2D(
-                gl::TEXTURE_2D,
-                LEVEL,
-                gl::RGBA as i32,
-                t.width as i32,
-                t.height as i32,
-                BORDER,
-                gl::RGBA,
-                gl::UNSIGNED_BYTE,
-                img.data.as_ptr() as *const gl::types::GLvoid,
-            );
-
-            gl::GenerateMipmap(gl::TEXTURE_2D);
-
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
-
-            gl::BindTexture(gl::TEXTURE_2D, 0);
-        }
-
-        t
-    }
-
-    pub fn activate(&self) {
-        unsafe {
-            gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, self.texture_id);
-        }
-    }
-}*/
