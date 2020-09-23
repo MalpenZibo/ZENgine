@@ -4,7 +4,7 @@ use zengine::core::system::*;
 use zengine::core::*;
 use zengine::event::*;
 use zengine::graphics::color::Color;
-use zengine::graphics::texture::{SpriteDescriptor, SpriteSheet, SpriteType, TextureManager};
+use zengine::graphics::texture::{SpriteDescriptor, SpriteType, TextureManager};
 use zengine::log::{info, trace, LevelFilter};
 use zengine::math::transform::Transform;
 use zengine::math::vector3::Vector3;

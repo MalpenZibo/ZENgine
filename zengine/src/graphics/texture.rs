@@ -12,8 +12,6 @@ const BORDER: i32 = 0;
 pub trait SpriteType: Any + Eq + PartialEq + Hash + Clone + Debug {}
 impl SpriteType for String {}
 
-pub type SpriteSheet<T> = FnvHashMap<T, SpriteDescriptor>;
-
 pub struct SpriteDescriptor {
     pub x: u32,
     pub y: u32,
@@ -50,11 +48,6 @@ impl<'a, ST: SpriteType> TextureLoader<'a, ST> {
 #[derive(Resource)]
 pub struct TextureManager<ST: SpriteType> {
     sprites: FnvHashMap<ST, SpriteHandle>,
-}
-
-pub enum TextureError {
-    AlreadyLoaded,
-    NotLoaded,
 }
 
 impl<ST: SpriteType> Default for TextureManager<ST> {
