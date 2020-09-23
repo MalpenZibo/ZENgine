@@ -4,13 +4,12 @@ use crate::gl_utilities::gl_buffer::AttributeInfo;
 use crate::gl_utilities::gl_buffer::GLBuffer;
 use crate::gl_utilities::shader::Shader;
 use crate::gl_utilities::shader::ShaderManager;
-use crate::graphics::texture::TextureType;
 use crate::graphics::texture::{SpriteType, TextureManager};
 use crate::graphics::vertex::Vertex;
 use crate::math::matrix4x4::Matrix4x4;
 use crate::math::transform::Transform;
-use crate::math::vector3::Vector3;
 use crate::math::vector2::Vector2;
+use crate::math::vector3::Vector3;
 use crate::render::{Background, Sprite, WindowSpecs};
 use log::info;
 use sdl2::video::GLContext;
@@ -38,16 +37,15 @@ extern "system" fn dbg_callback(
     }
 }
 
-pub struct RenderSystem<TT: TextureType, ST: SpriteType> {
+pub struct RenderSystem<ST: SpriteType> {
     window_specs: WindowSpecs,
     window: Option<Window>,
     ctx: Option<GLContext>,
     buffer: Option<GLBuffer>,
-    texture_type: PhantomData<TT>,
     sprite_type: PhantomData<ST>,
 }
 
-impl<TT: TextureType, ST: SpriteType> RenderSystem<TT, ST> {
+impl<ST: SpriteType> RenderSystem<ST> {
     pub fn new(specs: WindowSpecs) -> Self {
         RenderSystem {
             window_specs: specs,
@@ -55,11 +53,17 @@ impl<TT: TextureType, ST: SpriteType> RenderSystem<TT, ST> {
             window: None,
             ctx: None,
             sprite_type: PhantomData,
-            texture_type: PhantomData,
         }
     }
 
-    pub fn calculate_vertices(&mut self, width: f32, height: f32, origin: Vector3, relative_min: Vector2, relative_max: Vector2) {
+    pub fn calculate_vertices(
+        &mut self,
+        width: f32,
+        height: f32,
+        origin: Vector3,
+        relative_min: Vector2,
+        relative_max: Vector2,
+    ) {
         let min_x = -(width * origin.x);
         let max_x = width * (1.0 - origin.x);
 
@@ -99,7 +103,7 @@ impl<TT: TextureType, ST: SpriteType> RenderSystem<TT, ST> {
 
     fn render_sprites(
         &mut self,
-        texture_manager: &TextureManager<TT, ST>,
+        texture_manager: &TextureManager<ST>,
         shader: &Shader,
         sprites: ReadSet<Sprite<ST>>,
         transforms: ReadSet<Transform>,
@@ -110,7 +114,13 @@ impl<TT: TextureType, ST: SpriteType> RenderSystem<TT, ST> {
         for s in sprites.iter() {
             if let Some(transform) = transforms.get(s.0) {
                 let texture_handle = texture_manager.get_sprite_handle(&s.1.sprite_type).unwrap();
-                self.calculate_vertices(s.1.width, s.1.height, s.1.origin, texture_handle.relative_min, texture_handle.relative_max);
+                self.calculate_vertices(
+                    s.1.width,
+                    s.1.height,
+                    s.1.origin,
+                    texture_handle.relative_min,
+                    texture_handle.relative_max,
+                );
                 unsafe {
                     gl::UniformMatrix4fv(
                         u_model_location,
@@ -195,9 +205,9 @@ impl<TT: TextureType, ST: SpriteType> RenderSystem<TT, ST> {
     }
 }
 
-impl<'a, TT: TextureType, ST: SpriteType> System<'a> for RenderSystem<TT, ST> {
+impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
     type Data = (
-        Read<'a, TextureManager<TT, ST>>,
+        Read<'a, TextureManager<ST>>,
         Read<'a, ShaderManager>,
         ReadSet<'a, Sprite<ST>>,
         ReadSet<'a, Transform>,
@@ -250,7 +260,7 @@ impl<'a, TT: TextureType, ST: SpriteType> System<'a> for RenderSystem<TT, ST> {
 
         self.buffer = Some(buffer);
 
-        store.insert_resource(TextureManager::<TT, ST>::default());
+        store.insert_resource(TextureManager::<ST>::default());
         store.insert_resource(shaders);
     }
 
