@@ -126,7 +126,7 @@ impl<ST: SpriteType> TextureManager<ST> {
         }
     }
 
-    fn generate_texture(width: u32, height: u32, data: &Vec<u8>) -> u32 {
+    fn generate_texture(width: u32, height: u32, data: &[u8]) -> u32 {
         let mut texture_id = 0;
         unsafe {
             gl::GenTextures(1, &mut texture_id);

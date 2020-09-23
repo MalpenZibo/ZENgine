@@ -205,14 +205,16 @@ impl<ST: SpriteType> RenderSystem<ST> {
     }
 }
 
+type RenderData<'a, ST> = (
+    Read<'a, TextureManager<ST>>,
+    Read<'a, ShaderManager>,
+    ReadSet<'a, Sprite<ST>>,
+    ReadSet<'a, Transform>,
+    Read<'a, Background>,
+);
+
 impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
-    type Data = (
-        Read<'a, TextureManager<ST>>,
-        Read<'a, ShaderManager>,
-        ReadSet<'a, Sprite<ST>>,
-        ReadSet<'a, Transform>,
-        Read<'a, Background>,
-    );
+    type Data = RenderData<'a, ST>;
 
     fn init(&mut self, store: &mut Store) {
         {

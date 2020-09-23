@@ -5,7 +5,7 @@ use zengine::core::*;
 use zengine::event::*;
 use zengine::graphics::color::Color;
 use zengine::graphics::texture::{SpriteDescriptor, SpriteType, TextureManager};
-use zengine::log::{info, trace, LevelFilter};
+use zengine::log::{trace, LevelFilter};
 use zengine::math::transform::Transform;
 use zengine::math::vector3::Vector3;
 use zengine::platform::*;
