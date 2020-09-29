@@ -1,9 +1,12 @@
+use crate::core::system::ReadOption;
 use crate::core::system::{Read, ReadSet, System};
 use crate::core::Store;
 use crate::gl_utilities::gl_buffer::AttributeInfo;
 use crate::gl_utilities::gl_buffer::GLBuffer;
 use crate::gl_utilities::shader::Shader;
 use crate::gl_utilities::shader::ShaderManager;
+use crate::graphics::camera::ActiveCamera;
+use crate::graphics::camera::Camera;
 use crate::graphics::texture::{SpriteType, TextureManager};
 use crate::graphics::vertex::Vertex;
 use crate::math::matrix4x4::Matrix4x4;
@@ -211,6 +214,8 @@ type RenderData<'a, ST> = (
     ReadSet<'a, Sprite<ST>>,
     ReadSet<'a, Transform>,
     Read<'a, Background>,
+    ReadSet<'a, Camera>,
+    ReadOption<'a, ActiveCamera>,
 );
 
 impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
@@ -266,7 +271,10 @@ impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
         store.insert_resource(shaders);
     }
 
-    fn run(&mut self, (texture_manager, shaders, sprites, transforms, background): Self::Data) {
+    fn run(
+        &mut self,
+        (texture_manager, shaders, sprites, transforms, background, camera, active_camera): Self::Data,
+    ) {
         unsafe {
             gl::Clear(gl::COLOR_BUFFER_BIT);
             gl::ClearColor(
