@@ -4,15 +4,18 @@ use crate::gl_utilities::gl_buffer::AttributeInfo;
 use crate::gl_utilities::gl_buffer::GLBuffer;
 use crate::gl_utilities::shader::Shader;
 use crate::gl_utilities::shader::ShaderManager;
+use crate::graphics::texture::{SpriteType, TextureManager};
 use crate::graphics::vertex::Vertex;
 use crate::math::matrix4x4::Matrix4x4;
 use crate::math::transform::Transform;
+use crate::math::vector2::Vector2;
 use crate::math::vector3::Vector3;
 use crate::render::{Background, Sprite, WindowSpecs};
 use log::info;
 use sdl2::video::GLContext;
 use sdl2::video::{DisplayMode, FullscreenType, GLProfile, Window};
 use sdl2::VideoSubsystem;
+use std::marker::PhantomData;
 
 extern "system" fn dbg_callback(
     source: gl::types::GLenum,
@@ -34,39 +37,54 @@ extern "system" fn dbg_callback(
     }
 }
 
-pub struct RenderSystem {
+pub struct RenderSystem<ST: SpriteType> {
     window_specs: WindowSpecs,
     window: Option<Window>,
     ctx: Option<GLContext>,
     buffer: Option<GLBuffer>,
+    sprite_type: PhantomData<ST>,
 }
 
-impl RenderSystem {
+impl<ST: SpriteType> RenderSystem<ST> {
     pub fn new(specs: WindowSpecs) -> Self {
         RenderSystem {
             window_specs: specs,
             buffer: None,
             window: None,
             ctx: None,
+            sprite_type: PhantomData,
         }
     }
 
-    pub fn calculate_vertices(&mut self, width: f32, height: f32, origin: Vector3) {
+    pub fn calculate_vertices(
+        &mut self,
+        width: f32,
+        height: f32,
+        origin: Vector3,
+        relative_min: Vector2,
+        relative_max: Vector2,
+    ) {
         let min_x = -(width * origin.x);
         let max_x = width * (1.0 - origin.x);
 
         let min_y = -(height * origin.y);
         let max_y = height * (1.0 - origin.y);
 
+        let min_u = relative_min.x;
+        let max_u = relative_max.x;
+
+        let min_v = relative_min.y;
+        let max_v = relative_max.y;
+
         if let Some(buffer) = &mut self.buffer {
             buffer.upload(
                 &[
-                    Vertex::new(min_x, min_y, 0.0, 0.0, 0.0),
-                    Vertex::new(min_x, max_y, 0.0, 0.0, 1.0),
-                    Vertex::new(max_x, max_y, 0.0, 1.0, 1.0),
-                    Vertex::new(max_x, max_y, 0.0, 1.0, 1.0),
-                    Vertex::new(max_x, min_y, 0.0, 1.0, 0.0),
-                    Vertex::new(min_x, min_y, 0.0, 0.0, 0.0),
+                    Vertex::new(min_x, min_y, 0.0, min_u, min_v),
+                    Vertex::new(min_x, max_y, 0.0, min_u, max_v),
+                    Vertex::new(max_x, max_y, 0.0, max_u, max_v),
+                    Vertex::new(max_x, max_y, 0.0, max_u, max_v),
+                    Vertex::new(max_x, min_y, 0.0, max_u, min_v),
+                    Vertex::new(min_x, min_y, 0.0, min_u, min_v),
                 ]
                 .iter()
                 .flat_map(|v| {
@@ -85,17 +103,24 @@ impl RenderSystem {
 
     fn render_sprites(
         &mut self,
+        texture_manager: &TextureManager<ST>,
         shader: &Shader,
-        sprites: ReadSet<Sprite>,
+        sprites: ReadSet<Sprite<ST>>,
         transforms: ReadSet<Transform>,
     ) {
         let u_color_position = shader.get_uniform_location("u_tint");
         let u_model_location = shader.get_uniform_location("u_model");
-        //let u_diffuse_location = shader.get_uniform_location("u_diffuse");
+        let u_diffuse_location = shader.get_uniform_location("u_diffuse");
         for s in sprites.iter() {
             if let Some(transform) = transforms.get(s.0) {
-                self.calculate_vertices(s.1.width, s.1.height, s.1.origin);
-                //if let Some(texture) = &self.texture {
+                let texture_handle = texture_manager.get_sprite_handle(&s.1.sprite_type).unwrap();
+                self.calculate_vertices(
+                    s.1.width,
+                    s.1.height,
+                    s.1.origin,
+                    texture_handle.relative_min,
+                    texture_handle.relative_max,
+                );
                 unsafe {
                     gl::UniformMatrix4fv(
                         u_model_location,
@@ -110,13 +135,12 @@ impl RenderSystem {
                         s.1.color.b,
                         s.1.color.a,
                     );
-                    //texture.activate();
-                    //gl::Uniform1i(u_diffuse_location, 0);
+                    texture_manager.activate(texture_handle.texture_id);
+                    gl::Uniform1i(u_diffuse_location, 0);
                 }
                 if let Some(buffer) = &self.buffer {
                     buffer.draw();
                 }
-                //}
             }
         }
     }
@@ -181,13 +205,16 @@ impl RenderSystem {
     }
 }
 
-impl<'a> System<'a> for RenderSystem {
-    type Data = (
-        Read<'a, ShaderManager>,
-        ReadSet<'a, Sprite>,
-        ReadSet<'a, Transform>,
-        Read<'a, Background>,
-    );
+type RenderData<'a, ST> = (
+    Read<'a, TextureManager<ST>>,
+    Read<'a, ShaderManager>,
+    ReadSet<'a, Sprite<ST>>,
+    ReadSet<'a, Transform>,
+    Read<'a, Background>,
+);
+
+impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
+    type Data = RenderData<'a, ST>;
 
     fn init(&mut self, store: &mut Store) {
         {
@@ -235,10 +262,11 @@ impl<'a> System<'a> for RenderSystem {
 
         self.buffer = Some(buffer);
 
+        store.insert_resource(TextureManager::<ST>::default());
         store.insert_resource(shaders);
     }
 
-    fn run(&mut self, (shaders, sprites, transforms, background): Self::Data) {
+    fn run(&mut self, (texture_manager, shaders, sprites, transforms, background): Self::Data) {
         unsafe {
             gl::Clear(gl::COLOR_BUFFER_BIT);
             gl::ClearColor(
@@ -261,7 +289,7 @@ impl<'a> System<'a> for RenderSystem {
                 projection.data.as_ptr(),
             );
         }
-        self.render_sprites(shader, sprites, transforms);
+        self.render_sprites(&texture_manager, shader, sprites, transforms);
 
         if let Some(window) = &self.window {
             window.gl_swap_window();

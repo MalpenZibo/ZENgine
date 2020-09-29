@@ -4,7 +4,8 @@ use zengine::core::system::*;
 use zengine::core::*;
 use zengine::event::*;
 use zengine::graphics::color::Color;
-use zengine::log::{info, trace, LevelFilter};
+use zengine::graphics::texture::{SpriteDescriptor, SpriteType, TextureManager};
+use zengine::log::{trace, LevelFilter};
 use zengine::math::transform::Transform;
 use zengine::math::vector3::Vector3;
 use zengine::platform::*;
@@ -29,6 +30,15 @@ fn main() {
                 Keyboard:
                     key: A
               scale: -1.0
+            Y:
+              - source:
+                  Keyboard:
+                      key: W
+                scale: -1.0
+              - source:
+                  Keyboard:
+                      key: S
+                scale: 1.0
         action_mappings:
             Jump:
             - source: 
@@ -43,7 +53,7 @@ fn main() {
         .with_system(InputSystem::<UserInput>::new(bindings))
         .with_system(System1::default())
         .with_system(System2::default())
-        .with_system(RenderSystem::new(WindowSpecs::default()))
+        .with_system(RenderSystem::<Sprites>::new(WindowSpecs::default()))
         .with_system(TimingSystem::default().with_limiter(FrameLimiter::new(60)))
         .run(Game {
             execution_numer: 10,
@@ -53,43 +63,96 @@ fn main() {
 #[derive(Deserialize, Hash, Eq, PartialEq, Clone)]
 pub enum UserInput {
     X,
+    Y,
     Jump,
 }
 impl InputType for UserInput {}
+
+#[derive(Hash, Eq, PartialEq, Clone, Debug)]
+pub enum Sprites {
+    Duck,
+    DuckFromSheet,
+    LogoFromSheet,
+}
+impl SpriteType for Sprites {}
 
 pub struct Game {
     execution_numer: u32,
 }
 
+#[derive(Debug, Component, Default)]
+pub struct Player1 {}
+
 impl Scene for Game {
     fn on_start(&mut self, store: &mut Store) {
         trace!("Game scene on start");
 
+        {
+            let mut textures = store.get_resource_mut::<TextureManager<Sprites>>().unwrap();
+
+            textures
+                .create("duck.png")
+                .with_sprite(
+                    Sprites::Duck,
+                    SpriteDescriptor {
+                        width: 900,
+                        height: 1160,
+                        x: 0,
+                        y: 0,
+                    },
+                )
+                .load();
+
+            textures
+                .create("sheet.png")
+                .with_sprite(
+                    Sprites::DuckFromSheet,
+                    SpriteDescriptor {
+                        width: 170,
+                        height: 200,
+                        x: 0,
+                        y: 0,
+                    },
+                )
+                .with_sprite(
+                    Sprites::LogoFromSheet,
+                    SpriteDescriptor {
+                        width: 128,
+                        height: 128,
+                        x: 170,
+                        y: 0,
+                    },
+                )
+                .load();
+        }
         store.insert_resource(Background {
             color: Color::white(),
         });
 
         store
             .build_entity()
-            .with(Sprite {
-                width: 40.0,
-                height: 40.0,
+            .with(Sprite::<Sprites> {
+                width: 240.0,
+                height: 240.0,
                 origin: Vector3::zero(),
-                color: Color::black(),
+                color: Color::white(),
+                sprite_type: Sprites::DuckFromSheet,
             })
             .with(Transform::default())
+            .with(Player1 {})
             .build();
 
         store
             .build_entity()
             .with(Sprite {
-                width: 20.0,
-                height: 20.0,
+                width: 80.0,
+                height: 80.0,
                 origin: Vector3::zero(),
-                color: Color::blue(),
+                color: Color::white(),
+                sprite_type: Sprites::LogoFromSheet,
             })
             .with(Transform::new(
-                Vector3::new(200.0, 100.0, 0.0),
+                Vector3::new(400.0, 300.0, 0.0),
                 Vector3::zero(),
                 Vector3::one(),
             ))
@@ -139,8 +202,8 @@ pub struct System1 {
 
 impl<'a> System<'a> for System1 {
     type Data = (
-        ReadSet<'a, Component1>,
-        WriteSet<'a, Component2>,
+        WriteSet<'a, Transform>,
+        ReadSet<'a, Player1>,
         Read<'a, InputHandler<UserInput>>,
     );
 
@@ -148,20 +211,18 @@ impl<'a> System<'a> for System1 {
         trace!("setup system 1");
     }
 
-    fn run(&mut self, data: Self::Data) {
-        trace!("run {} system 1", self.run_count);
+    fn run(&mut self, (mut transform, player1, input): Self::Data) {
+        //trace!("run {} system 1", self.run_count);
 
-        let (c1, mut c2, input) = data;
-
-        info!("user x input: {:?}", input.axis_value(UserInput::X));
-        info!("user jump input: {:?}", input.action_value(UserInput::Jump));
-
-        for c in c2.values_mut() {
-            c.data2 += 1;
+        for t in transform.iter_mut() {
+            if player1.get(t.0).is_some() {
+                t.1.position.x += input.axis_value(UserInput::X).unwrap_or_else(|| 0.0);
+                t.1.position.y += input.axis_value(UserInput::Y).unwrap_or_else(|| 0.0);
+            }
         }
 
-        trace!("c1 {:?}", c1);
-        trace!("c2 {:?}", c2);
+        //info!("user x input: {:?}", input.axis_value(UserInput::X));
+        //info!("user jump input: {:?}", input.action_value(UserInput::Jump));
 
         self.run_count += 1;
     }
