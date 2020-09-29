@@ -109,7 +109,7 @@ impl Scene for Game {
                     Sprites::DuckFromSheet,
                     SpriteDescriptor {
                         width: 170,
-                        height: 220,
+                        height: 200,
                         x: 0,
                         y: 0,
                     },
