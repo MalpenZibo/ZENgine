@@ -156,6 +156,55 @@ impl<'a, C1: Component, C2: Component> Iterator for JoinMut<'a, C1, C2> {
     }
 }
 
+pub struct OptionalJoin<'a, C1: Component, C2: Component> {
+    inner: Iter<'a, Entity, C1>,
+    others: Iter<'a, Entity, C2>,
+}
+
+impl<'a, C1: Component, C2: Component> Iterator for OptionalJoin<'a, C1, C2> {
+    type Item = (&'a Entity, &'a C1, Option<&'a C2>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut next_value: Option<Self::Item> = None;
+
+        if let Some(entry) = self.inner.next() {
+            next_value = Some((
+                entry.0,
+                entry.1,
+                self.others.find_map(|other_entry| {
+                    if other_entry.0 == entry.0 {
+                        Some(other_entry.1)
+                    } else {
+                        None
+                    }
+                }),
+            ));
+        }
+
+        next_value
+    }
+}
+
+pub struct OptionalJoinMut<'a, C1: Component, C2: Component> {
+    inner: IterMut<'a, Entity, C1>,
+    others: IterMut<'a, Entity, C2>,
+}
+
+impl<'a, C1: Component, C2: Component> Iterator for OptionalJoinMut<'a, C1, C2> {
+    type Item = (&'a Entity, &'a mut C1, Option<&'a mut C2>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut next_value: Option<Self::Item> = None;
+
+        if let Some(entry) = self.inner.next() {
+            let other = self.others.find(|other_entry| other_entry.0 == entry.0);
+            next_value = Some((entry.0, entry.1, other.map(|entry| entry.1)));
+        }
+
+        next_value
+    }
+}
+
 pub trait Joinable<C1: Component> {
     fn join<'a, C2: Component>(&'a self, others: &'a Set<C2>) -> Join<C1, C2>;
 
