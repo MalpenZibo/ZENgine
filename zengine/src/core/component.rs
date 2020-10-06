@@ -9,6 +9,7 @@ use std::cell::RefCell;
 use std::cell::RefMut;
 use std::collections::hash_map::Iter;
 use std::collections::hash_map::IterMut;
+use std::collections::hash_map::Keys;
 use std::fmt::Debug;
 
 pub trait Component: Any + Debug {}
@@ -112,6 +113,7 @@ impl<C: Component> AnySet for Set<C> {
     }
 }
 
+/*
 pub struct Join<'a, C1: Component, C2: Component> {
     inner: Iter<'a, Entity, C1>,
     others: Iter<'a, Entity, C2>,
@@ -225,8 +227,100 @@ impl<C1: Component> Joinable<C1> for Set<C1> {
             others: others.iter_mut(),
         }
     }
+}*/
+/*
+pub type JoinedSet<'a, C: Component> = &'a Set<C>;
+pub type JoinedSetMut<'a, C: Component> = &'a mut Set<C>;
+
+pub trait JoinableSet<'a> {
+    type Component;
+    type ComponentReturn;
+
+    fn entity_component(self, entity: &Entity) -> JoinComponentReturn<Self::ComponentReturn>;
 }
 
+pub enum JoinComponentReturn<D> {
+    Skip,
+    Value(D),
+}
+
+impl<'a, C: Component> JoinableSet<'a> for &JoinedSet<'a, C> {
+    type Component = C;
+    type ComponentReturn = &'a C;
+
+    fn entity_component(self, entity: &Entity) -> JoinComponentReturn<Self::ComponentReturn> {
+        match self.get(entity) {
+            Some(component) => JoinComponentReturn::Value(component),
+            None => JoinComponentReturn::Skip,
+        }
+    }
+}
+
+impl<'a, C: Component> JoinableSet<'a> for &'a mut JoinedSetMut<'a, C> {
+    type Component = C;
+    type ComponentReturn = &'a mut C;
+
+    fn entity_component(self, entity: &Entity) -> JoinComponentReturn<Self::ComponentReturn> {
+        match self.get_mut(entity) {
+            Some(component) => JoinComponentReturn::Value(component),
+            None => JoinComponentReturn::Skip,
+        }
+    }
+}
+
+pub struct JoinIterator<I, D> {
+    iter: I,
+    other: D,
+}
+
+pub trait Joinable<I, D> {
+    fn join(self) -> JoinIterator<I, D>;
+}
+
+impl<'a, A: Component, B: JoinableSet<'a>> Joinable<Iter<'a, Entity, A>, &'a B>
+    for (&'a Set<A>, &'a B)
+{
+    fn join(self) -> JoinIterator<Iter<'a, Entity, A>, &'a B> {
+        JoinIterator {
+            iter: self.0.iter(),
+            other: self.1,
+        }
+    }
+}
+
+impl<'a, A: Component, B: JoinableSet<'a>> Joinable<IterMut<'a, Entity, A>, &'a B>
+    for (&'a mut Set<A>, &'a B)
+{
+    fn join(self) -> JoinIterator<IterMut<'a, Entity, A>, &'a B> {
+        JoinIterator {
+            iter: self.0.iter_mut(),
+            other: self.1,
+        }
+    }
+}
+
+impl<'a, A: Component, B: JoinableSet<'a>> Iterator for JoinIterator<Iter<'a, Entity, A>, &'a B> {
+    type Item = (&'a Entity, &'a A, B::ComponentReturn);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut next_value: Option<Self::Item> = None;
+
+        while let Some(entry) = self.iter.next() {
+            let c1 = match self.other.entity_component(entry.0) {
+                JoinComponentReturn::Skip => {
+                    break;
+                }
+                JoinComponentReturn::Value(component) => component,
+            };
+
+            next_value = Some((entry.0, entry.1, c1));
+            break;
+        }
+
+        next_value
+    }
+}
+*/
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -353,18 +447,18 @@ mod tests {
 
         (storage1, storage2, storage3)
     }
-
+    /*
     #[test]
     fn join_iterator() {
         let (storage1, storage2, storage3) = prapare_join_test();
 
-        assert_eq!(storage1.join(&storage2).count(), 2);
+        assert_eq!((&storage1, &storage2).join().count(), 2);
 
-        for (entity, c1, c2) in storage1.join(&storage2) {
+        for (entity, c1, c2) in (&storage1, &storage2).join() {
             println!("{:?}", c1.data1);
         }
-    }
-
+    }*/
+    /*
     #[test]
     fn join_iterator_mut() {
         let (mut storage1, mut storage2, mut storage3) = prapare_join_test();
@@ -376,5 +470,5 @@ mod tests {
             c1.data1 = 5;
             c2.data4 = 7;
         }
-    }
+    }*/
 }
