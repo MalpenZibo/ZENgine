@@ -1,11 +1,8 @@
-use crate::core::component::AnySet;
 use crate::core::component::Component;
 use crate::core::component::Set;
 use crate::core::entity::Entity;
 use std::collections::hash_map::Iter;
 use std::collections::hash_map::IterMut;
-use std::collections::hash_map::Keys;
-use std::marker::PhantomData;
 
 enum JoinReturn<T> {
     Skip,
@@ -144,6 +141,30 @@ impl<'a, A: 'a + Component, B: 'a + Joined> Iterator for JoinIter<Iter<'a, Entit
     }
 }
 
+impl<'a, A: 'a + Component, B: 'a + Joined> Iterator for JoinIter<IterMut<'a, Entity, A>, B> {
+    type Item = (&'a Entity, &'a mut A, B::Output);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut next_value: Option<Self::Item> = None;
+        while let Some(entry) = self.iter.next() {
+            next_value = Some((
+                entry.0,
+                entry.1,
+                match self.joined.get_join_value(entry.0) {
+                    JoinReturn::Value(other) => other,
+                    JoinReturn::Skip => break,
+                },
+            ));
+
+            if next_value.is_some() {
+                break;
+            }
+        }
+
+        next_value
+    }
+}
+
 macro_rules! impl_join_iterator_for_tuple {
     ( $($ty:ident => $index:tt),* ) => {
         impl<'a, Comp, $($ty),*> Iterator
@@ -177,7 +198,88 @@ macro_rules! impl_join_iterator_for_tuple {
     }
 }
 impl_join_iterator_for_tuple!(A => 0, B => 1);
-//impl_join_iterator_for_tuple!(A => [0], [mut], B => [1], [mut], C => [2], [mut]);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20, V => 21);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20, V => 21, W => 22);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20, V => 21, W => 22, X => 23);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20, V => 21, W => 22, X => 23, Y => 24);
+impl_join_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20, V => 21, W => 22, X => 23, Y => 24, Z => 25 );
+
+macro_rules! impl_join_mut_iterator_for_tuple {
+    ( $($ty:ident => $index:tt),* ) => {
+        impl<'a, Comp, $($ty),*> Iterator
+            for JoinIter<IterMut<'a, Entity, Comp>, ( $( $ty, )* )>
+            where Comp: 'a + Component, $( $ty: 'a + Joined ),*
+        {
+            type Item = (&'a Entity, &'a mut Comp, $( $ty::Output, )* );
+
+            fn next(&mut self) -> Option<Self::Item> {
+                let mut next_value: Option<Self::Item> = None;
+                while let Some(entry) = self.iter.next() {
+                    next_value = Some((
+                        entry.0,
+                        entry.1,
+                        $(
+                            match self.joined.$index.get_join_value(entry.0) {
+                                JoinReturn::Value(other) => other,
+                                JoinReturn::Skip => break,
+                            }
+                        ), *
+                    ));
+
+                    if next_value.is_some() {
+                        break;
+                    }
+                }
+
+                next_value
+            }
+        }
+    }
+}
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20, V => 21);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20, V => 21, W => 22);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20, V => 21, W => 22, X => 23);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20, V => 21, W => 22, X => 23, Y => 24);
+impl_join_mut_iterator_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20, V => 21, W => 22, X => 23, Y => 24, Z => 25 );
 
 #[cfg(test)]
 mod tests {
@@ -297,7 +399,11 @@ mod tests {
             c2.data4 = 7;
         }
 
-        for (entity, c1, c2, c3) in storage1.join((&storage2, &storage3)) {
+        for (entity, c1, c2, mut c3) in storage1.join((&storage2, &mut storage3)) {
+            println!("{:?}", c1.data1);
+        }
+
+        for (entity, mut c1, c2, mut c3) in storage1.join_mut((&storage2, &mut storage3)) {
             println!("{:?}", c1.data1);
         }
 
