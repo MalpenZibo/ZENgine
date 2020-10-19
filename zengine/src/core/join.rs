@@ -14,6 +14,7 @@ struct Optional<T: Joinable>(T);
 trait Joined {
     type Output;
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     fn get_join_value(&mut self, entity: &Entity) -> JoinReturn<Self::Output>;
 }
 
@@ -79,14 +80,14 @@ impl<Comp: Component, D: Joinable> Join<Comp, D> for Set<Comp> {
     fn join(&self, joined: D) -> JoinIter<Iter<Entity, Comp>, D> {
         JoinIter {
             iter: self.iter(),
-            joined: joined,
+            joined,
         }
     }
 
     fn join_mut(&mut self, joined: D) -> JoinIter<IterMut<Entity, Comp>, D> {
         JoinIter {
             iter: self.iter_mut(),
-            joined: joined,
+            joined,
         }
     }
 }
@@ -398,15 +399,15 @@ mod tests {
     }
 
     #[test]
-    fn join_iterator() {
+    fn join_iterator_global() {
         let (mut storage1, mut storage2, mut storage3) = prapare_join_test();
 
-        let join_iter = storage1.join(&storage2);
-        let join_iter = storage1.join(&mut storage2);
-        let join_iter = storage1.join((&storage2, &storage3));
-        let join_iter = storage1.join((&mut storage2, &storage3));
-        let join_iter = storage1.join((&storage2, &mut storage3));
-        let join_iter = storage1.join((&mut storage2, &mut storage3));
+        let _join_iter = storage1.join(&storage2);
+        let _join_iter = storage1.join(&mut storage2);
+        let _join_iter = storage1.join((&storage2, &storage3));
+        let _join_iter = storage1.join((&mut storage2, &storage3));
+        let _join_iter = storage1.join((&storage2, &mut storage3));
+        let _join_iter = storage1.join((&mut storage2, &mut storage3));
 
         assert_eq!(storage1.join(&storage2).count(), 2);
         assert_eq!(storage1.join(Optional(&storage2)).count(), 4);
@@ -418,27 +419,108 @@ mod tests {
             4
         );
 
-        for (entity, c1, c2) in storage1.join(&storage2) {
+        for (_entity, c1, _c2) in storage1.join(&storage2) {
             println!("{:?}", c1.data1);
         }
 
         assert_eq!(storage1.join((&storage2, &storage3)).count(), 2);
 
-        for (entity, c1, c2, c3) in storage1.join((&storage2, &storage3)) {
-            println!("{:?}", c1.data1);
+        for (_entity, c1, c2, c3) in storage1.join((&storage2, &storage3)) {
+            println!("{:?}, {:?}, {:?}", c1.data1, c2.data3, c3.data5);
         }
 
-        for (entity, c1, mut c2) in storage1.join(&mut storage2) {
+        for (_entity, c1, mut c2) in storage1.join(&mut storage2) {
             println!("{:?}", c1.data1);
             c2.data4 = 7;
         }
 
-        for (entity, c1, c2, mut c3) in storage1.join((&storage2, &mut storage3)) {
-            println!("{:?}", c1.data1);
+        for (_entity, c1, c2, mut c3) in storage1.join((&storage2, &mut storage3)) {
+            println!("{:?}, {:?}, {:?}", c1.data1, c2.data3, c3.data5);
+            c3.data5 = 7;
         }
 
-        for (entity, mut c1, c2, mut c3) in storage1.join_mut((&storage2, &mut storage3)) {
-            println!("{:?}", c1.data1);
+        for (_entity, mut c1, c2, mut c3) in storage1.join_mut((&storage2, &mut storage3)) {
+            println!("{:?}, {:?}, {:?}", c1.data1, c2.data3, c3.data5);
+            c1.data1 = 3;
+            c3.data5 = 89;
         }
+    }
+
+    #[test]
+    fn join_iterator() {
+        let (mut storage1, mut storage2, mut storage3) = prapare_join_test();
+        assert_eq!(storage1.join(&storage2).count(), 2);
+        assert_eq!(storage1.join(&mut storage2).count(), 2);
+        assert_eq!(storage1.join(&storage3).count(), 4);
+        assert_eq!(storage1.join(&mut storage3).count(), 4);
+
+        assert_eq!(storage1.join_mut(&storage2).count(), 2);
+        assert_eq!(storage1.join_mut(&mut storage2).count(), 2);
+        assert_eq!(storage1.join_mut(&storage3).count(), 4);
+        assert_eq!(storage1.join_mut(&mut storage3).count(), 4);
+    }
+
+    #[test]
+    fn join_optional_iterator() {
+        let (mut storage1, mut storage2, _storage3) = prapare_join_test();
+        assert_eq!(storage1.join(Optional(&storage2)).count(), 4);
+        assert_eq!(storage1.join(Optional(&mut storage2)).count(), 4);
+
+        assert_eq!(storage1.join_mut(Optional(&storage2)).count(), 4);
+        assert_eq!(storage1.join_mut(Optional(&mut storage2)).count(), 4);
+    }
+
+    #[test]
+    fn join_tuple_iterator() {
+        let (mut storage1, mut storage2, mut storage3) = prapare_join_test();
+        assert_eq!(storage1.join((&storage2, &storage3)).count(), 2);
+        assert_eq!(storage1.join((&mut storage2, &storage3)).count(), 2);
+        assert_eq!(storage1.join((&storage2, &storage3)).count(), 2);
+        assert_eq!(storage1.join((&storage2, &mut storage3)).count(), 2);
+        assert_eq!(storage1.join((&mut storage2, &mut storage3)).count(), 2);
+
+        assert_eq!(storage1.join_mut((&storage2, &storage3)).count(), 2);
+        assert_eq!(storage1.join_mut((&mut storage2, &storage3)).count(), 2);
+        assert_eq!(storage1.join_mut((&storage2, &storage3)).count(), 2);
+        assert_eq!(storage1.join_mut((&storage2, &mut storage3)).count(), 2);
+        assert_eq!(storage1.join_mut((&mut storage2, &mut storage3)).count(), 2);
+    }
+
+    #[test]
+    fn join_tuple_optional_iterator() {
+        let (mut storage1, mut storage2, mut storage3) = prapare_join_test();
+        assert_eq!(storage1.join((Optional(&storage2), &storage3)).count(), 4);
+        assert_eq!(
+            storage1.join((Optional(&mut storage2), &storage3)).count(),
+            4
+        );
+
+        assert_eq!(storage1.join((&storage2, Optional(&storage3))).count(), 2);
+        assert_eq!(
+            storage1.join((&storage2, Optional(&mut storage3))).count(),
+            2
+        );
+
+        assert_eq!(
+            storage1.join_mut((Optional(&storage2), &storage3)).count(),
+            4
+        );
+        assert_eq!(
+            storage1
+                .join_mut((Optional(&mut storage2), &storage3))
+                .count(),
+            4
+        );
+
+        assert_eq!(
+            storage1.join_mut((&storage2, Optional(&storage3))).count(),
+            2
+        );
+        assert_eq!(
+            storage1
+                .join_mut((&storage2, Optional(&mut storage3)))
+                .count(),
+            2
+        );
     }
 }
