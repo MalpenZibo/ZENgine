@@ -440,7 +440,5 @@ mod tests {
         for (entity, mut c1, c2, mut c3) in storage1.join_mut((&storage2, &mut storage3)) {
             println!("{:?}", c1.data1);
         }
-
-        //let test = storage1.join(5);
     }
 }
