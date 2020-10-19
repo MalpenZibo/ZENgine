@@ -9,6 +9,8 @@ enum JoinReturn<T> {
     Value(T),
 }
 
+struct Optional<T: Joinable>(T);
+
 trait Joined {
     type Output;
 
@@ -37,6 +39,29 @@ impl<'a, C: Component> Joined for &'a mut Set<C> {
                 Some(component) => JoinReturn::Value(&mut *(component as *mut C)),
                 None => JoinReturn::Skip,
             }
+        }
+    }
+}
+
+impl<'a, C: Component> Joined for Optional<&'a Set<C>> {
+    type Output = Option<&'a C>;
+
+    fn get_join_value(&mut self, entity: &Entity) -> JoinReturn<Self::Output> {
+        JoinReturn::Value(self.0.get(entity))
+    }
+}
+
+impl<'a, C: Component> Joined for Optional<&'a mut Set<C>> {
+    type Output = Option<&'a mut C>;
+
+    fn get_join_value(&mut self, entity: &Entity) -> JoinReturn<Self::Output> {
+        //SAFETY FIXME write something that explains why this unsafe code
+        //is actually safe
+        unsafe {
+            JoinReturn::Value(match self.0.get_mut(entity) {
+                Some(component) => Some(&mut *(component as *mut C)),
+                None => None,
+            })
         }
     }
 }
@@ -371,6 +396,7 @@ mod tests {
 
         (storage1, storage2, storage3)
     }
+
     #[test]
     fn join_iterator() {
         let (mut storage1, mut storage2, mut storage3) = prapare_join_test();
@@ -383,6 +409,14 @@ mod tests {
         let join_iter = storage1.join((&mut storage2, &mut storage3));
 
         assert_eq!(storage1.join(&storage2).count(), 2);
+        assert_eq!(storage1.join(Optional(&storage2)).count(), 4);
+        assert_eq!(storage1.join(Optional(&mut storage2)).count(), 4);
+
+        assert_eq!(storage1.join((&storage3, Optional(&storage2))).count(), 4);
+        assert_eq!(
+            storage1.join((Optional(&mut storage2), &storage3)).count(),
+            4
+        );
 
         for (entity, c1, c2) in storage1.join(&storage2) {
             println!("{:?}", c1.data1);
@@ -409,20 +443,4 @@ mod tests {
 
         //let test = storage1.join(5);
     }
-
-    /*
-    #[test]
-    fn join_iterator_mut() {
-        let (mut storage1, mut storage2, mut storage3) = prapare_join_test();
-
-        //assert_eq!((&mut storage1, &storage2, &mut storage3).join(), 2);
-
-        let test = (&mut storage1, &storage2, &mut storage3).join();
-
-        for (entity, mut c1, c2, mut c3) in (&mut storage1, &storage2, &mut storage3).join() {
-            println!("{:?}", c1.data1);
-            c1.data1 = 5;
-            c3.data5 = 7;
-        }
-    }*/
 }
