@@ -9,7 +9,7 @@ enum JoinReturn<T> {
     Value(T),
 }
 
-struct Optional<T: Joinable>(T);
+struct Optional<T: Joined>(T);
 
 trait Joined {
     type Output;
@@ -44,26 +44,14 @@ impl<'a, C: Component> Joined for &'a mut Set<C> {
     }
 }
 
-impl<'a, C: Component> Joined for Optional<&'a Set<C>> {
-    type Output = Option<&'a C>;
+impl<T: Joined> Joined for Optional<T> {
+    type Output = Option<T::Output>;
 
     fn get_join_value(&mut self, entity: &Entity) -> JoinReturn<Self::Output> {
-        JoinReturn::Value(self.0.get(entity))
-    }
-}
-
-impl<'a, C: Component> Joined for Optional<&'a mut Set<C>> {
-    type Output = Option<&'a mut C>;
-
-    fn get_join_value(&mut self, entity: &Entity) -> JoinReturn<Self::Output> {
-        //SAFETY FIXME write something that explains why this unsafe code
-        //is actually safe
-        unsafe {
-            JoinReturn::Value(match self.0.get_mut(entity) {
-                Some(component) => Some(&mut *(component as *mut C)),
-                None => None,
-            })
-        }
+        JoinReturn::Value(match self.0.get_join_value(entity) {
+            JoinReturn::Value(value) => Some(value),
+            JoinReturn::Skip => None,
+        })
     }
 }
 
