@@ -88,13 +88,13 @@ macro_rules! impl_join_for_tuple {
                 fn join(&self, joined: ( $( $ty, )* )) -> JoinIter<Iter<Entity, Comp>, ( $( $ty, )* )> {
                     JoinIter {
                         iter: self.iter(),
-                        joined: joined,
+                        joined,
                     }
                 }
                 fn join_mut(&mut self, joined: ( $( $ty, )* )) -> JoinIter<IterMut<Entity, Comp>, ( $( $ty, )* )> {
                     JoinIter {
                         iter: self.iter_mut(),
-                        joined: joined,
+                        joined,
                     }
                 }
             }
