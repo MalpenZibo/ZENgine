@@ -121,6 +121,17 @@ mod tests {
         data2: f32,
     }
 
+    #[derive(Component, PartialEq, Debug)]
+    struct Component2 {
+        data3: String,
+        data4: u32,
+    }
+
+    #[derive(Component, PartialEq, Debug)]
+    struct Component3 {
+        data5: i32,
+    }
+
     #[test]
     fn get_from_empty_storage() {
         let mut store = Store::default();
