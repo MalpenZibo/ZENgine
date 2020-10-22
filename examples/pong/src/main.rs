@@ -3,6 +3,8 @@ extern crate zengine;
 use zengine::core::system::*;
 use zengine::core::*;
 use zengine::event::*;
+use zengine::graphics::camera::Camera;
+use zengine::graphics::camera::{ActiveCamera, CameraMode};
 use zengine::graphics::color::Color;
 use zengine::graphics::texture::{SpriteDescriptor, SpriteType, TextureManager};
 use zengine::log::{trace, LevelFilter};
@@ -128,6 +130,22 @@ impl Scene for Game {
         store.insert_resource(Background {
             color: Color::white(),
         });
+
+        let camera = store
+            .build_entity()
+            .with(Camera {
+                width: 800,
+                height: 600,
+                mode: CameraMode::MODE_2D,
+            })
+            .with(Transform::new(
+                Vector3::new(200.0, 30.0, 0.0),
+                Vector3::zero(),
+                Vector3::one(),
+            ))
+            .build();
+
+        store.insert_resource(ActiveCamera { entity: camera });
 
         store
             .build_entity()
