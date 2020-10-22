@@ -1,17 +1,19 @@
 use crate::core::component::Component;
 use crate::core::component::Set;
 use crate::core::entity::Entity;
+use std::cell::Ref;
+use std::cell::RefMut;
 use std::collections::hash_map::Iter;
 use std::collections::hash_map::IterMut;
 
-enum JoinReturn<T> {
+pub enum JoinReturn<T> {
     Skip,
     Value(T),
 }
 
-struct Optional<T: Joined>(T);
+pub struct Optional<T: Joined>(pub T);
 
-trait Joined {
+pub trait Joined {
     type Output;
 
     #[allow(clippy::trivially_copy_pass_by_ref)]
@@ -19,6 +21,17 @@ trait Joined {
 }
 
 impl<'a, C: Component> Joined for &'a Set<C> {
+    type Output = &'a C;
+
+    fn get_join_value(&mut self, entity: &Entity) -> JoinReturn<Self::Output> {
+        match self.get(entity) {
+            Some(component) => JoinReturn::Value(component),
+            None => JoinReturn::Skip,
+        }
+    }
+}
+
+impl<'a, C: Component> Joined for &'a Ref<'a, Set<C>> {
     type Output = &'a C;
 
     fn get_join_value(&mut self, entity: &Entity) -> JoinReturn<Self::Output> {
@@ -44,6 +57,21 @@ impl<'a, C: Component> Joined for &'a mut Set<C> {
     }
 }
 
+impl<'a, C: Component> Joined for &'a mut RefMut<'a, Set<C>> {
+    type Output = &'a mut C;
+
+    fn get_join_value(&mut self, entity: &Entity) -> JoinReturn<Self::Output> {
+        //SAFETY FIXME write something that explains why this unsafe code
+        //is actually safe
+        unsafe {
+            match self.get_mut(entity) {
+                Some(component) => JoinReturn::Value(&mut *(component as *mut C)),
+                None => JoinReturn::Skip,
+            }
+        }
+    }
+}
+
 impl<T: Joined> Joined for Optional<T> {
     type Output = Option<T::Output>;
 
@@ -55,10 +83,10 @@ impl<T: Joined> Joined for Optional<T> {
     }
 }
 
-trait Joinable {}
+pub trait Joinable {}
 impl<T: Joined> Joinable for T {}
 
-trait Join<C: Component, D> {
+pub trait Join<C: Component, D> {
     fn join(&self, joined: D) -> JoinIter<Iter<Entity, C>, D>;
 
     fn join_mut(&mut self, joined: D) -> JoinIter<IterMut<Entity, C>, D>;
@@ -126,7 +154,7 @@ impl_join_for_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T,
 impl_join_for_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y);
 impl_join_for_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z);
 
-struct JoinIter<I: Iterator, D> {
+pub struct JoinIter<I: Iterator, D> {
     iter: I,
     joined: D,
 }
