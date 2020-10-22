@@ -224,3 +224,9 @@ impl Matrix4x4 {
         m
     }
 }
+
+impl Default for Matrix4x4 {
+    fn default() -> Self {
+        Self::identity()
+    }
+}

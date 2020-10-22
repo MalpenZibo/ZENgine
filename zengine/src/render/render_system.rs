@@ -1,3 +1,5 @@
+use crate::core::join::Join;
+use crate::core::join::Optional;
 use crate::core::system::ReadOption;
 use crate::core::system::{Read, ReadSet, System};
 use crate::core::Store;
@@ -206,6 +208,33 @@ impl<ST: SpriteType> RenderSystem<ST> {
 
         self.window = Some(window);
     }
+
+    fn get_projection(
+        &self,
+        cameras: ReadSet<Camera>,
+        active_camera: ReadOption<ActiveCamera>,
+        transforms: &ReadSet<Transform>,
+    ) -> Matrix4x4 {
+        match active_camera {
+            Some(active_camera) => match (
+                cameras.get(&active_camera.entity),
+                transforms.get(&active_camera.entity),
+            ) {
+                (Some(camera), Some(transform)) => {
+                    camera.get_projection() * transform.get_transformation_matrix()
+                }
+                (Some(camera), None) => camera.get_projection(),
+                _ => Matrix4x4::identity(),
+            },
+            None => match cameras.join(Optional(transforms)).next() {
+                Some((_, camera, Some(transform))) => {
+                    camera.get_projection() * transform.get_transformation_matrix()
+                }
+                Some((_, camera, None)) => camera.get_projection(),
+                _ => Matrix4x4::identity(),
+            },
+        }
+    }
 }
 
 type RenderData<'a, ST> = (
@@ -284,7 +313,7 @@ impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
                 background.color.a,
             );
         }
-        let projection = Matrix4x4::orthographics(0.0, 800.0, 0.0, 600.0, -100.0, 100.0);
+        let projection = self.get_projection(camera, active_camera, &transforms);
 
         let shader = shaders.get("basic");
         shader.use_shader();
