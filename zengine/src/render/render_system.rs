@@ -84,12 +84,12 @@ impl<ST: SpriteType> RenderSystem<ST> {
         if let Some(buffer) = &mut self.buffer {
             buffer.upload(
                 &[
-                    Vertex::new(min_x, min_y, 0.0, min_u, min_v),
-                    Vertex::new(min_x, max_y, 0.0, min_u, max_v),
-                    Vertex::new(max_x, max_y, 0.0, max_u, max_v),
-                    Vertex::new(max_x, max_y, 0.0, max_u, max_v),
-                    Vertex::new(max_x, min_y, 0.0, max_u, min_v),
-                    Vertex::new(min_x, min_y, 0.0, min_u, min_v),
+                    Vertex::new(min_x, min_y, 0.0, min_u, max_v),
+                    Vertex::new(min_x, max_y, 0.0, min_u, min_v),
+                    Vertex::new(max_x, max_y, 0.0, max_u, min_v),
+                    Vertex::new(max_x, max_y, 0.0, max_u, min_v),
+                    Vertex::new(max_x, min_y, 0.0, max_u, max_v),
+                    Vertex::new(min_x, min_y, 0.0, min_u, max_v),
                 ]
                 .iter()
                 .flat_map(|v| {

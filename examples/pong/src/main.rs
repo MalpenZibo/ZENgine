@@ -139,7 +139,7 @@ impl Scene for Game {
                 mode: CameraMode::MODE_2D,
             })
             .with(Transform::new(
-                Vector3::new(200.0, 30.0, 0.0),
+                Vector3::new(0.0, 0.0, -1.0),
                 Vector3::zero(),
                 Vector3::one(),
             ))
@@ -156,7 +156,11 @@ impl Scene for Game {
                 color: Color::white(),
                 sprite_type: Sprites::DuckFromSheet,
             })
-            .with(Transform::default())
+            .with(Transform::new(
+                Vector3::new(200.0, 80.0, 0.0),
+                Vector3::zero(),
+                Vector3::one(),
+            ))
             .with(Player1 {})
             .build();
 
@@ -170,7 +174,7 @@ impl Scene for Game {
                 sprite_type: Sprites::LogoFromSheet,
             })
             .with(Transform::new(
-                Vector3::new(400.0, 300.0, 0.0),
+                Vector3::new(0.0, 0.0, 0.0),
                 Vector3::zero(),
                 Vector3::one(),
             ))

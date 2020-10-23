@@ -24,12 +24,12 @@ impl Camera {
     pub fn get_projection(&self) -> Matrix4x4 {
         match &self.mode {
             MODE_2D => Matrix4x4::orthographics(
-                0.0,
-                self.width as f32,
-                0.0,
-                self.height as f32,
-                -100.0,
-                100.0,
+                -(self.width as f32 / 2.0),
+                self.width as f32 / 2.0,
+                -(self.height as f32 / 2.0),
+                self.height as f32 / 2.0,
+                0.125,
+                1000.0,
             ),
         }
     }
