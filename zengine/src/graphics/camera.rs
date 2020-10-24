@@ -10,7 +10,7 @@ pub struct ActiveCamera {
 
 #[derive(Debug)]
 pub enum CameraMode {
-    MODE_2D,
+    Mode2D,
 }
 
 #[derive(Component, Debug)]
@@ -23,7 +23,7 @@ pub struct Camera {
 impl Camera {
     pub fn get_projection(&self) -> Matrix4x4 {
         match &self.mode {
-            MODE_2D => Matrix4x4::orthographics(
+            CameraMode::Mode2D => Matrix4x4::orthographics(
                 -(self.width as f32 / 2.0),
                 self.width as f32 / 2.0,
                 -(self.height as f32 / 2.0),

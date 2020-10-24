@@ -136,7 +136,7 @@ impl Scene for Game {
             .with(Camera {
                 width: 800,
                 height: 600,
-                mode: CameraMode::MODE_2D,
+                mode: CameraMode::Mode2D,
             })
             .with(Transform::new(
                 Vector3::new(200.0, 0.0, 1.0),
@@ -150,7 +150,7 @@ impl Scene for Game {
             .with(Camera {
                 width: 800,
                 height: 600,
-                mode: CameraMode::MODE_2D,
+                mode: CameraMode::Mode2D,
             })
             .with(Transform::new(
                 Vector3::new(0.0, 0.0, 1.0),
