@@ -28,7 +28,7 @@ impl Camera {
                 self.width as f32 / 2.0,
                 -(self.height as f32 / 2.0),
                 self.height as f32 / 2.0,
-                0.125,
+                0.1,
                 1000.0,
             ),
         }
