@@ -222,7 +222,7 @@ impl<ST: SpriteType> RenderSystem<ST> {
             ) {
                 (Some(camera), Some(transform)) => {
                     camera.get_projection()
-                        * transform.get_transformation_matrix_inverse(true, false, false)
+                        * transform.get_transformation_matrix_inverse(true, true, false)
                 }
                 (Some(camera), None) => camera.get_projection(),
                 _ => Matrix4x4::identity(),
@@ -230,7 +230,7 @@ impl<ST: SpriteType> RenderSystem<ST> {
             None => match cameras.join(Optional(transforms)).next() {
                 Some((_, camera, Some(transform))) => {
                     camera.get_projection()
-                        * transform.get_transformation_matrix_inverse(true, false, false)
+                        * transform.get_transformation_matrix_inverse(true, true, false)
                 }
                 Some((_, camera, None)) => camera.get_projection(),
                 _ => Matrix4x4::identity(),

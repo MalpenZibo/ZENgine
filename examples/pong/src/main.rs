@@ -154,7 +154,7 @@ impl Scene for Game {
             })
             .with(Transform::new(
                 Vector3::new(0.0, 0.0, 1.0),
-                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::new(0.0, 0.0, 0.7),
                 Vector3::new(1.0, 1.0, 1.0),
             ))
             .build();
@@ -182,9 +182,9 @@ impl Scene for Game {
         store
             .build_entity()
             .with(Sprite {
-                width: 80.0,
-                height: 80.0,
-                origin: Vector3::zero(),
+                width: 600.0,
+                height: 600.0,
+                origin: Vector3::new(0.5, 0.5, 0.0),
                 color: Color::white(),
                 sprite_type: Sprites::LogoFromSheet,
             })
