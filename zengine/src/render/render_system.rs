@@ -1,9 +1,14 @@
+use crate::core::join::Join;
+use crate::core::join::Optional;
+use crate::core::system::ReadOption;
 use crate::core::system::{Read, ReadSet, System};
 use crate::core::Store;
 use crate::gl_utilities::gl_buffer::AttributeInfo;
 use crate::gl_utilities::gl_buffer::GLBuffer;
 use crate::gl_utilities::shader::Shader;
 use crate::gl_utilities::shader::ShaderManager;
+use crate::graphics::camera::ActiveCamera;
+use crate::graphics::camera::Camera;
 use crate::graphics::texture::{SpriteType, TextureManager};
 use crate::graphics::vertex::Vertex;
 use crate::math::matrix4x4::Matrix4x4;
@@ -79,12 +84,12 @@ impl<ST: SpriteType> RenderSystem<ST> {
         if let Some(buffer) = &mut self.buffer {
             buffer.upload(
                 &[
-                    Vertex::new(min_x, min_y, 0.0, min_u, min_v),
-                    Vertex::new(min_x, max_y, 0.0, min_u, max_v),
-                    Vertex::new(max_x, max_y, 0.0, max_u, max_v),
-                    Vertex::new(max_x, max_y, 0.0, max_u, max_v),
-                    Vertex::new(max_x, min_y, 0.0, max_u, min_v),
-                    Vertex::new(min_x, min_y, 0.0, min_u, min_v),
+                    Vertex::new(min_x, min_y, 0.0, min_u, max_v),
+                    Vertex::new(min_x, max_y, 0.0, min_u, min_v),
+                    Vertex::new(max_x, max_y, 0.0, max_u, min_v),
+                    Vertex::new(max_x, max_y, 0.0, max_u, min_v),
+                    Vertex::new(max_x, min_y, 0.0, max_u, max_v),
+                    Vertex::new(min_x, min_y, 0.0, min_u, max_v),
                 ]
                 .iter()
                 .flat_map(|v| {
@@ -203,6 +208,79 @@ impl<ST: SpriteType> RenderSystem<ST> {
 
         self.window = Some(window);
     }
+
+    fn get_camera_data(
+        &self,
+        cameras: ReadSet<Camera>,
+        active_camera: ReadOption<ActiveCamera>,
+        transforms: &ReadSet<Transform>,
+    ) -> (Matrix4x4, u32, u32) {
+        match active_camera {
+            Some(active_camera) => match (
+                cameras.get(&active_camera.entity),
+                transforms.get(&active_camera.entity),
+            ) {
+                (Some(camera), Some(transform)) => (
+                    camera.get_projection()
+                        * transform.get_transformation_matrix_inverse(true, true, false),
+                    camera.width,
+                    camera.height,
+                ),
+                (Some(camera), None) => (camera.get_projection(), camera.width, camera.height),
+                _ => (Matrix4x4::identity(), 0, 0),
+            },
+            None => match cameras.join(Optional(transforms)).next() {
+                Some((_, camera, Some(transform))) => (
+                    camera.get_projection()
+                        * transform.get_transformation_matrix_inverse(true, true, false),
+                    camera.width,
+                    camera.height,
+                ),
+                Some((_, camera, None)) => (camera.get_projection(), camera.width, camera.height),
+                _ => (Matrix4x4::identity(), 0, 0),
+            },
+        }
+    }
+
+    fn setup_scissor(&self, width: u32, height: u32) {
+        if let Some(window) = &self.window {
+            let target_aspect_ratio = width as f32 / height as f32;
+            let size = window.drawable_size();
+            let width = size.0 as i32;
+            let height = size.1 as i32;
+            let mut calculated_height = (width as f32 / target_aspect_ratio) as i32;
+            let mut calculated_width = width;
+            if calculated_height > height {
+                calculated_height = height;
+                calculated_width = (calculated_height as f32 * target_aspect_ratio) as i32;
+            }
+            let vp_x = (width / 2) - (calculated_width / 2);
+            let vp_y = (height / 2) - (calculated_height / 2);
+            unsafe {
+                gl::Viewport(vp_x, vp_y, calculated_width, calculated_height);
+                gl::Scissor(vp_x, vp_y, calculated_width, calculated_height);
+            }
+        }
+    }
+
+    fn clear(&self, background: Read<Background>) {
+        unsafe {
+            gl::Disable(gl::SCISSOR_TEST);
+
+            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+
+            gl::Enable(gl::SCISSOR_TEST);
+
+            gl::ClearColor(
+                background.color.r,
+                background.color.g,
+                background.color.b,
+                background.color.a,
+            );
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+        }
+    }
 }
 
 type RenderData<'a, ST> = (
@@ -211,6 +289,8 @@ type RenderData<'a, ST> = (
     ReadSet<'a, Sprite<ST>>,
     ReadSet<'a, Transform>,
     Read<'a, Background>,
+    ReadSet<'a, Camera>,
+    ReadOption<'a, ActiveCamera>,
 );
 
 impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
@@ -266,17 +346,13 @@ impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
         store.insert_resource(shaders);
     }
 
-    fn run(&mut self, (texture_manager, shaders, sprites, transforms, background): Self::Data) {
-        unsafe {
-            gl::Clear(gl::COLOR_BUFFER_BIT);
-            gl::ClearColor(
-                background.color.r,
-                background.color.g,
-                background.color.b,
-                background.color.a,
-            );
-        }
-        let projection = Matrix4x4::orthographics(0.0, 800.0, 0.0, 600.0, -100.0, 100.0);
+    fn run(
+        &mut self,
+        (texture_manager, shaders, sprites, transforms, background, camera, active_camera): Self::Data,
+    ) {
+        let camera_data = self.get_camera_data(camera, active_camera, &transforms);
+        self.setup_scissor(camera_data.1, camera_data.2);
+        self.clear(background);
 
         let shader = shaders.get("basic");
         shader.use_shader();
@@ -286,7 +362,7 @@ impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
                 u_projection_location,
                 1,
                 gl::FALSE,
-                projection.data.as_ptr(),
+                camera_data.0.data.as_ptr(),
             );
         }
         self.render_sprites(&texture_manager, shader, sprites, transforms);

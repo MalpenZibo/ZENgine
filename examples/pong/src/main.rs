@@ -3,6 +3,8 @@ extern crate zengine;
 use zengine::core::system::*;
 use zengine::core::*;
 use zengine::event::*;
+use zengine::graphics::camera::Camera;
+use zengine::graphics::camera::{ActiveCamera, CameraMode};
 use zengine::graphics::color::Color;
 use zengine::graphics::texture::{SpriteDescriptor, SpriteType, TextureManager};
 use zengine::log::{trace, LevelFilter};
@@ -129,6 +131,37 @@ impl Scene for Game {
             color: Color::white(),
         });
 
+        let camera1 = store
+            .build_entity()
+            .with(Camera {
+                width: 800,
+                height: 600,
+                mode: CameraMode::Mode2D,
+            })
+            .with(Transform::new(
+                Vector3::new(200.0, 0.0, 1.0),
+                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::new(1.0, 1.0, 1.0),
+            ))
+            .build();
+
+        let camera2 = store
+            .build_entity()
+            .with(Camera {
+                width: 800,
+                height: 600,
+                mode: CameraMode::Mode2D,
+            })
+            .with(Transform::new(
+                Vector3::new(0.0, 0.0, 1.0),
+                Vector3::new(0.0, 0.0, 0.7),
+                Vector3::new(1.0, 1.0, 1.0),
+            ))
+            .build();
+
+        store.insert_resource(ActiveCamera { entity: camera1 });
+        store.insert_resource(ActiveCamera { entity: camera2 });
+
         store
             .build_entity()
             .with(Sprite::<Sprites> {
@@ -138,22 +171,26 @@ impl Scene for Game {
                 color: Color::white(),
                 sprite_type: Sprites::DuckFromSheet,
             })
-            .with(Transform::default())
+            .with(Transform::new(
+                Vector3::new(200.0, 80.0, 0.0),
+                Vector3::zero(),
+                Vector3::one(),
+            ))
             .with(Player1 {})
             .build();
 
         store
             .build_entity()
             .with(Sprite {
-                width: 80.0,
-                height: 80.0,
-                origin: Vector3::zero(),
+                width: 600.0,
+                height: 600.0,
+                origin: Vector3::new(0.5, 0.5, 0.0),
                 color: Color::white(),
                 sprite_type: Sprites::LogoFromSheet,
             })
             .with(Transform::new(
-                Vector3::new(400.0, 300.0, 0.0),
-                Vector3::zero(),
+                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::new(0.0, 0.0, 0.0),
                 Vector3::one(),
             ))
             .build();

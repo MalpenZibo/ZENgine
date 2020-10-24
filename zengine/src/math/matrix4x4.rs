@@ -4,6 +4,7 @@
 use crate::math::vector3::Vector3;
 use auto_ops::*;
 
+#[derive(Debug)]
 pub struct Matrix4x4 {
     pub data: [f32; 16],
 }
@@ -130,8 +131,8 @@ impl Matrix4x4 {
     pub fn orthographics(
         left: f32,
         right: f32,
-        top: f32,
         bottom: f32,
+        top: f32,
         near_clip: f32,
         far_clip: f32,
     ) -> Matrix4x4 {
@@ -222,5 +223,11 @@ impl Matrix4x4 {
         m.data[10] = scale.z;
 
         m
+    }
+}
+
+impl Default for Matrix4x4 {
+    fn default() -> Self {
+        Self::identity()
     }
 }

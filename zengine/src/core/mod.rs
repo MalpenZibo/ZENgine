@@ -1,6 +1,6 @@
 mod component;
 mod entity;
-mod join;
+pub mod join;
 pub mod scene;
 mod store;
 pub mod system;
