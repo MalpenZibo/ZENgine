@@ -221,14 +221,16 @@ impl<ST: SpriteType> RenderSystem<ST> {
                 transforms.get(&active_camera.entity),
             ) {
                 (Some(camera), Some(transform)) => {
-                    camera.get_projection() * transform.get_transformation_matrix()
+                    camera.get_projection()
+                        * transform.get_transformation_matrix_inverse(true, false, false)
                 }
                 (Some(camera), None) => camera.get_projection(),
                 _ => Matrix4x4::identity(),
             },
             None => match cameras.join(Optional(transforms)).next() {
                 Some((_, camera, Some(transform))) => {
-                    camera.get_projection() * transform.get_transformation_matrix()
+                    camera.get_projection()
+                        * transform.get_transformation_matrix_inverse(true, false, false)
                 }
                 Some((_, camera, None)) => camera.get_projection(),
                 _ => Matrix4x4::identity(),

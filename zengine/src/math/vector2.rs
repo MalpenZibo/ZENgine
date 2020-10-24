@@ -16,4 +16,8 @@ impl Vector2 {
     pub fn one() -> Vector2 {
         Vector2::new(1.0, 1.0)
     }
+
+    pub fn inverse(&self) -> Vector2 {
+        Vector2::new(-self.x, -self.y)
+    }
 }

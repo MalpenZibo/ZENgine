@@ -17,4 +17,8 @@ impl Vector3 {
     pub fn one() -> Vector3 {
         Vector3::new(1.0, 1.0, 1.0)
     }
+
+    pub fn inverse(&self) -> Vector3 {
+        Vector3::new(-self.x, -self.y, -self.z)
+    }
 }

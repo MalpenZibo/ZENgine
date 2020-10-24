@@ -35,4 +35,29 @@ impl Transform {
 
         translation * rotation * scale
     }
+
+    pub fn get_transformation_matrix_inverse(
+        &self,
+        translation_inverse: bool,
+        rotation_inverse: bool,
+        scale_inverse: bool,
+    ) -> Matrix4x4 {
+        let translation = Matrix4x4::translation(if translation_inverse {
+            self.position.inverse()
+        } else {
+            self.position
+        });
+        let rotation = Matrix4x4::rotation(if rotation_inverse {
+            self.rotation.inverse()
+        } else {
+            self.rotation
+        });
+        let scale = Matrix4x4::scale(if scale_inverse {
+            self.scale.inverse()
+        } else {
+            self.scale
+        });
+
+        translation * rotation * scale
+    }
 }

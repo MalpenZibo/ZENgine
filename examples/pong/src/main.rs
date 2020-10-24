@@ -139,9 +139,9 @@ impl Scene for Game {
                 mode: CameraMode::MODE_2D,
             })
             .with(Transform::new(
-                Vector3::new(0.0, 0.0, -1.0),
-                Vector3::zero(),
-                Vector3::one(),
+                Vector3::new(200.0, 0.0, 1.0),
+                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::new(1.0, 1.0, 1.0),
             ))
             .build();
 
@@ -175,7 +175,7 @@ impl Scene for Game {
             })
             .with(Transform::new(
                 Vector3::new(0.0, 0.0, 0.0),
-                Vector3::zero(),
+                Vector3::new(0.0, 0.0, 0.0),
                 Vector3::one(),
             ))
             .build();
