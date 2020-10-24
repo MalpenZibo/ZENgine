@@ -131,7 +131,7 @@ impl Scene for Game {
             color: Color::white(),
         });
 
-        let camera = store
+        let camera1 = store
             .build_entity()
             .with(Camera {
                 width: 800,
@@ -145,7 +145,22 @@ impl Scene for Game {
             ))
             .build();
 
-        store.insert_resource(ActiveCamera { entity: camera });
+        let camera2 = store
+            .build_entity()
+            .with(Camera {
+                width: 800,
+                height: 600,
+                mode: CameraMode::MODE_2D,
+            })
+            .with(Transform::new(
+                Vector3::new(0.0, 0.0, 1.0),
+                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::new(1.0, 1.0, 1.0),
+            ))
+            .build();
+
+        store.insert_resource(ActiveCamera { entity: camera1 });
+        store.insert_resource(ActiveCamera { entity: camera2 });
 
         store
             .build_entity()
