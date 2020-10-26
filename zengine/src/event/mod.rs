@@ -55,7 +55,7 @@ impl<T: InputType> InputHandler<T> {
     pub fn axis_value(&self, input_type: T) -> f32 {
         self.axes_value
             .get(&input_type)
-            .map(|entry| entry.iter().last().map(|last_event| last_event.1.clone()))
+            .map(|entry| entry.iter().last().map(|last_event| last_event.1))
             .flatten()
             .unwrap_or_else(|| 0.0)
     }
@@ -63,7 +63,7 @@ impl<T: InputType> InputHandler<T> {
     pub fn action_value(&self, input_type: T) -> bool {
         self.actions_value
             .get(&input_type)
-            .map(|entry| entry.iter().last().map(|last_event| last_event.1.clone()))
+            .map(|entry| entry.iter().last().map(|last_event| last_event.1))
             .flatten()
             .unwrap_or_else(|| false)
     }

@@ -265,7 +265,7 @@ mod tests {
             }
             AnySystem::run(&mut input_system, &store);
             let input_handler = store.get_resource::<InputHandler<UserInput>>().unwrap();
-            assert_eq!(input_handler.action_value(UserInput::Jump), Some(true));
+            assert_eq!(input_handler.action_value(UserInput::Jump), true);
         }
 
         AnySystem::dispose(&mut input_system, &mut store);
@@ -286,7 +286,7 @@ mod tests {
             }
             AnySystem::run(&mut input_system, &store);
             let input_handler = store.get_resource::<InputHandler<UserInput>>().unwrap();
-            assert_eq!(input_handler.axis_value(UserInput::X), Some(1.0));
+            assert_eq!(input_handler.axis_value(UserInput::X), 1.0);
         }
 
         AnySystem::dispose(&mut input_system, &mut store);
@@ -307,7 +307,7 @@ mod tests {
             }
             AnySystem::run(&mut input_system, &store);
             let input_handler = store.get_resource::<InputHandler<UserInput>>().unwrap();
-            assert_eq!(input_handler.axis_value(UserInput::X), Some(-1.0));
+            assert_eq!(input_handler.axis_value(UserInput::X), -1.0);
         }
 
         AnySystem::dispose(&mut input_system, &mut store);
@@ -332,7 +332,7 @@ mod tests {
             }
             AnySystem::run(&mut input_system, &store);
             let input_handler = store.get_resource::<InputHandler<UserInput>>().unwrap();
-            assert_eq!(input_handler.axis_value(UserInput::X), Some(1.0));
+            assert_eq!(input_handler.axis_value(UserInput::X), 1.0);
         }
 
         AnySystem::dispose(&mut input_system, &mut store);
