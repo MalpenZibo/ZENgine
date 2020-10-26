@@ -9,7 +9,6 @@ use crate::event::{Bindings, InputHandler, InputType};
 pub struct InputSystem<T: InputType> {
     input_stream_token: Option<SubscriptionToken>,
     bindings: Bindings<T>,
-    events: Vec<InputEvent>,
 }
 
 impl<T: InputType> InputSystem<T> {
@@ -17,7 +16,6 @@ impl<T: InputType> InputSystem<T> {
         InputSystem {
             input_stream_token: None,
             bindings,
-            events: Vec::default(),
         }
     }
 }
@@ -39,59 +37,65 @@ impl<'a, T: InputType> System<'a> for InputSystem<T> {
     fn run(&mut self, (event_stream, mut input_handler): Self::Data) {
         if let Some(token) = self.input_stream_token {
             for e in event_stream.read(&token) {
-                if e.value > 0.0 {
-                    match self
-                        .events
-                        .iter_mut()
-                        .find(|ref event| event.input == e.input)
-                    {
-                        Some(event) => {
-                            event.value = e.value;
-                        }
-                        None => {
-                            self.events.push(InputEvent {
-                                input: e.input.clone(),
-                                value: e.value.clone(),
-                            });
-                        }
-                    }
-                } else {
-                    self.events.retain(|events| events.input != e.input);
-                }
-
                 for actions in self.bindings.action_mappings.iter() {
-                    if let Some(event) = self
-                        .events
-                        .iter()
-                        .filter(|event| actions.1.iter().any(|action| action.source == event.input))
-                        .last()
+                    if let Some(_action) = actions.1.iter().find(|action| action.source == e.input)
                     {
-                        input_handler
-                            .actions_value
-                            .insert(actions.0.clone(), event.value > 0.0);
-                    } else {
-                        input_handler.actions_value.insert(actions.0.clone(), false);
+                        match input_handler.actions_value.get_mut(actions.0) {
+                            Some(entry) => {
+                                match entry.iter().position(|value| value.0 == e.input) {
+                                    Some(index) => {
+                                        if e.value > 0.0 {
+                                            entry[index].1 = e.value > 0.0;
+                                        } else {
+                                            entry.remove(index);
+                                        }
+                                    }
+                                    None => {
+                                        if e.value > 0.0 {
+                                            entry.push((e.input.clone(), e.value > 0.0))
+                                        }
+                                    }
+                                }
+                            }
+                            None => {
+                                if e.value > 0.0 {
+                                    input_handler.actions_value.insert(
+                                        actions.0.clone(),
+                                        vec![(e.input.clone(), e.value > 0.0)],
+                                    );
+                                }
+                            }
+                        }
                     }
                 }
                 for axes in self.bindings.axis_mappings.iter() {
-                    if let Some(event) = self
-                        .events
-                        .iter()
-                        .filter(|event| axes.1.iter().any(|action| action.source == event.input))
-                        .last()
-                    {
-                        input_handler.axes_value.insert(
-                            axes.0.clone(),
-                            event.value
-                                * (axes
-                                    .1
-                                    .iter()
-                                    .find(|axis| axis.source == event.input)
-                                    .map(|axis| axis.scale)
-                                    .unwrap_or_else(|| 0.0)),
-                        );
-                    } else {
-                        input_handler.axes_value.insert(axes.0.clone(), 0.0);
+                    if let Some(axis) = axes.1.iter().find(|axis| axis.source == e.input) {
+                        match input_handler.axes_value.get_mut(axes.0) {
+                            Some(entry) => {
+                                match entry.iter().position(|value| value.0 == e.input) {
+                                    Some(index) => {
+                                        if e.value > 0.0 {
+                                            entry[index].1 = e.value * axis.scale;
+                                        } else {
+                                            entry.remove(index);
+                                        }
+                                    }
+                                    None => {
+                                        if e.value > 0.0 {
+                                            entry.push((e.input.clone(), e.value * axis.scale))
+                                        }
+                                    }
+                                }
+                            }
+                            None => {
+                                if e.value > 0.0 {
+                                    input_handler.axes_value.insert(
+                                        axes.0.clone(),
+                                        vec![(e.input.clone(), e.value * axis.scale)],
+                                    );
+                                }
+                            }
+                        }
                     }
                 }
             }

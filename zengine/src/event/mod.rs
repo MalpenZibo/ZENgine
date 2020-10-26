@@ -37,8 +37,8 @@ pub struct Bindings<T: InputType> {
 }
 
 pub struct InputHandler<T: InputType> {
-    actions_value: FnvHashMap<T, bool>,
-    axes_value: FnvHashMap<T, f32>,
+    actions_value: FnvHashMap<T, Vec<(Input, bool)>>,
+    axes_value: FnvHashMap<T, Vec<(Input, f32)>>,
 }
 impl<T: InputType> Default for InputHandler<T> {
     fn default() -> Self {
@@ -52,11 +52,19 @@ impl<T: InputType> Default for InputHandler<T> {
 impl<T: InputType> Resource for InputHandler<T> {}
 
 impl<T: InputType> InputHandler<T> {
-    pub fn axis_value(&self, input_type: T) -> Option<f32> {
-        self.axes_value.get(&input_type).copied()
+    pub fn axis_value(&self, input_type: T) -> f32 {
+        self.axes_value
+            .get(&input_type)
+            .map(|entry| entry.iter().last().map(|last_event| last_event.1.clone()))
+            .flatten()
+            .unwrap_or_else(|| 0.0)
     }
 
-    pub fn action_value(&self, input_type: T) -> Option<bool> {
-        self.actions_value.get(&input_type).copied()
+    pub fn action_value(&self, input_type: T) -> bool {
+        self.actions_value
+            .get(&input_type)
+            .map(|entry| entry.iter().last().map(|last_event| last_event.1.clone()))
+            .flatten()
+            .unwrap_or_else(|| false)
     }
 }

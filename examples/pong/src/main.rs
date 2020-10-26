@@ -36,11 +36,11 @@ fn main() {
               - source:
                   Keyboard:
                       key: W
-                scale: -1.0
+                scale: 1.0
               - source:
                   Keyboard:
                       key: S
-                scale: 1.0
+                scale: -1.0
         action_mappings:
             Jump:
             - source: 
@@ -154,7 +154,7 @@ impl Scene for Game {
             })
             .with(Transform::new(
                 Vector3::new(0.0, 0.0, 1.0),
-                Vector3::new(0.0, 0.0, 0.7),
+                Vector3::new(0.0, 0.0, 0.0),
                 Vector3::new(1.0, 1.0, 1.0),
             ))
             .build();
@@ -253,8 +253,8 @@ impl<'a> System<'a> for System1 {
 
         for t in transform.iter_mut() {
             if player1.get(t.0).is_some() {
-                t.1.position.x += input.axis_value(UserInput::X).unwrap_or_else(|| 0.0);
-                t.1.position.y += input.axis_value(UserInput::Y).unwrap_or_else(|| 0.0);
+                t.1.position.x += input.axis_value(UserInput::X);
+                t.1.position.y += input.axis_value(UserInput::Y);
             }
         }
 
