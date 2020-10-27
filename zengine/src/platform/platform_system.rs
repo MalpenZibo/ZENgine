@@ -98,45 +98,21 @@ impl<'a> System<'a> for PlatformSystem {
                 Event::MouseMotion { x, y, .. } => {
                     input.publish(InputEvent {
                         input: Input::MouseMotion { axis: Axis::X },
-                        value: if x > -8000i32 && x < 8000i32 {
-                            0.0
-                        } else if (x).is_positive() {
-                            (x) as f32 / std::i32::MAX as f32
-                        } else {
-                            ((x) as f32).abs() / std::i32::MIN as f32
-                        },
+                        value: x as f32,
                     });
                     input.publish(InputEvent {
                         input: Input::MouseMotion { axis: Axis::Y },
-                        value: if y > -8000i32 && y < 8000i32 {
-                            0.0
-                        } else if (y).is_positive() {
-                            (y) as f32 / std::i32::MAX as f32
-                        } else {
-                            ((y) as f32).abs() / std::i32::MIN as f32
-                        },
+                        value: y as f32,
                     });
                 }
                 Event::MouseWheel { x, y, .. } => {
                     input.publish(InputEvent {
                         input: Input::MouseWheel { axis: Axis::X },
-                        value: if x > -8000i32 && x < 8000i32 {
-                            0.0
-                        } else if (x).is_positive() {
-                            (x) as f32 / std::i32::MAX as f32
-                        } else {
-                            ((x) as f32).abs() / std::i32::MIN as f32
-                        },
+                        value: x as f32,
                     });
                     input.publish(InputEvent {
                         input: Input::MouseWheel { axis: Axis::Y },
-                        value: if y > -8000i32 && y < 8000i32 {
-                            0.0
-                        } else if (y).is_positive() {
-                            (y) as f32 / std::i32::MAX as f32
-                        } else {
-                            ((y) as f32).abs() / std::i32::MIN as f32
-                        },
+                        value: y as f32,
                     });
                 }
                 Event::MouseButtonDown { mouse_btn, .. } => input.publish(InputEvent {
