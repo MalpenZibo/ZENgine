@@ -4,13 +4,13 @@ use crate::device::keyboard::Key;
 use crate::device::mouse::MouseButton;
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Clone)]
 pub enum Axis {
     X,
     Y,
 }
 
-#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Clone)]
 pub enum Input {
     Keyboard {
         key: Key,

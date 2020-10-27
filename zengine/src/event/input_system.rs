@@ -40,16 +40,62 @@ impl<'a, T: InputType> System<'a> for InputSystem<T> {
                 for actions in self.bindings.action_mappings.iter() {
                     if let Some(_action) = actions.1.iter().find(|action| action.source == e.input)
                     {
-                        input_handler
-                            .actions_value
-                            .insert(actions.0.clone(), e.value > 0.0);
+                        match input_handler.actions_value.get_mut(actions.0) {
+                            Some(entry) => {
+                                match entry.iter().position(|value| value.0 == e.input) {
+                                    Some(index) => {
+                                        if e.value > 0.0 {
+                                            entry[index].1 = e.value > 0.0;
+                                        } else {
+                                            entry.remove(index);
+                                        }
+                                    }
+                                    None => {
+                                        if e.value > 0.0 {
+                                            entry.push((e.input.clone(), e.value > 0.0))
+                                        }
+                                    }
+                                }
+                            }
+                            None => {
+                                if e.value > 0.0 {
+                                    input_handler.actions_value.insert(
+                                        actions.0.clone(),
+                                        vec![(e.input.clone(), e.value > 0.0)],
+                                    );
+                                }
+                            }
+                        }
                     }
                 }
                 for axes in self.bindings.axis_mappings.iter() {
                     if let Some(axis) = axes.1.iter().find(|axis| axis.source == e.input) {
-                        input_handler
-                            .axes_value
-                            .insert(axes.0.clone(), e.value * axis.scale);
+                        match input_handler.axes_value.get_mut(axes.0) {
+                            Some(entry) => {
+                                match entry.iter().position(|value| value.0 == e.input) {
+                                    Some(index) => {
+                                        if e.value > 0.0 {
+                                            entry[index].1 = e.value * axis.scale;
+                                        } else {
+                                            entry.remove(index);
+                                        }
+                                    }
+                                    None => {
+                                        if e.value > 0.0 {
+                                            entry.push((e.input.clone(), e.value * axis.scale))
+                                        }
+                                    }
+                                }
+                            }
+                            None => {
+                                if e.value > 0.0 {
+                                    input_handler.axes_value.insert(
+                                        axes.0.clone(),
+                                        vec![(e.input.clone(), e.value * axis.scale)],
+                                    );
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -219,7 +265,7 @@ mod tests {
             }
             AnySystem::run(&mut input_system, &store);
             let input_handler = store.get_resource::<InputHandler<UserInput>>().unwrap();
-            assert_eq!(input_handler.action_value(UserInput::Jump), Some(true));
+            assert_eq!(input_handler.action_value(UserInput::Jump), true);
         }
 
         AnySystem::dispose(&mut input_system, &mut store);
@@ -240,7 +286,7 @@ mod tests {
             }
             AnySystem::run(&mut input_system, &store);
             let input_handler = store.get_resource::<InputHandler<UserInput>>().unwrap();
-            assert_eq!(input_handler.axis_value(UserInput::X), Some(1.0));
+            assert_eq!(input_handler.axis_value(UserInput::X), 1.0);
         }
 
         AnySystem::dispose(&mut input_system, &mut store);
@@ -261,7 +307,7 @@ mod tests {
             }
             AnySystem::run(&mut input_system, &store);
             let input_handler = store.get_resource::<InputHandler<UserInput>>().unwrap();
-            assert_eq!(input_handler.axis_value(UserInput::X), Some(-1.0));
+            assert_eq!(input_handler.axis_value(UserInput::X), -1.0);
         }
 
         AnySystem::dispose(&mut input_system, &mut store);
@@ -286,7 +332,7 @@ mod tests {
             }
             AnySystem::run(&mut input_system, &store);
             let input_handler = store.get_resource::<InputHandler<UserInput>>().unwrap();
-            assert_eq!(input_handler.axis_value(UserInput::X), Some(1.0));
+            assert_eq!(input_handler.axis_value(UserInput::X), 1.0);
         }
 
         AnySystem::dispose(&mut input_system, &mut store);
