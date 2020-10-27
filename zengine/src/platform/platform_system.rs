@@ -9,7 +9,9 @@ use crate::device::keyboard::Key;
 use crate::device::mouse::MouseButton;
 use crate::event::input::{Axis, Input, InputEvent};
 use crate::event::EventStream;
+use fnv::FnvHashMap;
 use log::{info, trace};
+use sdl2::controller::GameController;
 use sdl2::event::Event;
 use sdl2::EventPump;
 use sdl2::Sdl;
@@ -17,6 +19,7 @@ use sdl2::Sdl;
 pub struct PlatformSystem {
     sdl_context: Sdl,
     event_pump: EventPump,
+    controllers: FnvHashMap<u32, (u32, GameController)>,
 }
 
 impl Default for PlatformSystem {
@@ -32,28 +35,37 @@ impl Default for PlatformSystem {
 
         info!("{} joysticks available", available);
 
-        // Iterate over all available joysticks and look for game controllers.
-        for id in 0..available {
-            if !controller_subsystem.is_game_controller(id) {
-                trace!("{} is not a game controller", id);
-            }
-
-            trace!("Attempting to open controller {}", id);
-
-            match controller_subsystem.open(id) {
-                Ok(c) => {
-                    // We managed to find and open a game controller,
-                    // exit the loop
-                    trace!("Success: opened \"{}\"", c.name());
+        let mut controller_index: u32 = 0;
+        let controllers: FnvHashMap<u32, (u32, GameController)> = (0..available)
+            .filter_map(|id| {
+                if !controller_subsystem.is_game_controller(id) {
+                    trace!("{} is not a game controller", id);
+                    return None;
                 }
-                Err(e) => {
-                    trace!("failed: {:?}", e);
+
+                controller_index += 1;
+
+                trace!("Attempting to open controller {}", id);
+
+                match controller_subsystem.open(id) {
+                    Ok(c) => {
+                        trace!("Success: opened {}", c.name());
+
+                        return Some((id, (controller_index, c)));
+                    }
+                    Err(e) => {
+                        trace!("failed: {:?}", e);
+
+                        return None;
+                    }
                 }
-            }
-        }
+            })
+            .collect();
+
         PlatformSystem {
             sdl_context,
             event_pump,
+            controllers,
         }
     }
 }
@@ -128,64 +140,76 @@ impl<'a> System<'a> for PlatformSystem {
                     value: 0.0,
                 }),
 
-                Event::ControllerButtonDown { which, button, .. } => input.publish(InputEvent {
-                    input: Input::ControllerButton {
-                        device_id: which,
-                        button: ControllerButton::from_sdl_button(button),
-                    },
-                    value: 1.0,
-                }),
-                Event::ControllerButtonUp { which, button, .. } => input.publish(InputEvent {
-                    input: Input::ControllerButton {
-                        device_id: which,
-                        button: ControllerButton::from_sdl_button(button),
-                    },
-                    value: 0.0,
-                }),
-
+                Event::ControllerButtonDown { which, button, .. } => {
+                    match self.controllers.get(&which) {
+                        Some(c) => input.publish(InputEvent {
+                            input: Input::ControllerButton {
+                                device_id: c.0,
+                                button: ControllerButton::from_sdl_button(button),
+                            },
+                            value: 1.0,
+                        }),
+                        None => {}
+                    }
+                }
+                Event::ControllerButtonUp { which, button, .. } => {
+                    match self.controllers.get(&which) {
+                        Some(c) => input.publish(InputEvent {
+                            input: Input::ControllerButton {
+                                device_id: c.0,
+                                button: ControllerButton::from_sdl_button(button),
+                            },
+                            value: 0.0,
+                        }),
+                        None => {}
+                    }
+                }
                 Event::ControllerAxisMotion {
                     which, axis, value, ..
-                } => input.publish(InputEvent {
-                    input: match axis {
-                        sdl2::controller::Axis::LeftX => Input::ControllerStick {
-                            device_id: which,
-                            which: Which::Left,
-                            axis: Axis::X,
+                } => match self.controllers.get(&which) {
+                    Some(c) => input.publish(InputEvent {
+                        input: match axis {
+                            sdl2::controller::Axis::LeftX => Input::ControllerStick {
+                                device_id: c.0,
+                                which: Which::Left,
+                                axis: Axis::X,
+                            },
+                            sdl2::controller::Axis::LeftY => Input::ControllerStick {
+                                device_id: c.0,
+                                which: Which::Left,
+                                axis: Axis::Y,
+                            },
+                            sdl2::controller::Axis::RightX => Input::ControllerStick {
+                                device_id: c.0,
+                                which: Which::Right,
+                                axis: Axis::X,
+                            },
+                            sdl2::controller::Axis::RightY => Input::ControllerStick {
+                                device_id: c.0,
+                                which: Which::Right,
+                                axis: Axis::Y,
+                            },
+                            sdl2::controller::Axis::TriggerLeft => Input::ControllerTrigger {
+                                device_id: c.0,
+                                which: Which::Left,
+                            },
+                            sdl2::controller::Axis::TriggerRight => Input::ControllerTrigger {
+                                device_id: c.0,
+                                which: Which::Right,
+                            },
                         },
-                        sdl2::controller::Axis::LeftY => Input::ControllerStick {
-                            device_id: which,
-                            which: Which::Left,
-                            axis: Axis::Y,
+                        value: {
+                            if value > -8000i16 && value < 8000i16 {
+                                0.0
+                            } else if (value).is_positive() {
+                                (value) as f32 / std::i16::MAX as f32
+                            } else {
+                                ((value) as f32).abs() / std::i16::MIN as f32
+                            }
                         },
-                        sdl2::controller::Axis::RightX => Input::ControllerStick {
-                            device_id: which,
-                            which: Which::Right,
-                            axis: Axis::X,
-                        },
-                        sdl2::controller::Axis::RightY => Input::ControllerStick {
-                            device_id: which,
-                            which: Which::Right,
-                            axis: Axis::Y,
-                        },
-                        sdl2::controller::Axis::TriggerLeft => Input::ControllerTrigger {
-                            device_id: which,
-                            which: Which::Left,
-                        },
-                        sdl2::controller::Axis::TriggerRight => Input::ControllerTrigger {
-                            device_id: which,
-                            which: Which::Right,
-                        },
-                    },
-                    value: {
-                        if value > -8000i16 && value < 8000i16 {
-                            0.0
-                        } else if (value).is_positive() {
-                            (value) as f32 / std::i16::MAX as f32
-                        } else {
-                            ((value) as f32).abs() / std::i16::MIN as f32
-                        }
-                    },
-                }),
+                    }),
+                    None => {}
+                },
                 _ => {}
             }
         }
