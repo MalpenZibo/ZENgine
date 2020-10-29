@@ -37,27 +37,28 @@ impl Default for PlatformSystem {
 
         let mut controller_index: u32 = 0;
         let controllers: FnvHashMap<u32, (u32, GameController)> = (0..available)
-            .filter_map(|id| {
-                if !controller_subsystem.is_game_controller(id) {
-                    trace!("{} is not a game controller", id);
-                    return None;
+            .filter_map(|id| match controller_subsystem.is_game_controller(id) {
+                true => {
+                    controller_index += 1;
+
+                    trace!("Attempting to open controller {}", id);
+
+                    match controller_subsystem.open(id) {
+                        Ok(c) => {
+                            trace!("Success: opened {}", c.name());
+
+                            Some((id, (controller_index, c)))
+                        }
+                        Err(e) => {
+                            trace!("failed: {:?}", e);
+
+                            None
+                        }
+                    }
                 }
-
-                controller_index += 1;
-
-                trace!("Attempting to open controller {}", id);
-
-                match controller_subsystem.open(id) {
-                    Ok(c) => {
-                        trace!("Success: opened {}", c.name());
-
-                        return Some((id, (controller_index, c)));
-                    }
-                    Err(e) => {
-                        trace!("failed: {:?}", e);
-
-                        return None;
-                    }
+                false => {
+                    trace!("{} is not a game controller", id);
+                    None
                 }
             })
             .collect();
@@ -141,75 +142,74 @@ impl<'a> System<'a> for PlatformSystem {
                 }),
 
                 Event::ControllerButtonDown { which, button, .. } => {
-                    match self.controllers.get(&which) {
-                        Some(c) => input.publish(InputEvent {
+                    if let Some(c) = self.controllers.get(&which) {
+                        input.publish(InputEvent {
                             input: Input::ControllerButton {
                                 device_id: c.0,
                                 button: ControllerButton::from_sdl_button(button),
                             },
                             value: 1.0,
-                        }),
-                        None => {}
+                        })
                     }
                 }
                 Event::ControllerButtonUp { which, button, .. } => {
-                    match self.controllers.get(&which) {
-                        Some(c) => input.publish(InputEvent {
+                    if let Some(c) = self.controllers.get(&which) {
+                        input.publish(InputEvent {
                             input: Input::ControllerButton {
                                 device_id: c.0,
                                 button: ControllerButton::from_sdl_button(button),
                             },
                             value: 0.0,
-                        }),
-                        None => {}
+                        })
                     }
                 }
                 Event::ControllerAxisMotion {
                     which, axis, value, ..
-                } => match self.controllers.get(&which) {
-                    Some(c) => input.publish(InputEvent {
-                        input: match axis {
-                            sdl2::controller::Axis::LeftX => Input::ControllerStick {
-                                device_id: c.0,
-                                which: Which::Left,
-                                axis: Axis::X,
+                } => {
+                    if let Some(c) = self.controllers.get(&which) {
+                        input.publish(InputEvent {
+                            input: match axis {
+                                sdl2::controller::Axis::LeftX => Input::ControllerStick {
+                                    device_id: c.0,
+                                    which: Which::Left,
+                                    axis: Axis::X,
+                                },
+                                sdl2::controller::Axis::LeftY => Input::ControllerStick {
+                                    device_id: c.0,
+                                    which: Which::Left,
+                                    axis: Axis::Y,
+                                },
+                                sdl2::controller::Axis::RightX => Input::ControllerStick {
+                                    device_id: c.0,
+                                    which: Which::Right,
+                                    axis: Axis::X,
+                                },
+                                sdl2::controller::Axis::RightY => Input::ControllerStick {
+                                    device_id: c.0,
+                                    which: Which::Right,
+                                    axis: Axis::Y,
+                                },
+                                sdl2::controller::Axis::TriggerLeft => Input::ControllerTrigger {
+                                    device_id: c.0,
+                                    which: Which::Left,
+                                },
+                                sdl2::controller::Axis::TriggerRight => Input::ControllerTrigger {
+                                    device_id: c.0,
+                                    which: Which::Right,
+                                },
                             },
-                            sdl2::controller::Axis::LeftY => Input::ControllerStick {
-                                device_id: c.0,
-                                which: Which::Left,
-                                axis: Axis::Y,
+                            value: {
+                                if value > -8000i16 && value < 8000i16 {
+                                    0.0
+                                } else if (value).is_positive() {
+                                    (value) as f32 / std::i16::MAX as f32
+                                } else {
+                                    ((value) as f32).abs() / std::i16::MIN as f32
+                                }
                             },
-                            sdl2::controller::Axis::RightX => Input::ControllerStick {
-                                device_id: c.0,
-                                which: Which::Right,
-                                axis: Axis::X,
-                            },
-                            sdl2::controller::Axis::RightY => Input::ControllerStick {
-                                device_id: c.0,
-                                which: Which::Right,
-                                axis: Axis::Y,
-                            },
-                            sdl2::controller::Axis::TriggerLeft => Input::ControllerTrigger {
-                                device_id: c.0,
-                                which: Which::Left,
-                            },
-                            sdl2::controller::Axis::TriggerRight => Input::ControllerTrigger {
-                                device_id: c.0,
-                                which: Which::Right,
-                            },
-                        },
-                        value: {
-                            if value > -8000i16 && value < 8000i16 {
-                                0.0
-                            } else if (value).is_positive() {
-                                (value) as f32 / std::i16::MAX as f32
-                            } else {
-                                ((value) as f32).abs() / std::i16::MIN as f32
-                            }
-                        },
-                    }),
-                    None => {}
-                },
+                        })
+                    }
+                }
                 _ => {}
             }
         }
