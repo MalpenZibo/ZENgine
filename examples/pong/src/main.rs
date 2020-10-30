@@ -32,6 +32,12 @@ fn main() {
                 Keyboard:
                     key: A
               scale: -1.0
+            - source:
+                ControllerStick:
+                    device_id: 1
+                    which: Left
+                    axis: X
+              scale: 1.0
             Y:
               - source:
                   Keyboard:
@@ -40,6 +46,12 @@ fn main() {
               - source:
                   Keyboard:
                       key: S
+                scale: -1.0
+              - source:
+                  ControllerStick:
+                      device_id: 1
+                      which: Left
+                      axis: Y
                 scale: -1.0
         action_mappings:
             Jump:

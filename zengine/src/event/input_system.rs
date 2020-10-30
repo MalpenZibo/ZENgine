@@ -74,21 +74,21 @@ impl<'a, T: InputType> System<'a> for InputSystem<T> {
                             Some(entry) => {
                                 match entry.iter().position(|value| value.0 == e.input) {
                                     Some(index) => {
-                                        if e.value > 0.0 {
+                                        if e.value != 0.0 {
                                             entry[index].1 = e.value * axis.scale;
                                         } else {
                                             entry.remove(index);
                                         }
                                     }
                                     None => {
-                                        if e.value > 0.0 {
+                                        if e.value != 0.0 {
                                             entry.push((e.input.clone(), e.value * axis.scale))
                                         }
                                     }
                                 }
                             }
                             None => {
-                                if e.value > 0.0 {
+                                if e.value != 0.0 {
                                     input_handler.axes_value.insert(
                                         axes.0.clone(),
                                         vec![(e.input.clone(), e.value * axis.scale)],
