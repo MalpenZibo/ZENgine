@@ -126,32 +126,14 @@ impl<'a> System<'a> for System1 {
     }
 
     fn run(&mut self, (mut test, mut position, test2, entities, input_handler): Self::Data) {
-        for t in test.values_mut() {
-            t.data += 1;
-        }
-        for t in position.values_mut() {
-            t.x += 1.0;
-        }
+        for e in test.iter() {
+            if let Some(p) = position.get(e.0) {
+                if let Some(t2) = test2.get(e.0) {
 
-        //println!("data {:?}", test);
-        //println!("data {:?}", position);
-        //println!("test2 {:?}", test2);
-        //println!("entities {:?}", entities);
-
-        /*let mut test = store.get_components_mut::<Test>().unwrap();
-
-        let mut test2 = store.get_components_mut::<Position>().unwrap();
-
-        for t in test.values_mut() {
-            t.data += 1;
+                }
+            }
         }
 
-        for t in test2.values_mut() {
-            t.x += 1.0;
-        }
-
-        println!("System 1 data {:?}", test);
-        println!("System 1 data2 {:?}", test2);*/
     }
 
     fn dispose(&mut self, store: &mut Store) {
