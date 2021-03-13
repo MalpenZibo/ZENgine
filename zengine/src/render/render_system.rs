@@ -215,30 +215,23 @@ impl<ST: SpriteType> RenderSystem<ST> {
         active_camera: ReadOption<ActiveCamera>,
         transforms: &ReadSet<Transform>,
     ) -> (Matrix4x4, u32, u32) {
-        match active_camera {
-            Some(active_camera) => match (
-                cameras.get(&active_camera.entity),
-                transforms.get(&active_camera.entity),
-            ) {
-                (Some(camera), Some(transform)) => (
-                    camera.get_projection()
-                        * transform.get_transformation_matrix_inverse(true, true, false),
-                    camera.width,
-                    camera.height,
-                ),
-                (Some(camera), None) => (camera.get_projection(), camera.width, camera.height),
-                _ => (Matrix4x4::identity(), 0, 0),
-            },
-            None => match cameras.join(Optional(transforms)).next() {
-                Some((_, camera, Some(transform))) => (
-                    camera.get_projection()
-                        * transform.get_transformation_matrix_inverse(true, true, false),
-                    camera.width,
-                    camera.height,
-                ),
-                Some((_, camera, None)) => (camera.get_projection(), camera.width, camera.height),
-                _ => (Matrix4x4::identity(), 0, 0),
-            },
+        match active_camera
+            .map(|active| cameras.get_key_value(&active.entity))
+            .flatten()
+            .or_else(|| cameras.iter().next())
+        {
+            Some(camera) => (
+                camera.1.get_projection()
+                    * transforms
+                        .get(&camera.0)
+                        .map(|transform| {
+                            transform.get_transformation_matrix_inverse(false, false, false)
+                        })
+                        .unwrap_or_else(|| Matrix4x4::identity()),
+                camera.1.width,
+                camera.1.height,
+            ),
+            None => (Matrix4x4::identity(), 1, 1),
         }
     }
 
