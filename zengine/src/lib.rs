@@ -6,6 +6,7 @@ pub mod event;
 mod gl_utilities;
 pub mod graphics;
 pub mod math;
+pub mod physics;
 pub mod platform;
 pub mod render;
 pub mod timing;
