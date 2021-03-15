@@ -7,6 +7,7 @@ use crate::core::System;
 use crate::event::EventStream;
 use crate::math::transform::Transform;
 use crate::math::vector2::Vector2;
+use crate::math::vector3::Vector3;
 
 #[derive(Debug)]
 pub enum ShapeType {
@@ -16,9 +17,8 @@ pub enum ShapeType {
 
 #[derive(Component, Debug)]
 pub struct Shape2D {
-    origin: Vector2,
-    position: Vector2,
-    shape: ShapeType,
+    pub origin: Vector3,
+    pub shape_type: ShapeType,
 }
 
 pub struct Collision {
@@ -35,10 +35,10 @@ impl<'a> System<'a> for CollisionSystem {
         Write<'a, EventStream<Collision>>,
     );
 
-    fn run(&mut self, (shapes, transforms, collisions): Self::Data) {
+    fn run(&mut self, (shapes, transforms, mut collisions): Self::Data) {
         for a in shapes.join(&transforms) {
             for b in shapes.join(&transforms).filter(|e| e.0 != a.0) {
-                match (&a.1.shape, &b.1.shape) {
+                match (&a.1.shape_type, &b.1.shape_type) {
                     (
                         ShapeType::Circle { radius: a_radius },
                         ShapeType::Circle { radius: b_radius },

@@ -9,7 +9,9 @@ use zengine::graphics::color::Color;
 use zengine::graphics::texture::{SpriteDescriptor, SpriteType, TextureManager};
 use zengine::log::{trace, LevelFilter};
 use zengine::math::transform::Transform;
+use zengine::math::vector2::Vector2;
 use zengine::math::vector3::Vector3;
+use zengine::physics::collision::{Shape2D, ShapeType};
 use zengine::platform::*;
 use zengine::render::*;
 use zengine::serde::Deserialize;
@@ -140,7 +142,7 @@ impl Scene for Game {
                 .load();
         }
         store.insert_resource(Background {
-            color: Color::white(),
+            color: Color::black(),
         });
 
         let camera1 = store
@@ -188,15 +190,19 @@ impl Scene for Game {
                 Vector3::zero(),
                 Vector3::one(),
             ))
+            .with(Shape2D {
+                origin: Vector3::zero(),
+                shape_type: ShapeType::Circle { radius: 120.0 },
+            })
             .with(Player1 {})
             .build();
 
         store
             .build_entity()
             .with(Sprite {
-                width: 600.0,
-                height: 600.0,
-                origin: Vector3::new(0.5, 0.5, 0.0),
+                width: 50.0,
+                height: 50.0,
+                origin: Vector3::new(0.0, 0.0, 0.0),
                 color: Color::white(),
                 sprite_type: Sprites::LogoFromSheet,
             })
@@ -205,6 +211,10 @@ impl Scene for Game {
                 Vector3::new(0.0, 0.0, 0.0),
                 Vector3::one(),
             ))
+            .with(Shape2D {
+                origin: Vector3::zero(),
+                shape_type: ShapeType::Circle { radius: 25.0 },
+            })
             .build();
         store.build_entity().with(Component1 { data: 3 }).build();
         store

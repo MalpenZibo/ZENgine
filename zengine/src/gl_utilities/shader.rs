@@ -56,7 +56,7 @@ impl Drop for Shader {
         unsafe {
             gl::DeleteProgram(self.program);
         }
-        println!("destroyed shader {}", self.name);
+        log::info!("destroyed shader {}", self.name);
     }
 }
 
@@ -132,7 +132,7 @@ impl Shader {
                 );
             }
 
-            println!("{}", error_msg.into_string().expect("into_string() failed"));
+            log::error!("{}", error_msg.into_string().expect("into_string() failed"));
         }
 
         shader_id
@@ -170,7 +170,7 @@ impl Shader {
                 );
             }
 
-            println!("{}", error_msg.into_string().expect("into_string() failed"));
+            log::error!("{}", error_msg.into_string().expect("into_string() failed"));
         }
 
         unsafe {
