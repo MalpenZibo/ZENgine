@@ -157,27 +157,45 @@ impl<ST: SpriteType> RenderSystem<ST> {
         transforms: &ReadSet<Transform>,
     ) {
         let u_model_location = shader.get_uniform_location("u_model");
+        let u_is_circle_location = shader.get_uniform_location("u_is_circle");
 
         for (entity, shape, transform) in shapes.join(transforms) {
-            if let ShapeType::Circle { radius } = shape.shape_type {
-                self.calculate_vertices(
-                    radius * 2.0,
-                    radius * 2.0,
-                    shape.origin,
-                    Vector2::new(-1.0, -1.0),
-                    Vector2::new(1.0, 1.0),
-                );
-                unsafe {
-                    gl::UniformMatrix4fv(
-                        u_model_location,
-                        1,
-                        gl::FALSE,
-                        transform.get_transformation_matrix().data.as_ptr(),
+            let is_circle = match shape.shape_type {
+                ShapeType::Circle { radius, .. } => {
+                    self.calculate_vertices(
+                        radius * 2.0,
+                        radius * 2.0,
+                        shape.origin,
+                        Vector2::new(-1.0, -1.0),
+                        Vector2::new(1.0, 1.0),
                     );
+
+                    1
                 }
-                if let Some(buffer) = &self.buffer {
-                    buffer.draw();
+                ShapeType::Rectangle { width, height, .. } => {
+                    self.calculate_vertices(
+                        width,
+                        height,
+                        shape.origin,
+                        Vector2::new(0.0, 0.0),
+                        Vector2::new(1.0, 1.0),
+                    );
+
+                    0
                 }
+            };
+
+            unsafe {
+                gl::Uniform1i(u_is_circle_location, is_circle);
+                gl::UniformMatrix4fv(
+                    u_model_location,
+                    1,
+                    gl::FALSE,
+                    transform.get_transformation_matrix().data.as_ptr(),
+                );
+            }
+            if let Some(buffer) = &self.buffer {
+                buffer.draw();
             }
         }
     }
@@ -367,10 +385,10 @@ impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
 
         self.buffer = Some(buffer);
 
-        let circle_shape_shader = shaders.register(
-            "circle_shape_shader",
+        shaders.register(
+            "trace_shader",
             include_str!("../basic.vert"),
-            include_str!("../circle.frag"),
+            include_str!("../trace.frag"),
         );
 
         store.insert_resource(TextureManager::<ST>::default());
@@ -398,7 +416,7 @@ impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
         }
         self.render_sprites(&texture_manager, shader, &sprites, &transforms);
 
-        let shader = shaders.get("circle_shape_shader");
+        let shader = shaders.get("trace_shader");
         shader.use_shader();
         let u_projection_location = shader.get_uniform_location("u_projection");
         unsafe {

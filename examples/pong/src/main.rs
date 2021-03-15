@@ -192,7 +192,10 @@ impl Scene for Game {
             ))
             .with(Shape2D {
                 origin: Vector3::zero(),
-                shape_type: ShapeType::Circle { radius: 120.0 },
+                shape_type: ShapeType::Rectangle {
+                    width: 240.0,
+                    height: 240.0,
+                },
             })
             .with(Player1 {})
             .build();
