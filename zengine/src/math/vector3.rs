@@ -10,6 +10,16 @@ impl_op_ex!(-=|a: &mut Vector3, b: &Vector3| {
     a.z - b.z;
 });
 
+impl_op_ex!(+|a: &Vector3, b: &Vector3| -> Vector3 {
+    Vector3::new(a.x + b.x, a.y + b.y, a.z + b.z)
+});
+
+impl_op_ex!(+=|a: &mut Vector3, b: &Vector3| {
+    a.x + b.x;
+    a.y + b.y;
+    a.z + b.z;
+});
+
 #[derive(Copy, Clone, Debug, Default)]
 pub struct Vector3 {
     pub x: f32,
