@@ -82,22 +82,27 @@ impl<E: Any> EventStream<E> {
     pub fn read(&self, token: &SubscriptionToken) -> impl Iterator<Item = &E> {
         let head = self.head.unwrap_or_else(|| 0);
         let mut subscription = self.get_subscription(token);
-        let start = match subscription.position {
-            Some(pos) => pos + 1,
-            None => 0,
-        };
-        subscription.position = self.head;
-        self.buffer
-            .iter()
-            .cycle()
-            .skip(start)
-            .take(if start >= self.buffer.len() {
-                0
-            } else if head >= start {
-                head - start + 1
-            } else {
-                self.buffer.len() - (start - head) + 1
-            })
+        if self.head != subscription.position {
+            let start = match subscription.position {
+                Some(pos) if pos + 1 >= self.buffer.len() => 0,
+                Some(pos) => pos + 1,
+                None => 0,
+            };
+            subscription.position = self.head;
+            self.buffer
+                .iter()
+                .cycle()
+                .skip(start)
+                .take(if start >= self.buffer.len() {
+                    0
+                } else if head >= start {
+                    head - start + 1
+                } else {
+                    self.buffer.len() - (start - head) + 1
+                })
+        } else {
+            self.buffer.iter().cycle().skip(0).take(0)
+        }
     }
 
     fn get_subscription(&self, token: &SubscriptionToken) -> RefMut<Subscription> {
@@ -206,6 +211,59 @@ mod tests {
         publish(&mut stream, &[4; 4]);
 
         assert_eq!(stream.read(&token1).count(), 4);
+    }
+
+    #[test]
+    fn produce_and_read_no_new_content() {
+        let mut stream = EventStream::<u32>::default();
+
+        let token1 = stream.subscribe();
+
+        publish(&mut stream, &[4; 4]);
+
+        assert_eq!(stream.read(&token1).count(), 4);
+        assert_eq!(stream.read(&token1).count(), 0);
+    }
+
+    #[test]
+    fn produce_buffer_full_and_read_no_new_content() {
+        let mut stream = EventStream::<u32>::default();
+
+        let token1 = stream.subscribe();
+
+        publish(&mut stream, &[4; 4]);
+
+        assert_eq!(stream.read(&token1).count(), 4);
+        publish(&mut stream, &[4; 6]);
+        assert_eq!(stream.read(&token1).count(), 6);
+
+        assert_eq!(stream.head, Some(9));
+        assert_eq!(
+            stream.subscriptions.get(&token1).unwrap().borrow().position,
+            Some(9)
+        );
+        assert_eq!(stream.buffer.len(), STREAM_SIZE_BLOCK);
+        assert_eq!(stream.buffer.capacity(), STREAM_SIZE_BLOCK);
+
+        publish(&mut stream, &[4; 1]);
+        assert_eq!(stream.head, Some(0));
+        assert_eq!(
+            stream.subscriptions.get(&token1).unwrap().borrow().position,
+            Some(9)
+        );
+        assert_eq!(stream.buffer.len(), STREAM_SIZE_BLOCK);
+        assert_eq!(stream.buffer.capacity(), STREAM_SIZE_BLOCK);
+        assert_eq!(stream.read(&token1).count(), 1);
+
+        assert_eq!(stream.head, Some(0));
+        assert_eq!(
+            stream.subscriptions.get(&token1).unwrap().borrow().position,
+            Some(0)
+        );
+        assert_eq!(stream.buffer.len(), STREAM_SIZE_BLOCK);
+        assert_eq!(stream.buffer.capacity(), STREAM_SIZE_BLOCK);
+
+        assert_eq!(stream.read(&token1).count(), 0);
     }
 
     #[test]
