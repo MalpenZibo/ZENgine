@@ -7,6 +7,7 @@ use crate::core::System;
 use crate::event::EventStream;
 use crate::math::transform::Transform;
 use crate::math::vector3::Vector3;
+use std::collections::HashSet;
 
 #[derive(Debug)]
 pub enum ShapeType {
@@ -27,7 +28,9 @@ pub struct Collision {
 }
 
 #[derive(Default)]
-pub struct CollisionSystem {}
+pub struct CollisionSystem {
+    already_collided: HashSet<(Entity, Entity)>,
+}
 
 impl CollisionSystem {
     fn check_rectangle_and_circle(
@@ -64,6 +67,7 @@ impl<'a> System<'a> for CollisionSystem {
     );
 
     fn run(&mut self, (shapes, transforms, mut collisions): Self::Data) {
+        self.already_collided.clear();
         for (a_entity, a_shape, a_transform) in shapes.join(&transforms) {
             for (b_entity, b_shape, b_transform) in
                 shapes.join(&transforms).filter(|e| e.0 != a_entity)
@@ -181,11 +185,16 @@ impl<'a> System<'a> for CollisionSystem {
                             0.0,
                         ))
                     }
-                } {
+                } && !self
+                    .already_collided
+                    .contains(&(b_entity.clone(), a_entity.clone()))
+                {
                     collisions.publish(Collision {
                         entity_a: a_entity.clone(),
                         entity_b: b_entity.clone(),
                     });
+                    self.already_collided
+                        .insert((a_entity.clone(), b_entity.clone()));
                 }
             }
         }
