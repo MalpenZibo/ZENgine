@@ -1,3 +1,4 @@
+#![allow(clippy::blocks_in_if_conditions)]
 use crate::core::join::Join;
 use crate::core::system::ReadSet;
 use crate::core::system::Write;
@@ -185,16 +186,13 @@ impl<'a> System<'a> for CollisionSystem {
                             0.0,
                         ))
                     }
-                } && !self
-                    .already_collided
-                    .contains(&(b_entity.clone(), a_entity.clone()))
+                } && !self.already_collided.contains(&(*b_entity, *a_entity))
                 {
                     collisions.publish(Collision {
-                        entity_a: a_entity.clone(),
-                        entity_b: b_entity.clone(),
+                        entity_a: *a_entity,
+                        entity_b: *b_entity,
                     });
-                    self.already_collided
-                        .insert((a_entity.clone(), b_entity.clone()));
+                    self.already_collided.insert((*a_entity, *b_entity));
                 }
             }
         }

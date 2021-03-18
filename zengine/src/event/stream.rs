@@ -80,7 +80,7 @@ impl<E: Any> EventStream<E> {
 
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn read(&self, token: &SubscriptionToken) -> impl Iterator<Item = &E> {
-        let head = self.head.unwrap_or_else(|| 0);
+        let head = self.head.unwrap_or(0);
         let mut subscription = self.get_subscription(token);
         if self.head != subscription.position {
             let start = match subscription.position {
@@ -123,7 +123,7 @@ impl<E: Any> EventStream<E> {
         self.subscriptions
             .values()
             .min()
-            .map(|sub| sub.borrow().position.unwrap_or_else(|| 0))
+            .map(|sub| sub.borrow().position.unwrap_or(0))
     }
 
     fn increase_capacity(&mut self, tail: usize) -> usize {

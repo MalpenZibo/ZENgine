@@ -5,9 +5,9 @@ impl_op_ex!(-|a: &Vector3, b: &Vector3| -> Vector3 {
 });
 
 impl_op_ex!(-=|a: &mut Vector3, b: &Vector3| {
-    a.x - b.x;
-    a.y - b.y;
-    a.z - b.z;
+    a.x -= b.x;
+    a.y -= b.y;
+    a.z -= b.z;
 });
 
 impl_op_ex!(+|a: &Vector3, b: &Vector3| -> Vector3 {
@@ -15,9 +15,9 @@ impl_op_ex!(+|a: &Vector3, b: &Vector3| -> Vector3 {
 });
 
 impl_op_ex!(+=|a: &mut Vector3, b: &Vector3| {
-    a.x + b.x;
-    a.y + b.y;
-    a.z + b.z;
+    a.x += b.x;
+    a.y += b.y;
+    a.z += b.z;
 });
 
 #[derive(Copy, Clone, Debug, Default)]
@@ -46,6 +46,6 @@ impl Vector3 {
 
     pub fn distance(&self, other: &Self) -> f32 {
         let diff = self - other;
-        return f32::sqrt(diff.x * diff.x + diff.y * diff.y + diff.z * diff.z);
+        f32::sqrt(diff.x * diff.x + diff.y * diff.y + diff.z * diff.z)
     }
 }

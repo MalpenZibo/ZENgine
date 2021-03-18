@@ -279,13 +279,15 @@ pub struct System1 {
     collision_token: Option<SubscriptionToken>,
 }
 
+type System1Data<'a> = (
+    WriteSet<'a, Transform>,
+    ReadSet<'a, Player1>,
+    Read<'a, InputHandler<UserInput>>,
+    Read<'a, EventStream<Collision>>,
+);
+
 impl<'a> System<'a> for System1 {
-    type Data = (
-        WriteSet<'a, Transform>,
-        ReadSet<'a, Player1>,
-        Read<'a, InputHandler<UserInput>>,
-        Read<'a, EventStream<Collision>>,
-    );
+    type Data = System1Data<'a>;
 
     fn init(&mut self, _store: &mut Store) {
         trace!("setup system 1");

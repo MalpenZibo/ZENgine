@@ -280,7 +280,7 @@ impl<ST: SpriteType> RenderSystem<ST> {
                         .map(|transform| {
                             transform.get_transformation_matrix_inverse(true, true, false)
                         })
-                        .unwrap_or_else(|| Matrix4x4::identity()),
+                        .unwrap_or_else(Matrix4x4::identity),
                 camera.1.width,
                 camera.1.height,
             ),
