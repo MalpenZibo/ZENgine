@@ -15,6 +15,7 @@ use crate::math::transform::Transform;
 use crate::math::vector2::Vector2;
 use crate::math::vector3::Vector3;
 use crate::physics::collision::{Shape2D, ShapeType};
+use crate::render::CollisionTrace;
 use crate::render::{Background, Sprite, WindowSpecs};
 use log::info;
 use sdl2::video::GLContext;
@@ -48,16 +49,18 @@ pub struct RenderSystem<ST: SpriteType> {
     ctx: Option<GLContext>,
     buffer: Option<GLBuffer>,
     sprite_type: PhantomData<ST>,
+    collision_trace: CollisionTrace,
 }
 
 impl<ST: SpriteType> RenderSystem<ST> {
-    pub fn new(specs: WindowSpecs) -> Self {
+    pub fn new(specs: WindowSpecs, collision_trace: CollisionTrace) -> Self {
         RenderSystem {
             window_specs: specs,
             buffer: None,
             window: None,
             ctx: None,
             sprite_type: PhantomData,
+            collision_trace,
         }
     }
 
@@ -159,7 +162,7 @@ impl<ST: SpriteType> RenderSystem<ST> {
         let u_model_location = shader.get_uniform_location("u_model");
         let u_is_circle_location = shader.get_uniform_location("u_is_circle");
 
-        for (entity, shape, transform) in shapes.join(transforms) {
+        for (_, shape, transform) in shapes.join(transforms) {
             let is_circle = match shape.shape_type {
                 ShapeType::Circle { radius, .. } => {
                     self.calculate_vertices(
@@ -416,18 +419,20 @@ impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
         }
         self.render_sprites(&texture_manager, shader, &sprites, &transforms);
 
-        let shader = shaders.get("trace_shader");
-        shader.use_shader();
-        let u_projection_location = shader.get_uniform_location("u_projection");
-        unsafe {
-            gl::UniformMatrix4fv(
-                u_projection_location,
-                1,
-                gl::FALSE,
-                camera_data.0.data.as_ptr(),
-            );
+        if let CollisionTrace::Active = self.collision_trace {
+            let shader = shaders.get("trace_shader");
+            shader.use_shader();
+            let u_projection_location = shader.get_uniform_location("u_projection");
+            unsafe {
+                gl::UniformMatrix4fv(
+                    u_projection_location,
+                    1,
+                    gl::FALSE,
+                    camera_data.0.data.as_ptr(),
+                );
+            }
+            self.render_shapes(shader, &shapes, &transforms);
         }
-        self.render_shapes(shader, &shapes, &transforms);
 
         if let Some(window) = &self.window {
             window.gl_swap_window();

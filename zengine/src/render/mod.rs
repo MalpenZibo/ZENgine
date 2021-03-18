@@ -7,6 +7,11 @@ use crate::graphics::color::Color;
 use crate::graphics::texture::SpriteType;
 use crate::math::vector3::Vector3;
 
+pub enum CollisionTrace {
+    Active,
+    Inactive,
+}
+
 pub struct WindowSpecs {
     title: String,
     width: u32,

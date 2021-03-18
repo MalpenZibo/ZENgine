@@ -71,7 +71,10 @@ fn main() {
         .with_system(CollisionSystem::default())
         .with_system(System1::default())
         .with_system(System2::default())
-        .with_system(RenderSystem::<Sprites>::new(WindowSpecs::default()))
+        .with_system(RenderSystem::<Sprites>::new(
+            WindowSpecs::default(),
+            CollisionTrace::Inactive,
+        ))
         .with_system(TimingSystem::default().with_limiter(FrameLimiter::new(60)))
         .run(Game {
             execution_numer: 10,
