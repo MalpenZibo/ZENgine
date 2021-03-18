@@ -23,7 +23,7 @@ pub fn load(image_name: &str) -> ImageAsset {
 
                     let img = match img {
                         DynamicImage::ImageRgba8(img) => img,
-                        img => img.to_rgba(),
+                        img => img.to_rgba8(),
                     };
 
                     ImageAsset {
