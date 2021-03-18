@@ -6,7 +6,7 @@ use crate::math::vector3::Vector3;
 pub struct Transform {
     pub position: Vector3,
     pub rotation: Vector3,
-    pub scale: Vector3,
+    pub scale: f32,
 }
 
 impl Default for Transform {
@@ -14,13 +14,13 @@ impl Default for Transform {
         Transform {
             position: Vector3::zero(),
             rotation: Vector3::zero(),
-            scale: Vector3::one(),
+            scale: 1.0,
         }
     }
 }
 
 impl Transform {
-    pub fn new(position: Vector3, rotation: Vector3, scale: Vector3) -> Self {
+    pub fn new(position: Vector3, rotation: Vector3, scale: f32) -> Self {
         Transform {
             position,
             rotation,
@@ -31,7 +31,7 @@ impl Transform {
     pub fn get_transformation_matrix(&self) -> Matrix4x4 {
         let translation = Matrix4x4::translation(self.position);
         let rotation = Matrix4x4::rotation(self.rotation);
-        let scale = Matrix4x4::scale(self.scale);
+        let scale = Matrix4x4::scale(Vector3::new(self.scale, self.scale, self.scale));
 
         translation * rotation * scale
     }
@@ -53,9 +53,9 @@ impl Transform {
             self.rotation
         });
         let scale = Matrix4x4::scale(if scale_inverse {
-            self.scale.inverse()
+            Vector3::new(self.scale, self.scale, self.scale).inverse()
         } else {
-            self.scale
+            Vector3::new(self.scale, self.scale, self.scale)
         });
 
         translation * rotation * scale

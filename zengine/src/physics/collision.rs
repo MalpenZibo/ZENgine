@@ -73,13 +73,13 @@ impl<'a> System<'a> for CollisionSystem {
                         ShapeType::Circle { radius: a_radius },
                         ShapeType::Circle { radius: b_radius },
                     ) => {
-                        let diameter = *a_radius * 2.0;
+                        let diameter = *a_radius * 2.0 * a_transform.scale;
                         let a_delta = Vector3::new(
                             diameter * -(-0.5 + a_shape.origin.x),
                             diameter * -(-0.5 + a_shape.origin.y),
                             0.0,
                         );
-                        let diameter = *b_radius * 2.0;
+                        let diameter = *b_radius * 2.0 * b_transform.scale;
                         let b_delta = Vector3::new(
                             diameter * -(-0.5 + b_shape.origin.x),
                             diameter * -(-0.5 + b_shape.origin.y),
@@ -99,8 +99,17 @@ impl<'a> System<'a> for CollisionSystem {
                             height: b_height,
                         },
                     ) => Self::check_rectangle_and_circle(
-                        (b_width, b_height, &b_transform.position, &b_shape.origin),
-                        (a_radius, &a_transform.position, &a_shape.origin),
+                        (
+                            &(b_width * b_transform.scale),
+                            &(b_height * b_transform.scale),
+                            &b_transform.position,
+                            &b_shape.origin,
+                        ),
+                        (
+                            &(a_radius * a_transform.scale),
+                            &a_transform.position,
+                            &a_shape.origin,
+                        ),
                     ),
                     (
                         ShapeType::Rectangle {
@@ -109,8 +118,17 @@ impl<'a> System<'a> for CollisionSystem {
                         },
                         ShapeType::Circle { radius: b_radius },
                     ) => Self::check_rectangle_and_circle(
-                        (a_width, a_height, &a_transform.position, &a_shape.origin),
-                        (b_radius, &b_transform.position, &b_shape.origin),
+                        (
+                            &(a_width * a_transform.scale),
+                            &(a_height * a_transform.scale),
+                            &a_transform.position,
+                            &a_shape.origin,
+                        ),
+                        (
+                            &(b_radius * b_transform.scale),
+                            &b_transform.position,
+                            &b_shape.origin,
+                        ),
                     ),
                     (
                         ShapeType::Rectangle {
@@ -123,9 +141,9 @@ impl<'a> System<'a> for CollisionSystem {
                         },
                     ) => {
                         let point_in_shape = |point: Vector3| {
-                            let left = a_width * a_shape.origin.x;
+                            let left = a_width * a_shape.origin.x * a_transform.scale;
                             let right = a_width - left;
-                            let bottom = a_height * a_shape.origin.y;
+                            let bottom = a_height * a_shape.origin.y * a_transform.scale;
                             let top = a_height - bottom;
 
                             let x = a_transform.position.x - left;
@@ -140,9 +158,9 @@ impl<'a> System<'a> for CollisionSystem {
                                 && point.y <= extent_y
                         };
 
-                        let left = b_width * b_shape.origin.x;
+                        let left = b_width * b_shape.origin.x * b_transform.scale;
                         let right = b_width - left;
-                        let bottom = b_height * b_shape.origin.y;
+                        let bottom = b_height * b_shape.origin.y * b_transform.scale;
                         let top = b_height - bottom;
 
                         point_in_shape(Vector3::new(

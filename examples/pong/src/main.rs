@@ -157,7 +157,7 @@ impl Scene for Game {
             .with(Transform::new(
                 Vector3::new(200.0, 0.0, 1.0),
                 Vector3::new(0.0, 0.0, 0.0),
-                Vector3::new(1.0, 1.0, 1.0),
+                1.0,
             ))
             .build();
 
@@ -171,7 +171,7 @@ impl Scene for Game {
             .with(Transform::new(
                 Vector3::new(0.0, 0.0, 1.0),
                 Vector3::new(0.0, 0.0, 0.0),
-                Vector3::new(1.0, 1.0, 1.0),
+                1.0,
             ))
             .build();
 
@@ -190,7 +190,7 @@ impl Scene for Game {
             .with(Transform::new(
                 Vector3::new(200.0, 80.0, 0.0),
                 Vector3::zero(),
-                Vector3::one(),
+                1.0,
             ))
             // .with(Shape2D {
             //     origin: Vector3::zero(),
@@ -218,7 +218,7 @@ impl Scene for Game {
             .with(Transform::new(
                 Vector3::new(0.0, 0.0, 0.0),
                 Vector3::new(0.0, 0.0, 0.0),
-                Vector3::one(),
+                1.5,
             ))
             .with(Shape2D {
                 origin: Vector3::new(0.5, 0.5, 0.0),
