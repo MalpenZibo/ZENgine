@@ -12,7 +12,7 @@ void main() {
     if (u_is_circle) {
         float R = 1.0;
         float R2 = 0.95;
-        float dist = sqrt(dot(v_tex_coord,v_tex_coord));
+        float dist = length(v_tex_coord);
         if (dist >= R || dist <= R2) {
             discard;
         }
