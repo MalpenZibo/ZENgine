@@ -119,36 +119,36 @@ impl<ST: SpriteType> RenderSystem<ST> {
         let u_color_position = shader.get_uniform_location("u_tint");
         let u_model_location = shader.get_uniform_location("u_model");
         let u_diffuse_location = shader.get_uniform_location("u_diffuse");
-        for s in sprites.iter() {
-            if let Some(transform) = transforms.get(s.0) {
-                let texture_handle = texture_manager.get_sprite_handle(&s.1.sprite_type).unwrap();
-                self.calculate_vertices(
-                    s.1.width,
-                    s.1.height,
-                    s.1.origin,
-                    texture_handle.relative_min,
-                    texture_handle.relative_max,
+        for (_, sprite, transform) in sprites.join(transforms) {
+            let texture_handle = texture_manager
+                .get_sprite_handle(&sprite.sprite_type)
+                .unwrap();
+            self.calculate_vertices(
+                sprite.width,
+                sprite.height,
+                sprite.origin,
+                texture_handle.relative_min,
+                texture_handle.relative_max,
+            );
+            unsafe {
+                gl::UniformMatrix4fv(
+                    u_model_location,
+                    1,
+                    gl::FALSE,
+                    transform.get_transformation_matrix().data.as_ptr(),
                 );
-                unsafe {
-                    gl::UniformMatrix4fv(
-                        u_model_location,
-                        1,
-                        gl::FALSE,
-                        transform.get_transformation_matrix().data.as_ptr(),
-                    );
-                    gl::Uniform4f(
-                        u_color_position,
-                        s.1.color.r,
-                        s.1.color.g,
-                        s.1.color.b,
-                        s.1.color.a,
-                    );
-                    texture_manager.activate(texture_handle.texture_id);
-                    gl::Uniform1i(u_diffuse_location, 0);
-                }
-                if let Some(buffer) = &self.buffer {
-                    buffer.draw();
-                }
+                gl::Uniform4f(
+                    u_color_position,
+                    sprite.color.r,
+                    sprite.color.g,
+                    sprite.color.b,
+                    sprite.color.a,
+                );
+                texture_manager.activate(texture_handle.texture_id);
+                gl::Uniform1i(u_diffuse_location, 0);
+            }
+            if let Some(buffer) = &self.buffer {
+                buffer.draw();
             }
         }
     }

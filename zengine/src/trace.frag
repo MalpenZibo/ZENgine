@@ -22,8 +22,8 @@ void main() {
         fragColor = vec4(0.0, 1.0, 0.0, alpha);
     } else {
         if (
-            v_tex_coord.x > 0.01 && v_tex_coord.x < 0.99 
-            && v_tex_coord.y > 0.01 && v_tex_coord.y < 0.99
+            v_tex_coord.x > 0.02 && v_tex_coord.x < 0.98 
+            && v_tex_coord.y > 0.02 && v_tex_coord.y < 0.98
         ) {
             discard;
         }
