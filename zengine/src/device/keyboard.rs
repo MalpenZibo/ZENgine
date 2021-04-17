@@ -145,7 +145,7 @@ pub enum Key {
     VolumeUp = sdl2::keyboard::Keycode::VolumeUp as i32,
     VolumeDown = sdl2::keyboard::Keycode::VolumeDown as i32,
     KpComma = sdl2::keyboard::Keycode::KpComma as i32,
-    KpEqualsAS400 = sdl2::keyboard::Keycode::KpEqualsAS400 as i32,
+    KpEqualsAs400 = sdl2::keyboard::Keycode::KpEqualsAS400 as i32,
     AltErase = sdl2::keyboard::Keycode::AltErase as i32,
     Sysreq = sdl2::keyboard::Keycode::Sysreq as i32,
     Cancel = sdl2::keyboard::Keycode::Cancel as i32,

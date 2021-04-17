@@ -4,7 +4,7 @@ pub struct AttributeInfo {
 }
 
 #[derive(Default)]
-pub struct GLBuffer {
+pub struct GlBuffer {
     type_size: usize,
 
     element_size: i32,
@@ -15,7 +15,7 @@ pub struct GLBuffer {
     vbo: u32,
 }
 
-impl Drop for GLBuffer {
+impl Drop for GlBuffer {
     fn drop(&mut self) {
         unsafe {
             gl::DeleteBuffers(1, &self.vbo);
@@ -24,9 +24,9 @@ impl Drop for GLBuffer {
     }
 }
 
-impl GLBuffer {
-    pub fn new() -> GLBuffer {
-        let mut gl_buffer = GLBuffer {
+impl GlBuffer {
+    pub fn new() -> GlBuffer {
+        let mut gl_buffer = GlBuffer {
             type_size: std::mem::size_of::<f32>(),
 
             element_size: 0,

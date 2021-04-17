@@ -3,7 +3,7 @@ use crate::core::system::ReadOption;
 use crate::core::system::{Read, ReadSet, System};
 use crate::core::Store;
 use crate::gl_utilities::gl_buffer::AttributeInfo;
-use crate::gl_utilities::gl_buffer::GLBuffer;
+use crate::gl_utilities::gl_buffer::GlBuffer;
 use crate::gl_utilities::shader::Shader;
 use crate::gl_utilities::shader::ShaderManager;
 use crate::graphics::camera::ActiveCamera;
@@ -47,7 +47,7 @@ pub struct RenderSystem<ST: SpriteType> {
     window_specs: WindowSpecs,
     window: Option<Window>,
     ctx: Option<GLContext>,
-    buffer: Option<GLBuffer>,
+    buffer: Option<GlBuffer>,
     sprite_type: PhantomData<ST>,
     collision_trace: CollisionTrace,
 }
@@ -370,7 +370,7 @@ impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
         let a_position_location = basic_shader.get_attribute_location("a_position");
         let a_tex_coord_location = basic_shader.get_attribute_location("a_tex_coord");
 
-        let mut buffer = GLBuffer::new();
+        let mut buffer = GlBuffer::new();
 
         buffer.configure(
             vec![
