@@ -73,7 +73,7 @@ fn main() {
         .with_system(System2::default())
         .with_system(RenderSystem::<Sprites>::new(
             WindowSpecs::default(),
-            CollisionTrace::Inactive,
+            CollisionTrace::Active,
         ))
         .with_system(TimingSystem::default().with_limiter(FrameLimiter::new(60)))
         .run(Game {
@@ -186,7 +186,7 @@ impl Scene for Game {
             .with(Sprite::<Sprites> {
                 width: 240.0,
                 height: 240.0,
-                origin: Vector3::zero(),
+                origin: Vector3::new(0.5, 0.5, 0.0),
                 color: Color::white(),
                 sprite_type: Sprites::DuckFromSheet,
             })
@@ -195,17 +195,17 @@ impl Scene for Game {
                 Vector3::zero(),
                 1.0,
             ))
-            // .with(Shape2D {
-            //     origin: Vector3::zero(),
-            //     shape_type: ShapeType::Rectangle {
-            //         width: 240.0,
-            //         height: 240.0,
-            //     },
-            // })
             .with(Shape2D {
-                origin: Vector3::new(0.0, 0.0, 0.0),
-                shape_type: ShapeType::Circle { radius: 120.0 },
+                origin: Vector3::new(0.5, 0.5, 0.0),
+                shape_type: ShapeType::Rectangle {
+                    width: 240.0,
+                    height: 240.0,
+                },
             })
+            // .with(Shape2D {
+            //     origin: Vector3::new(0.5, 0.5, 0.0),
+            //     shape_type: ShapeType::Circle { radius: 120.0 },
+            // })
             .with(Player1 {})
             .build();
 
@@ -230,10 +230,6 @@ impl Scene for Game {
                     height: 50.0,
                 },
             })
-            // .with(Shape2D {
-            //     origin: Vector3::new(0.5, 0.5, 0.0),
-            //     shape_type: ShapeType::Circle { radius: 25.0 },
-            // })
             .build();
         store.build_entity().with(Component1 { data: 3 }).build();
         store

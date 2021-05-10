@@ -94,7 +94,8 @@ impl<'a> System<'a> for CollisionSystem {
                             .distance(&(b_transform.position + b_delta))
                             .abs();
 
-                        let radius_lenghts = a_radius + b_radius;
+                        let radius_lenghts =
+                            a_radius * a_transform.scale + b_radius * b_transform.scale;
                         distance <= radius_lenghts
                     }
                     (
@@ -147,9 +148,9 @@ impl<'a> System<'a> for CollisionSystem {
                     ) => {
                         let point_in_shape = |point: Vector3| {
                             let left = a_width * a_shape.origin.x * a_transform.scale;
-                            let right = a_width - left;
+                            let right = a_width * a_transform.scale - left;
                             let bottom = a_height * a_shape.origin.y * a_transform.scale;
-                            let top = a_height - bottom;
+                            let top = a_height * a_transform.scale - bottom;
 
                             let x = a_transform.position.x - left;
                             let y = a_transform.position.y - bottom;
@@ -164,9 +165,9 @@ impl<'a> System<'a> for CollisionSystem {
                         };
 
                         let left = b_width * b_shape.origin.x * b_transform.scale;
-                        let right = b_width - left;
+                        let right = b_width * b_transform.scale - left;
                         let bottom = b_height * b_shape.origin.y * b_transform.scale;
-                        let top = b_height - bottom;
+                        let top = b_height * b_transform.scale - bottom;
 
                         point_in_shape(Vector3::new(
                             b_transform.position.x - left,
