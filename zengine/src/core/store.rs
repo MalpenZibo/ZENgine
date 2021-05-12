@@ -35,23 +35,21 @@ impl Store {
     pub fn get_resource<R: Resource>(&self) -> Option<Ref<R>> {
         let type_id = TypeId::of::<R>();
 
-        match self.resources.get(&type_id) {
-            Some(res) => Some(Ref::map(res.borrow(), |b| {
+        self.resources.get(&type_id).map(|resource| {
+            Ref::map(resource.borrow(), |b| {
                 b.downcast_ref::<R>().expect("downcast resource error")
-            })),
-            None => None,
-        }
+            })
+        })
     }
 
     pub fn get_resource_mut<R: Resource>(&self) -> Option<RefMut<R>> {
         let type_id = TypeId::of::<R>();
 
-        match self.resources.get(&type_id) {
-            Some(res) => Some(RefMut::map(res.borrow_mut(), |b| {
+        self.resources.get(&type_id).map(|resource| {
+            RefMut::map(resource.borrow_mut(), |b| {
                 b.downcast_mut::<R>().expect("downcast resource error")
-            })),
-            None => None,
-        }
+            })
+        })
     }
 
     pub fn get_entities(&self) -> &Entities {

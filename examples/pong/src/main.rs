@@ -7,9 +7,12 @@ use zengine::graphics::camera::Camera;
 use zengine::graphics::camera::{ActiveCamera, CameraMode};
 use zengine::graphics::color::Color;
 use zengine::graphics::texture::{SpriteDescriptor, SpriteType, TextureManager};
-use zengine::log::{trace, LevelFilter};
+use zengine::log::{info, trace, LevelFilter};
 use zengine::math::transform::Transform;
 use zengine::math::vector3::Vector3;
+use zengine::physics::collision::Collision;
+use zengine::physics::collision::CollisionSystem;
+use zengine::physics::collision::{Shape2D, ShapeType};
 use zengine::platform::*;
 use zengine::render::*;
 use zengine::serde::Deserialize;
@@ -65,9 +68,13 @@ fn main() {
     Engine::default()
         .with_system(PlatformSystem::default())
         .with_system(InputSystem::<UserInput>::new(bindings))
+        .with_system(CollisionSystem::default())
         .with_system(System1::default())
         .with_system(System2::default())
-        .with_system(RenderSystem::<Sprites>::new(WindowSpecs::default()))
+        .with_system(RenderSystem::<Sprites>::new(
+            WindowSpecs::default(),
+            CollisionTrace::Active,
+        ))
         .with_system(TimingSystem::default().with_limiter(FrameLimiter::new(60)))
         .run(Game {
             execution_numer: 10,
@@ -140,7 +147,7 @@ impl Scene for Game {
                 .load();
         }
         store.insert_resource(Background {
-            color: Color::white(),
+            color: Color::black(),
         });
 
         let camera1 = store
@@ -153,7 +160,7 @@ impl Scene for Game {
             .with(Transform::new(
                 Vector3::new(200.0, 0.0, 1.0),
                 Vector3::new(0.0, 0.0, 0.0),
-                Vector3::new(1.0, 1.0, 1.0),
+                1.0,
             ))
             .build();
 
@@ -167,7 +174,7 @@ impl Scene for Game {
             .with(Transform::new(
                 Vector3::new(0.0, 0.0, 1.0),
                 Vector3::new(0.0, 0.0, 0.0),
-                Vector3::new(1.0, 1.0, 1.0),
+                1.0,
             ))
             .build();
 
@@ -179,23 +186,34 @@ impl Scene for Game {
             .with(Sprite::<Sprites> {
                 width: 240.0,
                 height: 240.0,
-                origin: Vector3::zero(),
+                origin: Vector3::new(0.5, 0.5, 0.0),
                 color: Color::white(),
                 sprite_type: Sprites::DuckFromSheet,
             })
             .with(Transform::new(
                 Vector3::new(200.0, 80.0, 0.0),
                 Vector3::zero(),
-                Vector3::one(),
+                1.0,
             ))
+            .with(Shape2D {
+                origin: Vector3::new(0.5, 0.5, 0.0),
+                shape_type: ShapeType::Rectangle {
+                    width: 240.0,
+                    height: 240.0,
+                },
+            })
+            // .with(Shape2D {
+            //     origin: Vector3::new(0.5, 0.5, 0.0),
+            //     shape_type: ShapeType::Circle { radius: 120.0 },
+            // })
             .with(Player1 {})
             .build();
 
         store
             .build_entity()
             .with(Sprite {
-                width: 600.0,
-                height: 600.0,
+                width: 50.0,
+                height: 50.0,
                 origin: Vector3::new(0.5, 0.5, 0.0),
                 color: Color::white(),
                 sprite_type: Sprites::LogoFromSheet,
@@ -203,8 +221,15 @@ impl Scene for Game {
             .with(Transform::new(
                 Vector3::new(0.0, 0.0, 0.0),
                 Vector3::new(0.0, 0.0, 0.0),
-                Vector3::one(),
+                1.5,
             ))
+            .with(Shape2D {
+                origin: Vector3::new(0.5, 0.5, 0.0),
+                shape_type: ShapeType::Rectangle {
+                    width: 50.0,
+                    height: 50.0,
+                },
+            })
             .build();
         store.build_entity().with(Component1 { data: 3 }).build();
         store
@@ -247,21 +272,34 @@ pub struct Component3 {
 #[derive(Debug, Default)]
 pub struct System1 {
     run_count: u32,
+    collision_token: Option<SubscriptionToken>,
 }
 
+type System1Data<'a> = (
+    WriteSet<'a, Transform>,
+    ReadSet<'a, Player1>,
+    Read<'a, InputHandler<UserInput>>,
+    Read<'a, EventStream<Collision>>,
+);
+
 impl<'a> System<'a> for System1 {
-    type Data = (
-        WriteSet<'a, Transform>,
-        ReadSet<'a, Player1>,
-        Read<'a, InputHandler<UserInput>>,
-    );
+    type Data = System1Data<'a>;
 
     fn init(&mut self, _store: &mut Store) {
         trace!("setup system 1");
+
+        let mut collisions = _store.get_resource_mut::<EventStream<Collision>>().unwrap();
+        self.collision_token = Some(collisions.subscribe());
     }
 
-    fn run(&mut self, (mut transform, player1, input): Self::Data) {
+    fn run(&mut self, (mut transform, player1, input, collisions): Self::Data) {
         //trace!("run {} system 1", self.run_count);
+
+        if let Some(token) = self.collision_token {
+            for c in collisions.read(&token) {
+                info!("collision {:?}", c);
+            }
+        }
 
         for t in transform.iter_mut() {
             if player1.get(t.0).is_some() {

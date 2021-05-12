@@ -1,10 +1,9 @@
 use crate::core::join::Join;
-use crate::core::join::Optional;
 use crate::core::system::ReadOption;
 use crate::core::system::{Read, ReadSet, System};
 use crate::core::Store;
 use crate::gl_utilities::gl_buffer::AttributeInfo;
-use crate::gl_utilities::gl_buffer::GLBuffer;
+use crate::gl_utilities::gl_buffer::GlBuffer;
 use crate::gl_utilities::shader::Shader;
 use crate::gl_utilities::shader::ShaderManager;
 use crate::graphics::camera::ActiveCamera;
@@ -15,6 +14,8 @@ use crate::math::matrix4x4::Matrix4x4;
 use crate::math::transform::Transform;
 use crate::math::vector2::Vector2;
 use crate::math::vector3::Vector3;
+use crate::physics::collision::{Shape2D, ShapeType};
+use crate::render::CollisionTrace;
 use crate::render::{Background, Sprite, WindowSpecs};
 use log::info;
 use sdl2::video::GLContext;
@@ -46,18 +47,20 @@ pub struct RenderSystem<ST: SpriteType> {
     window_specs: WindowSpecs,
     window: Option<Window>,
     ctx: Option<GLContext>,
-    buffer: Option<GLBuffer>,
+    buffer: Option<GlBuffer>,
     sprite_type: PhantomData<ST>,
+    collision_trace: CollisionTrace,
 }
 
 impl<ST: SpriteType> RenderSystem<ST> {
-    pub fn new(specs: WindowSpecs) -> Self {
+    pub fn new(specs: WindowSpecs, collision_trace: CollisionTrace) -> Self {
         RenderSystem {
             window_specs: specs,
             buffer: None,
             window: None,
             ctx: None,
             sprite_type: PhantomData,
+            collision_trace,
         }
     }
 
@@ -110,42 +113,92 @@ impl<ST: SpriteType> RenderSystem<ST> {
         &mut self,
         texture_manager: &TextureManager<ST>,
         shader: &Shader,
-        sprites: ReadSet<Sprite<ST>>,
-        transforms: ReadSet<Transform>,
+        sprites: &ReadSet<Sprite<ST>>,
+        transforms: &ReadSet<Transform>,
     ) {
         let u_color_position = shader.get_uniform_location("u_tint");
         let u_model_location = shader.get_uniform_location("u_model");
         let u_diffuse_location = shader.get_uniform_location("u_diffuse");
-        for s in sprites.iter() {
-            if let Some(transform) = transforms.get(s.0) {
-                let texture_handle = texture_manager.get_sprite_handle(&s.1.sprite_type).unwrap();
-                self.calculate_vertices(
-                    s.1.width,
-                    s.1.height,
-                    s.1.origin,
-                    texture_handle.relative_min,
-                    texture_handle.relative_max,
+        for (_, sprite, transform) in sprites.join(transforms) {
+            let texture_handle = texture_manager
+                .get_sprite_handle(&sprite.sprite_type)
+                .unwrap();
+            self.calculate_vertices(
+                sprite.width,
+                sprite.height,
+                sprite.origin,
+                texture_handle.relative_min,
+                texture_handle.relative_max,
+            );
+            unsafe {
+                gl::UniformMatrix4fv(
+                    u_model_location,
+                    1,
+                    gl::FALSE,
+                    transform.get_transformation_matrix().data.as_ptr(),
                 );
-                unsafe {
-                    gl::UniformMatrix4fv(
-                        u_model_location,
-                        1,
-                        gl::FALSE,
-                        transform.get_transformation_matrix().data.as_ptr(),
+                gl::Uniform4f(
+                    u_color_position,
+                    sprite.color.r,
+                    sprite.color.g,
+                    sprite.color.b,
+                    sprite.color.a,
+                );
+                texture_manager.activate(texture_handle.texture_id);
+                gl::Uniform1i(u_diffuse_location, 0);
+            }
+            if let Some(buffer) = &self.buffer {
+                buffer.draw();
+            }
+        }
+    }
+
+    fn render_shapes(
+        &mut self,
+        shader: &Shader,
+        shapes: &ReadSet<Shape2D>,
+        transforms: &ReadSet<Transform>,
+    ) {
+        let u_model_location = shader.get_uniform_location("u_model");
+        let u_is_circle_location = shader.get_uniform_location("u_is_circle");
+
+        for (_, shape, transform) in shapes.join(transforms) {
+            let is_circle = match shape.shape_type {
+                ShapeType::Circle { radius, .. } => {
+                    self.calculate_vertices(
+                        radius * 2.0,
+                        radius * 2.0,
+                        shape.origin,
+                        Vector2::new(-1.0, -1.0),
+                        Vector2::new(1.0, 1.0),
                     );
-                    gl::Uniform4f(
-                        u_color_position,
-                        s.1.color.r,
-                        s.1.color.g,
-                        s.1.color.b,
-                        s.1.color.a,
+
+                    1
+                }
+                ShapeType::Rectangle { width, height, .. } => {
+                    self.calculate_vertices(
+                        width,
+                        height,
+                        shape.origin,
+                        Vector2::new(0.0, 0.0),
+                        Vector2::new(1.0, 1.0),
                     );
-                    texture_manager.activate(texture_handle.texture_id);
-                    gl::Uniform1i(u_diffuse_location, 0);
+
+                    0
                 }
-                if let Some(buffer) = &self.buffer {
-                    buffer.draw();
-                }
+            };
+
+            unsafe {
+                gl::Uniform1i(u_is_circle_location, is_circle);
+                gl::UniformMatrix4fv(
+                    u_model_location,
+                    1,
+                    gl::FALSE,
+                    transform.get_transformation_matrix().data.as_ptr(),
+                );
+            }
+            if let Some(buffer) = &self.buffer {
+                buffer.draw();
             }
         }
     }
@@ -225,9 +278,9 @@ impl<ST: SpriteType> RenderSystem<ST> {
                     * transforms
                         .get(&camera.0)
                         .map(|transform| {
-                            transform.get_transformation_matrix_inverse(false, false, false)
+                            transform.get_transformation_matrix_inverse(true, true, false)
                         })
-                        .unwrap_or_else(|| Matrix4x4::identity()),
+                        .unwrap_or_else(Matrix4x4::identity),
                 camera.1.width,
                 camera.1.height,
             ),
@@ -284,6 +337,7 @@ type RenderData<'a, ST> = (
     Read<'a, Background>,
     ReadSet<'a, Camera>,
     ReadOption<'a, ActiveCamera>,
+    ReadSet<'a, Shape2D>,
 );
 
 impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
@@ -313,11 +367,10 @@ impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
             include_str!("../basic.vert"),
             include_str!("../basic.frag"),
         );
-
         let a_position_location = basic_shader.get_attribute_location("a_position");
         let a_tex_coord_location = basic_shader.get_attribute_location("a_tex_coord");
 
-        let mut buffer = GLBuffer::new();
+        let mut buffer = GlBuffer::new();
 
         buffer.configure(
             vec![
@@ -335,13 +388,19 @@ impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
 
         self.buffer = Some(buffer);
 
+        shaders.register(
+            "trace_shader",
+            include_str!("../basic.vert"),
+            include_str!("../trace.frag"),
+        );
+
         store.insert_resource(TextureManager::<ST>::default());
         store.insert_resource(shaders);
     }
 
     fn run(
         &mut self,
-        (texture_manager, shaders, sprites, transforms, background, camera, active_camera): Self::Data,
+        (texture_manager, shaders, sprites, transforms, background, camera, active_camera, shapes): Self::Data,
     ) {
         let camera_data = self.get_camera_data(camera, active_camera, &transforms);
         self.setup_scissor(camera_data.1, camera_data.2);
@@ -358,7 +417,22 @@ impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
                 camera_data.0.data.as_ptr(),
             );
         }
-        self.render_sprites(&texture_manager, shader, sprites, transforms);
+        self.render_sprites(&texture_manager, shader, &sprites, &transforms);
+
+        if let CollisionTrace::Active = self.collision_trace {
+            let shader = shaders.get("trace_shader");
+            shader.use_shader();
+            let u_projection_location = shader.get_uniform_location("u_projection");
+            unsafe {
+                gl::UniformMatrix4fv(
+                    u_projection_location,
+                    1,
+                    gl::FALSE,
+                    camera_data.0.data.as_ptr(),
+                );
+            }
+            self.render_shapes(shader, &shapes, &transforms);
+        }
 
         if let Some(window) = &self.window {
             window.gl_swap_window();
