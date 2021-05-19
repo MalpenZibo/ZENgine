@@ -314,7 +314,7 @@ impl<ST: SpriteType> RenderSystem<ST> {
             gl::Disable(gl::SCISSOR_TEST);
 
             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
             gl::Enable(gl::SCISSOR_TEST);
 
@@ -324,7 +324,7 @@ impl<ST: SpriteType> RenderSystem<ST> {
                 background.color.b,
                 background.color.a,
             );
-            gl::Clear(gl::COLOR_BUFFER_BIT);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
     }
 }
@@ -359,6 +359,7 @@ impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
             }
             gl::Enable(gl::BLEND);
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+            gl::Enable(gl::DEPTH_TEST);
         }
 
         let mut shaders = ShaderManager::default();
@@ -420,6 +421,9 @@ impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
         self.render_sprites(&texture_manager, shader, &sprites, &transforms);
 
         if let CollisionTrace::Active = self.collision_trace {
+            unsafe {
+                gl::Disable(gl::DEPTH_TEST);
+            }
             let shader = shaders.get("trace_shader");
             shader.use_shader();
             let u_projection_location = shader.get_uniform_location("u_projection");
@@ -432,8 +436,11 @@ impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
                 );
             }
             self.render_shapes(shader, &shapes, &transforms);
+            unsafe {
+                gl::Enable(gl::DEPTH_TEST);
+            }
         }
-
+        
         if let Some(window) = &self.window {
             window.gl_swap_window();
         }
