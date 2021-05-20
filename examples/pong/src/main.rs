@@ -1,5 +1,4 @@
-extern crate zengine;
-
+use zengine::core::join::Join;
 use zengine::core::system::*;
 use zengine::core::*;
 use zengine::event::Bindings;
@@ -28,6 +27,7 @@ use zengine::timing::*;
 use zengine::Component;
 use zengine::Engine;
 use zengine::InputType;
+use zengine::Resource;
 use zengine::SpriteType;
 
 #[derive(Deserialize, InputType, Hash, Eq, PartialEq, Clone)]
@@ -42,11 +42,26 @@ pub enum Sprites {
     Ball,
 }
 
-#[derive(Debug, Component, Default)]
-pub struct Player1 {}
+#[derive(Debug, Resource)]
+pub struct Player1 {
+    entity: Entity,
+}
 
 #[derive(Debug, Component, Default)]
 pub struct AI {}
+
+#[derive(Debug, Component, Default, Clone)]
+pub struct Pad {
+    force: f32,
+    cur_acc: f32,
+    velocity: f32,
+    mass: f32,
+}
+
+#[derive(Debug, Default, Resource)]
+pub struct GameSettings {
+    drag_constant: f32,
+}
 
 fn main() {
     Engine::init_logger(LevelFilter::Info);
@@ -76,6 +91,8 @@ fn main() {
         .with_system(PlatformSystem::default())
         .with_system(InputSystem::<UserInput>::new(bindings))
         .with_system(CollisionSystem::default())
+        .with_system(PlayerPadControl::default())
+        .with_system(PadMovement::default())
         .with_system(RenderSystem::<Sprites>::new(
             WindowSpecs::new("PONG".to_owned(), 600, 800, false),
             CollisionTrace::Active,
@@ -129,9 +146,20 @@ impl Scene for Game {
                 .load();
         }
 
+        store.insert_resource(GameSettings {
+            drag_constant: 10.0,
+        });
+
         store.insert_resource(Background {
             color: Color::black(),
         });
+
+        let pad = Pad {
+            force: 1000.0,
+            mass: 5.0,
+            cur_acc: 0.0,
+            velocity: 0.0,
+        };
 
         let camera = store
             .build_entity()
@@ -165,7 +193,7 @@ impl Scene for Game {
             ))
             .build();
 
-        store
+        let pad1 = store
             .build_entity()
             .with(Sprite::<Sprites> {
                 width: 150.0,
@@ -186,8 +214,9 @@ impl Scene for Game {
                     height: 30.0,
                 },
             })
-            .with(Player1 {})
+            .with(pad.clone())
             .build();
+        store.insert_resource(Player1 { entity: pad1 });
 
         store
             .build_entity()
@@ -210,6 +239,7 @@ impl Scene for Game {
                     height: 30.0,
                 },
             })
+            .with(pad.clone())
             .with(AI {})
             .build();
 
@@ -229,9 +259,7 @@ impl Scene for Game {
             ))
             .with(Shape2D {
                 origin: Vector3::new(0.5, 0.5, 0.0),
-                shape_type: ShapeType::Circle {
-                    radius: 12.5,
-                },
+                shape_type: ShapeType::Circle { radius: 12.5 },
             })
             .build();
     }
@@ -244,26 +272,58 @@ impl Scene for Game {
 }
 
 #[derive(Debug, Default)]
-pub struct PadMovement {
+pub struct PlayerPadControl {
     collision_token: Option<SubscriptionToken>,
 }
 
-type PadMovementData<'a> = (
-    WriteSet<'a, Transform>,
-    ReadSet<'a, Player1>,
+type PlayerPadControlData<'a> = (
+    ReadOption<'a, Player1>,
+    WriteSet<'a, Pad>,
     Read<'a, InputHandler<UserInput>>,
-    Read<'a, EventStream<Collision>>,
 );
 
-impl<'a> System<'a> for PadMovement {
-    type Data = PadMovementData<'a>;
+impl<'a> System<'a> for PlayerPadControl {
+    type Data = PlayerPadControlData<'a>;
 
     fn init(&mut self, _store: &mut Store) {
         let mut collisions = _store.get_resource_mut::<EventStream<Collision>>().unwrap();
         self.collision_token = Some(collisions.subscribe());
     }
 
-    fn run(&mut self, (mut transform, player1, input, collisions): Self::Data) {}
+    fn run(&mut self, (player1, mut pads, input): Self::Data) {
+        player1
+            .and_then(|player1| pads.get_mut(&player1.entity))
+            .map(|pad| {
+                pad.cur_acc = input.axis_value(UserInput::Player1XAxis) * pad.force / pad.mass;
+            });
+    }
+
+    fn dispose(&mut self, _store: &mut Store) {}
+}
+
+#[derive(Debug, Default)]
+pub struct PadMovement {}
+
+type PadMovementData<'a> = (
+    WriteSet<'a, Transform>,
+    WriteSet<'a, Pad>,
+    Read<'a, GameSettings>,
+    Read<'a, Time>,
+);
+
+impl<'a> System<'a> for PadMovement {
+    type Data = PadMovementData<'a>;
+
+    fn init(&mut self, _store: &mut Store) {}
+
+    fn run(&mut self, (transforms, mut pads, game_settings, time): Self::Data) {
+        for (_, pad, transform) in pads.join_mut(transforms) {
+            let drag_acc = -game_settings.drag_constant * pad.velocity / pad.mass;
+            pad.velocity +=
+                pad.cur_acc * time.delta.as_secs_f32() + drag_acc * time.delta.as_secs_f32();
+            transform.position.x += pad.velocity * time.delta.as_secs_f32();
+        }
+    }
 
     fn dispose(&mut self, _store: &mut Store) {}
 }

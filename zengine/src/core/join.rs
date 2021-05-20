@@ -72,6 +72,21 @@ impl<'a, C: Component> Joined for &'a mut RefMut<'a, Set<C>> {
     }
 }
 
+impl<'a, C: Component> Joined for RefMut<'a, Set<C>> {
+    type Output = &'a mut C;
+
+    fn get_join_value(&mut self, entity: &Entity) -> JoinReturn<Self::Output> {
+        //SAFETY FIXME write something that explains why this unsafe code
+        //is actually safe
+        unsafe {
+            match self.get_mut(entity) {
+                Some(component) => JoinReturn::Value(&mut *(component as *mut C)),
+                None => JoinReturn::Skip,
+            }
+        }
+    }
+}
+
 impl<T: Joined> Joined for Optional<T> {
     type Output = Option<T::Output>;
 
