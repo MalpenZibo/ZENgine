@@ -47,6 +47,14 @@ pub struct Player1 {
     entity: Entity,
 }
 
+#[derive(Debug, Resource)]
+pub struct FieldBorder {
+    sx: Entity,
+    dx: Entity,
+    top: Entity,
+    bottom: Entity,
+}
+
 #[derive(Debug, Component, Default)]
 pub struct AI {}
 
@@ -93,6 +101,7 @@ fn main() {
         .with_system(CollisionSystem::default())
         .with_system(PlayerPadControl::default())
         .with_system(PadMovement::default())
+        .with_system(CollisionResponse::default())
         .with_system(RenderSystem::<Sprites>::new(
             WindowSpecs::new("PONG".to_owned(), 600, 800, false),
             CollisionTrace::Active,
@@ -192,6 +201,76 @@ impl Scene for Game {
                 1.0,
             ))
             .build();
+
+        let sx = store
+            .build_entity()
+            .with(Transform::new(
+                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::new(0.0, 0.0, 0.0),
+                1.0,
+            ))
+            .with(Shape2D {
+                origin: Vector3::new(1.0, 0.0, 0.0),
+                shape_type: ShapeType::Rectangle {
+                    width: 300.0,
+                    height: 800.0,
+                },
+            })
+            .build();
+        let dx = store
+            .build_entity()
+            .with(Transform::new(
+                Vector3::new(600.0, 0.0, 0.0),
+                Vector3::new(0.0, 0.0, 0.0),
+                1.0,
+            ))
+            .with(Shape2D {
+                origin: Vector3::new(0.0, 0.0, 0.0),
+                shape_type: ShapeType::Rectangle {
+                    width: 300.0,
+                    height: 800.0,
+                },
+            })
+            .build();
+
+        let top = store
+            .build_entity()
+            .with(Transform::new(
+                Vector3::new(0.0, 800.0, 0.0),
+                Vector3::new(0.0, 0.0, 0.0),
+                1.0,
+            ))
+            .with(Shape2D {
+                origin: Vector3::new(0.0, 0.0, 0.0),
+                shape_type: ShapeType::Rectangle {
+                    width: 600.0,
+                    height: 300.0,
+                },
+            })
+            .build();
+
+        let bottom = store
+            .build_entity()
+            .with(Transform::new(
+                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::new(0.0, 0.0, 0.0),
+                1.0,
+            ))
+            .with(Shape2D {
+                origin: Vector3::new(0.0, 1.0, 0.0),
+                shape_type: ShapeType::Rectangle {
+                    width: 600.0,
+                    height: 300.0,
+                },
+            })
+            .build();
+
+        store.insert_resource(FieldBorder {
+            sx,
+            dx,
+            top,
+            bottom,
+        });
 
         let pad1 = store
             .build_entity()
@@ -322,6 +401,56 @@ impl<'a> System<'a> for PadMovement {
             pad.velocity +=
                 pad.cur_acc * time.delta.as_secs_f32() + drag_acc * time.delta.as_secs_f32();
             transform.position.x += pad.velocity * time.delta.as_secs_f32();
+        }
+    }
+
+    fn dispose(&mut self, _store: &mut Store) {}
+}
+
+#[derive(Debug, Default)]
+pub struct CollisionResponse {
+    collisiion_token: Option<SubscriptionToken>,
+}
+
+type CollisionResponseData<'a> = (
+    WriteSet<'a, Transform>,
+    WriteSet<'a, Pad>,
+    Read<'a, EventStream<Collision>>,
+    ReadOption<'a, FieldBorder>,
+);
+
+impl<'a> System<'a> for CollisionResponse {
+    type Data = CollisionResponseData<'a>;
+
+    fn init(&mut self, store: &mut Store) {
+        self.collisiion_token = store
+            .get_resource_mut::<EventStream<Collision>>()
+            .map(|mut collision_stream| collision_stream.subscribe());
+    }
+
+    fn run(&mut self, (mut transforms, mut pads, collisions, field_border): Self::Data) {
+        if let Some(token) = self.collisiion_token {
+            if let Some(field_border) = field_border {
+                for c in collisions.read(&token) {
+                    let (entity, other_entity) = if pads.contains_key(&c.entity_a) {
+                        (c.entity_a, c.entity_b)
+                    } else {
+                        (c.entity_b, c.entity_a)
+                    };
+                    pads.get_mut(&entity).map(|pad| {
+                        if other_entity == field_border.sx || other_entity == field_border.dx {
+                            pad.velocity = 0.0;
+                            transforms.get_mut(&entity).map(|transform| {
+                                transform.position.x = if other_entity == field_border.sx {
+                                    0.1
+                                } else {
+                                    449.9
+                                }
+                            });
+                        }
+                    });
+                }
+            }
         }
     }
 

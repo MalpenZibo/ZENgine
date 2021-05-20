@@ -24,8 +24,8 @@ pub struct Shape2D {
 
 #[derive(Debug)]
 pub struct Collision {
-    entity_a: Entity,
-    entity_b: Entity,
+    pub entity_a: Entity,
+    pub entity_b: Entity,
 }
 
 #[derive(Default)]
