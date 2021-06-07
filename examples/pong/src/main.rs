@@ -35,8 +35,10 @@ static WIDTH: f32 = 600.0;
 static HEIGHT: f32 = 800.0;
 static PAD_HALF_WIDTH: f32 = 75.0;
 static PAD_HALF_HEIGHT: f32 = 15.0;
+static PAD_FORCE: f32 = 2000.0;
+static PAD_MASS: f32 = 5.0;
 static BALL_RADIUS: f32 = 12.5;
-static BALL_VEL: f32 = 150.0;
+static BALL_VEL: f32 = 250.0;
 
 #[derive(Deserialize, InputType, Hash, Eq, PartialEq, Clone)]
 pub enum UserInput {
@@ -84,8 +86,13 @@ pub struct GameSettings {
     drag_constant: f32,
 }
 
+#[derive(Debug)]
+pub enum GameEvent {
+    Score,
+}
+
 fn main() {
-    Engine::init_logger(LevelFilter::Trace);
+    Engine::init_logger(LevelFilter::Info);
 
     let content = "
         axis_mappings: 
@@ -121,13 +128,13 @@ fn main() {
             WindowSpecs::new("PONG".to_owned(), 600, 800, false),
             CollisionTrace::Inactive,
         ))
-        .with_system(TimingSystem::default().with_limiter(FrameLimiter::new(60)))
+        .with_system(TimingSystem::default())
         .run(Game {});
 }
 
 fn initial_ball_movement() -> Vector2 {
     let angle =
-        (fastrand::i32(45..135) as f32 + if fastrand::bool() { 180.0 } else { 0.0 }).to_radians();
+        (fastrand::i32(70..110) as f32 + if fastrand::bool() { 180.0 } else { 0.0 }).to_radians();
     Vector2::new(BALL_VEL * angle.cos(), BALL_VEL * angle.sin())
 }
 
@@ -185,8 +192,8 @@ impl Scene for Game {
         });
 
         let pad = Pad {
-            force: 1000.0,
-            mass: 5.0,
+            force: PAD_FORCE,
+            mass: PAD_MASS,
             cur_acc: 0.0,
             velocity: 0.0,
         };
@@ -315,9 +322,9 @@ impl Scene for Game {
                 },
             })
             .with(pad.clone())
-            //.with(AI {})
+            .with(AI {})
             .build();
-        store.insert_resource(Player1 { entity: pad1 });
+        //store.insert_resource(Player1 { entity: pad1 });
 
         store
             .build_entity()
@@ -435,19 +442,48 @@ impl<'a> System<'a> for PadMovement {
 }
 
 #[derive(Debug, Default)]
-pub struct BallMovement {}
+pub struct BallMovement {
+    launched: bool,
+    respawn: f32,
+    game_event_token: Option<SubscriptionToken>,
+}
 
-type BallMovementData<'a> = (WriteSet<'a, Transform>, WriteSet<'a, Ball>, Read<'a, Time>);
+type BallMovementData<'a> = (
+    WriteSet<'a, Transform>,
+    WriteSet<'a, Ball>,
+    Read<'a, Time>,
+    Read<'a, EventStream<GameEvent>>,
+);
 
 impl<'a> System<'a> for BallMovement {
     type Data = BallMovementData<'a>;
 
-    fn init(&mut self, _store: &mut Store) {}
+    fn init(&mut self, store: &mut Store) {
+        self.game_event_token = store
+            .get_resource_mut::<EventStream<GameEvent>>()
+            .map(|mut game_event_stream| game_event_stream.subscribe());
+    }
 
-    fn run(&mut self, (transforms, mut balls, time): Self::Data) {
-        for (_, ball, transform) in balls.join_mut(transforms) {
-            transform.position.x += ball.vel.x * time.delta.as_secs_f32();
-            transform.position.y += ball.vel.y * time.delta.as_secs_f32();
+    fn run(&mut self, (transforms, mut balls, time, game_events): Self::Data) {
+        if let Some(game_event_token) = self.game_event_token {
+            match game_events.read(&game_event_token).last() {
+                Some(GameEvent::Score) => {
+                    self.launched = false;
+                }
+                _ => {}
+            }
+            if self.launched {
+                for (_, ball, transform) in balls.join_mut(transforms) {
+                    transform.position.x += ball.vel.x * time.delta.as_secs_f32();
+                    transform.position.y += ball.vel.y * time.delta.as_secs_f32();
+                }
+            } else {
+                self.respawn += time.delta.as_secs_f32();
+                if self.respawn > 5.0 {
+                    self.launched = true;
+                    self.respawn = 0.0;
+                }
+            }
         }
     }
 
@@ -465,6 +501,7 @@ type CollisionResponseData<'a> = (
     WriteSet<'a, Ball>,
     Read<'a, EventStream<Collision>>,
     ReadOption<'a, FieldBorder>,
+    Write<'a, EventStream<GameEvent>>,
 );
 
 enum CollisionType {
@@ -565,7 +602,10 @@ impl<'a> System<'a> for CollisionResponse {
             .map(|mut collision_stream| collision_stream.subscribe());
     }
 
-    fn run(&mut self, (mut transforms, mut pads, mut balls, collisions, field_border): Self::Data) {
+    fn run(
+        &mut self,
+        (mut transforms, mut pads, mut balls, collisions, field_border, mut game_events): Self::Data,
+    ) {
         if let Some(token) = self.collisiion_token {
             if let Some(field_border) = field_border {
                 for c in collisions.read(&token) {
@@ -626,6 +666,10 @@ impl<'a> System<'a> for CollisionResponse {
                             balls
                                 .get_mut(&ball_entity)
                                 .map(|ball| ball.vel = initial_ball_movement());
+
+                            game_events.publish(GameEvent::Score);
+
+                            return;
                         }
                         Some(CollisionType::BallPad {
                             pad: pad_entity,
