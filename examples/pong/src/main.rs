@@ -322,9 +322,9 @@ impl Scene for Game {
                 },
             })
             .with(pad.clone())
-            .with(AI {})
+            //.with(AI {})
             .build();
-        //store.insert_resource(Player1 { entity: pad1 });
+        store.insert_resource(Player1 { entity: pad1 });
 
         store
             .build_entity()
@@ -385,9 +385,7 @@ impl Scene for Game {
 }
 
 #[derive(Debug, Default)]
-pub struct PlayerPadControl {
-    collision_token: Option<SubscriptionToken>,
-}
+pub struct PlayerPadControl {}
 
 type PlayerPadControlData<'a> = (
     ReadOption<'a, Player1>,
@@ -398,10 +396,7 @@ type PlayerPadControlData<'a> = (
 impl<'a> System<'a> for PlayerPadControl {
     type Data = PlayerPadControlData<'a>;
 
-    fn init(&mut self, _store: &mut Store) {
-        let mut collisions = _store.get_resource_mut::<EventStream<Collision>>().unwrap();
-        self.collision_token = Some(collisions.subscribe());
-    }
+    fn init(&mut self, _store: &mut Store) {}
 
     fn run(&mut self, (player1, mut pads, input): Self::Data) {
         player1
@@ -677,7 +672,7 @@ impl<'a> System<'a> for CollisionResponse {
                         }) => {
                             if let Some(pad_transform) = transforms
                                 .get(&pad_entity)
-                                .map(|pad_transform| -> Transform { pad_transform.clone() })
+                                .map(|pad_transform| pad_transform.clone())
                             {
                                 match (
                                     transforms.get_mut(&ball_entity),
@@ -723,9 +718,7 @@ impl<'a> System<'a> for CollisionResponse {
 }
 
 #[derive(Debug, Default)]
-pub struct AIPadControl {
-    collision_token: Option<SubscriptionToken>,
-}
+pub struct AIPadControl {}
 
 type AIPadControlData<'a> = (
     ReadSet<'a, AI>,
@@ -737,10 +730,7 @@ type AIPadControlData<'a> = (
 impl<'a> System<'a> for AIPadControl {
     type Data = AIPadControlData<'a>;
 
-    fn init(&mut self, _store: &mut Store) {
-        let mut collisions = _store.get_resource_mut::<EventStream<Collision>>().unwrap();
-        self.collision_token = Some(collisions.subscribe());
-    }
+    fn init(&mut self, _store: &mut Store) {}
 
     fn run(&mut self, (ais, pads, balls, transforms): Self::Data) {
         if let Some(ball_transform) = balls
