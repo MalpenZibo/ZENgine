@@ -17,6 +17,7 @@ impl Vector2 {
         Vector2::new(1.0, 1.0)
     }
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn inverse(&self) -> Vector2 {
         Vector2::new(-self.x, -self.y)
     }

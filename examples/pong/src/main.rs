@@ -347,7 +347,7 @@ impl Scene for Game {
                     height: PAD_HALF_HEIGHT * 2.0,
                 },
             })
-            .with(pad.clone())
+            .with(pad)
             .with(AI {})
             .build();
 
@@ -399,11 +399,9 @@ impl<'a> System<'a> for PlayerPadControl {
     fn init(&mut self, _store: &mut Store) {}
 
     fn run(&mut self, (player1, mut pads, input): Self::Data) {
-        player1
-            .and_then(|player1| pads.get_mut(&player1.entity))
-            .map(|pad| {
-                pad.cur_acc = input.axis_value(UserInput::Player1XAxis) * pad.force / pad.mass;
-            });
+        if let Some(pad) = player1.and_then(|player1| pads.get_mut(&player1.entity)) {
+            pad.cur_acc = input.axis_value(UserInput::Player1XAxis) * pad.force / pad.mass;
+        }
     }
 
     fn dispose(&mut self, _store: &mut Store) {}
@@ -461,11 +459,8 @@ impl<'a> System<'a> for BallMovement {
 
     fn run(&mut self, (transforms, mut balls, time, game_events): Self::Data) {
         if let Some(game_event_token) = self.game_event_token {
-            match game_events.read(&game_event_token).last() {
-                Some(GameEvent::Score) => {
-                    self.launched = false;
-                }
-                _ => {}
+            if let Some(GameEvent::Score) = game_events.read(&game_event_token).last() {
+                self.launched = false;
             }
             if self.launched {
                 for (_, ball, transform) in balls.join_mut(transforms) {
@@ -506,10 +501,10 @@ enum CollisionType {
 }
 
 enum Side {
-    SX(Entity),
-    DX(Entity),
-    BOTTOM(Entity),
-    TOP(Entity),
+    Sx(Entity),
+    Dx(Entity),
+    Bottom(Entity),
+    Top(Entity),
 }
 
 impl CollisionResponse {
@@ -522,16 +517,16 @@ impl CollisionResponse {
     ) -> Option<CollisionType> {
         let get_field_border = |entity: Entity| -> Option<Side> {
             if field_border.sx == entity {
-                return Some(Side::SX(entity));
+                return Some(Side::Sx(entity));
             } else if field_border.dx == entity {
-                return Some(Side::DX(entity));
+                return Some(Side::Dx(entity));
             } else if field_border.bottom == entity {
-                return Some(Side::BOTTOM(entity));
+                return Some(Side::Bottom(entity));
             } else if field_border.top == entity {
-                return Some(Side::TOP(entity));
+                return Some(Side::Top(entity));
             }
 
-            return None;
+            None
         };
 
         if pads.contains_key(&collision.entity_a) {
@@ -584,7 +579,7 @@ impl CollisionResponse {
             }
         }
 
-        return None;
+        None
     }
 }
 
@@ -607,60 +602,60 @@ impl<'a> System<'a> for CollisionResponse {
                     match self.get_collision_type(c, &pads, &balls, &field_border) {
                         Some(CollisionType::PadBorder {
                             pad: pad_entity,
-                            border: Side::SX(_),
+                            border: Side::Sx(_),
                         }) => {
-                            pads.get_mut(&pad_entity).map(|pad| {
+                            if let Some(pad) = pads.get_mut(&pad_entity) {
                                 pad.velocity = 0.0;
-                                transforms
-                                    .get_mut(&pad_entity)
-                                    .map(|transform| transform.position.x = 0.0 + PAD_HALF_WIDTH);
-                            });
+                            }
+                            if let Some(transform) = transforms.get_mut(&pad_entity) {
+                                transform.position.x = 0.0 + PAD_HALF_WIDTH;
+                            }
                         }
                         Some(CollisionType::PadBorder {
                             pad: pad_entity,
-                            border: Side::DX(_),
+                            border: Side::Dx(_),
                         }) => {
-                            pads.get_mut(&pad_entity).map(|pad| {
+                            if let Some(pad) = pads.get_mut(&pad_entity) {
                                 pad.velocity = 0.0;
-                                transforms
-                                    .get_mut(&pad_entity)
-                                    .map(|transform| transform.position.x = WIDTH - PAD_HALF_WIDTH);
-                            });
+                            };
+                            if let Some(transform) = transforms.get_mut(&pad_entity) {
+                                transform.position.x = WIDTH - PAD_HALF_WIDTH;
+                            }
                         }
                         Some(CollisionType::BallBorder {
                             ball: ball_entity,
-                            border: Side::SX(border_entity),
+                            border: Side::Sx(border_entity),
                         })
                         | Some(CollisionType::BallBorder {
                             ball: ball_entity,
-                            border: Side::DX(border_entity),
+                            border: Side::Dx(border_entity),
                         }) => {
-                            balls
-                                .get_mut(&ball_entity)
-                                .map(|ball| ball.vel = Vector2::new(-ball.vel.x, ball.vel.y));
-                            transforms.get_mut(&ball_entity).map(|transform| {
+                            if let Some(ball) = balls.get_mut(&ball_entity) {
+                                ball.vel = Vector2::new(-ball.vel.x, ball.vel.y);
+                            }
+                            if let Some(transform) = transforms.get_mut(&ball_entity) {
                                 transform.position.x = if border_entity == field_border.sx {
                                     0.0 + BALL_RADIUS
                                 } else {
                                     WIDTH - BALL_RADIUS
                                 }
-                            });
+                            };
                         }
                         Some(CollisionType::BallBorder {
                             ball: ball_entity,
-                            border: Side::BOTTOM(_),
+                            border: Side::Bottom(_),
                         })
                         | Some(CollisionType::BallBorder {
                             ball: ball_entity,
-                            border: Side::TOP(_),
+                            border: Side::Top(_),
                         }) => {
-                            transforms.get_mut(&ball_entity).map(|transform| {
+                            if let Some(transform) = transforms.get_mut(&ball_entity) {
                                 transform.position.x = WIDTH / 2.0;
                                 transform.position.y = HEIGHT / 2.0;
-                            });
-                            balls
-                                .get_mut(&ball_entity)
-                                .map(|ball| ball.vel = initial_ball_movement());
+                            };
+                            if let Some(ball) = balls.get_mut(&ball_entity) {
+                                ball.vel = initial_ball_movement()
+                            }
 
                             game_events.publish(GameEvent::Score);
 
@@ -670,40 +665,32 @@ impl<'a> System<'a> for CollisionResponse {
                             pad: pad_entity,
                             ball: ball_entity,
                         }) => {
-                            if let Some(pad_transform) = transforms
-                                .get(&pad_entity)
-                                .map(|pad_transform| pad_transform.clone())
-                            {
-                                match (
+                            if let Some(pad_transform) = transforms.get(&pad_entity).cloned() {
+                                if let (Some(ball_transform), Some(ball)) = (
                                     transforms.get_mut(&ball_entity),
                                     balls.get_mut(&ball_entity),
                                 ) {
-                                    (Some(ball_transform), Some(ball)) => {
-                                        ball.vel = Vector2::new(
-                                            ball.vel.x
-                                                + (if ball_transform.position.x
-                                                    < pad_transform.position.x
-                                                {
-                                                    -1.0
-                                                } else {
-                                                    1.0
-                                                } * ((ball_transform.position.x
-                                                    - pad_transform.position.x)
-                                                    .abs()
-                                                    / PAD_HALF_WIDTH
-                                                    * 100.0)),
-                                            -ball.vel.y,
-                                        );
-                                        ball_transform.position.y = pad_transform.position.y
-                                            + if ball_transform.position.y
-                                                > pad_transform.position.y
+                                    ball.vel = Vector2::new(
+                                        ball.vel.x
+                                            + (if ball_transform.position.x
+                                                < pad_transform.position.x
                                             {
-                                                PAD_HALF_HEIGHT + BALL_RADIUS
+                                                -1.0
                                             } else {
-                                                -(PAD_HALF_HEIGHT + BALL_RADIUS)
-                                            };
-                                    }
-                                    _ => {}
+                                                1.0
+                                            } * ((ball_transform.position.x
+                                                - pad_transform.position.x)
+                                                .abs()
+                                                / PAD_HALF_WIDTH
+                                                * 100.0)),
+                                        -ball.vel.y,
+                                    );
+                                    ball_transform.position.y = pad_transform.position.y
+                                        + if ball_transform.position.y > pad_transform.position.y {
+                                            PAD_HALF_HEIGHT + BALL_RADIUS
+                                        } else {
+                                            -(PAD_HALF_HEIGHT + BALL_RADIUS)
+                                        };
                                 }
                             }
                         }
