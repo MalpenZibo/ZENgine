@@ -294,12 +294,18 @@ impl<ST: SpriteType> RenderSystem<ST> {
             let size = window.drawable_size();
             let width = size.0 as i32;
             let height = size.1 as i32;
-            let mut calculated_height = (width as f32 / target_aspect_ratio) as i32;
-            let mut calculated_width = width;
-            if calculated_height > height {
-                calculated_height = height;
-                calculated_width = (calculated_height as f32 * target_aspect_ratio) as i32;
-            }
+            let new_height = (width as f32 / target_aspect_ratio) as i32;
+            let calculated_height = if new_height > height {
+                height
+            } else {
+                new_height
+            };
+            let calculated_width = if new_height > height {
+                (calculated_height as f32 * target_aspect_ratio) as i32
+            } else {
+                width
+            };
+
             let vp_x = (width / 2) - (calculated_width / 2);
             let vp_y = (height / 2) - (calculated_height / 2);
             unsafe {
@@ -314,7 +320,7 @@ impl<ST: SpriteType> RenderSystem<ST> {
             gl::Disable(gl::SCISSOR_TEST);
 
             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
             gl::Enable(gl::SCISSOR_TEST);
 
@@ -324,7 +330,7 @@ impl<ST: SpriteType> RenderSystem<ST> {
                 background.color.b,
                 background.color.a,
             );
-            gl::Clear(gl::COLOR_BUFFER_BIT);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
     }
 }
@@ -359,6 +365,7 @@ impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
             }
             gl::Enable(gl::BLEND);
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+            gl::Enable(gl::DEPTH_TEST);
         }
 
         let mut shaders = ShaderManager::default();
@@ -420,6 +427,9 @@ impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
         self.render_sprites(&texture_manager, shader, &sprites, &transforms);
 
         if let CollisionTrace::Active = self.collision_trace {
+            unsafe {
+                gl::Disable(gl::DEPTH_TEST);
+            }
             let shader = shaders.get("trace_shader");
             shader.use_shader();
             let u_projection_location = shader.get_uniform_location("u_projection");
@@ -432,8 +442,10 @@ impl<'a, ST: SpriteType> System<'a> for RenderSystem<ST> {
                 );
             }
             self.render_shapes(shader, &shapes, &transforms);
+            unsafe {
+                gl::Enable(gl::DEPTH_TEST);
+            }
         }
-
         if let Some(window) = &self.window {
             window.gl_swap_window();
         }

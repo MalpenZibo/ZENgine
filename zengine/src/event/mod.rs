@@ -32,8 +32,8 @@ pub struct ActionBind {
 
 #[derive(Default, Deserialize, PartialEq)]
 pub struct Bindings<T: InputType> {
-    pub axis_mappings: FnvHashMap<T, Vec<AxisBind>>,
-    pub action_mappings: FnvHashMap<T, Vec<ActionBind>>,
+    pub axis_mappings: Option<FnvHashMap<T, Vec<AxisBind>>>,
+    pub action_mappings: Option<FnvHashMap<T, Vec<ActionBind>>>,
 }
 
 pub struct InputHandler<T: InputType> {

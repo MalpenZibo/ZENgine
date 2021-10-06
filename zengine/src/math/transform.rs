@@ -2,7 +2,7 @@ use crate::core::Component;
 use crate::math::matrix4x4::Matrix4x4;
 use crate::math::vector3::Vector3;
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Clone)]
 pub struct Transform {
     pub position: Vector3,
     pub rotation: Vector3,

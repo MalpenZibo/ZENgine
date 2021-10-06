@@ -24,8 +24,8 @@ pub struct Shape2D {
 
 #[derive(Debug)]
 pub struct Collision {
-    entity_a: Entity,
-    entity_b: Entity,
+    pub entity_a: Entity,
+    pub entity_b: Entity,
 }
 
 #[derive(Default)]
@@ -96,7 +96,7 @@ impl<'a> System<'a> for CollisionSystem {
 
                         let radius_lenghts =
                             a_radius * a_transform.scale + b_radius * b_transform.scale;
-                        distance <= radius_lenghts
+                        distance < radius_lenghts
                     }
                     (
                         ShapeType::Circle { radius: a_radius },
@@ -158,10 +158,7 @@ impl<'a> System<'a> for CollisionSystem {
                             let extent_x = a_transform.position.x + right;
                             let extent_y = a_transform.position.y + top;
 
-                            point.x >= x
-                                && point.x <= extent_x
-                                && point.y >= y
-                                && point.y <= extent_y
+                            point.x > x && point.x < extent_x && point.y > y && point.y < extent_y
                         };
 
                         let left = b_width * b_shape.origin.x * b_transform.scale;

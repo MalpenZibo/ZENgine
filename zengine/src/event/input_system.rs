@@ -37,62 +37,67 @@ impl<'a, T: InputType> System<'a> for InputSystem<T> {
     fn run(&mut self, (event_stream, mut input_handler): Self::Data) {
         if let Some(token) = self.input_stream_token {
             for e in event_stream.read(&token) {
-                for actions in self.bindings.action_mappings.iter() {
-                    if let Some(_action) = actions.1.iter().find(|action| action.source == e.input)
-                    {
-                        match input_handler.actions_value.get_mut(actions.0) {
-                            Some(entry) => {
-                                match entry.iter().position(|value| value.0 == e.input) {
-                                    Some(index) => {
-                                        if e.value > 0.0 {
-                                            entry[index].1 = e.value > 0.0;
-                                        } else {
-                                            entry.remove(index);
+                if let Some(action_mappings) = &self.bindings.action_mappings {
+                    for actions in action_mappings.iter() {
+                        if let Some(_action) =
+                            actions.1.iter().find(|action| action.source == e.input)
+                        {
+                            match input_handler.actions_value.get_mut(actions.0) {
+                                Some(entry) => {
+                                    match entry.iter().position(|value| value.0 == e.input) {
+                                        Some(index) => {
+                                            if e.value > 0.0 {
+                                                entry[index].1 = e.value > 0.0;
+                                            } else {
+                                                entry.remove(index);
+                                            }
                                         }
-                                    }
-                                    None => {
-                                        if e.value > 0.0 {
-                                            entry.push((e.input.clone(), e.value > 0.0))
+                                        None => {
+                                            if e.value > 0.0 {
+                                                entry.push((e.input.clone(), e.value > 0.0))
+                                            }
                                         }
                                     }
                                 }
-                            }
-                            None => {
-                                if e.value > 0.0 {
-                                    input_handler.actions_value.insert(
-                                        actions.0.clone(),
-                                        vec![(e.input.clone(), e.value > 0.0)],
-                                    );
+                                None => {
+                                    if e.value > 0.0 {
+                                        input_handler.actions_value.insert(
+                                            actions.0.clone(),
+                                            vec![(e.input.clone(), e.value > 0.0)],
+                                        );
+                                    }
                                 }
                             }
                         }
                     }
                 }
-                for axes in self.bindings.axis_mappings.iter() {
-                    if let Some(axis) = axes.1.iter().find(|axis| axis.source == e.input) {
-                        match input_handler.axes_value.get_mut(axes.0) {
-                            Some(entry) => {
-                                match entry.iter().position(|value| value.0 == e.input) {
-                                    Some(index) => {
-                                        if e.value != 0.0 {
-                                            entry[index].1 = e.value * axis.scale;
-                                        } else {
-                                            entry.remove(index);
+                if let Some(axis_mappings) = &self.bindings.axis_mappings {
+                    for axes in axis_mappings.iter() {
+                        if let Some(axis) = axes.1.iter().find(|axis| axis.source == e.input) {
+                            match input_handler.axes_value.get_mut(axes.0) {
+                                Some(entry) => {
+                                    match entry.iter().position(|value| value.0 == e.input) {
+                                        Some(index) => {
+                                            if e.value != 0.0 {
+                                                entry[index].1 = e.value * axis.scale;
+                                            } else {
+                                                entry.remove(index);
+                                            }
                                         }
-                                    }
-                                    None => {
-                                        if e.value != 0.0 {
-                                            entry.push((e.input.clone(), e.value * axis.scale))
+                                        None => {
+                                            if e.value != 0.0 {
+                                                entry.push((e.input.clone(), e.value * axis.scale))
+                                            }
                                         }
                                     }
                                 }
-                            }
-                            None => {
-                                if e.value != 0.0 {
-                                    input_handler.axes_value.insert(
-                                        axes.0.clone(),
-                                        vec![(e.input.clone(), e.value * axis.scale)],
-                                    );
+                                None => {
+                                    if e.value != 0.0 {
+                                        input_handler.axes_value.insert(
+                                            axes.0.clone(),
+                                            vec![(e.input.clone(), e.value * axis.scale)],
+                                        );
+                                    }
                                 }
                             }
                         }
@@ -181,14 +186,18 @@ mod tests {
         let bindings: Bindings<UserInput> = serde_yaml::from_str(&content).unwrap();
 
         assert_eq!(
-            bindings.action_mappings.get(&UserInput::Jump).unwrap(),
+            bindings
+                .action_mappings
+                .unwrap()
+                .get(&UserInput::Jump)
+                .unwrap(),
             &vec!(ActionBind {
                 source: Input::Keyboard { key: Key::Space }
             })
         );
 
         assert_eq!(
-            bindings.axis_mappings.get(&UserInput::X).unwrap(),
+            bindings.axis_mappings.unwrap().get(&UserInput::X).unwrap(),
             &vec!(
                 AxisBind {
                     source: Input::Keyboard { key: Key::D },
@@ -200,8 +209,6 @@ mod tests {
                 }
             )
         );
-
-        InputSystem::new(bindings);
     }
 
     #[test]
@@ -227,14 +234,14 @@ mod tests {
         let bindings: Bindings<String> = serde_yaml::from_str(&content).unwrap();
 
         assert_eq!(
-            bindings.action_mappings.get("Jump").unwrap(),
+            bindings.action_mappings.unwrap().get("Jump").unwrap(),
             &vec!(ActionBind {
                 source: Input::Keyboard { key: Key::Space }
             })
         );
 
         assert_eq!(
-            bindings.axis_mappings.get("X").unwrap(),
+            bindings.axis_mappings.unwrap().get("X").unwrap(),
             &vec!(
                 AxisBind {
                     source: Input::Keyboard { key: Key::D },
@@ -246,8 +253,6 @@ mod tests {
                 }
             )
         );
-
-        InputSystem::new(bindings);
     }
 
     #[test]

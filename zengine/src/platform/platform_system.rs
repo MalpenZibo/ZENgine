@@ -37,8 +37,8 @@ impl Default for PlatformSystem {
 
         let mut controller_index: u32 = 0;
         let controllers: FnvHashMap<u32, (u32, GameController)> = (0..available)
-            .filter_map(|id| match controller_subsystem.is_game_controller(id) {
-                true => {
+            .filter_map(|id| {
+                if controller_subsystem.is_game_controller(id) {
                     controller_index += 1;
 
                     trace!("Attempting to open controller {}", id);
@@ -55,8 +55,7 @@ impl Default for PlatformSystem {
                             None
                         }
                     }
-                }
-                false => {
+                } else {
                     trace!("{} is not a game controller", id);
                     None
                 }
