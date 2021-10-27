@@ -113,7 +113,7 @@ fn main() {
               scale: 1.0
     ";
 
-    let bindings: Bindings<UserInput> = serde_yaml::from_str(&content).unwrap();
+    let bindings: Bindings<UserInput> = serde_yaml::from_str(content).unwrap();
 
     Engine::default()
         .with_system(PlatformSystem::default())
@@ -422,8 +422,15 @@ impl<'a> System<'a> for PadMovement {
 
     fn init(&mut self, _store: &mut Store) {}
 
-    fn run(&mut self, (transforms, mut pads, game_settings, time): Self::Data) {
-        for (_, pad, transform) in pads.join_mut(transforms) {
+    fn run(&mut self, (mut transforms, mut pads, game_settings, time): Self::Data) {
+        for (_, pad, transform) in pads.join_mut(&mut transforms) {
+            let drag_acc = -game_settings.drag_constant * pad.velocity / pad.mass;
+            pad.velocity +=
+                pad.cur_acc * time.delta.as_secs_f32() + drag_acc * time.delta.as_secs_f32();
+            transform.position.x += pad.velocity * time.delta.as_secs_f32();
+        }
+
+        for (_, pad, transform) in pads.join_mut(&mut transforms) {
             let drag_acc = -game_settings.drag_constant * pad.velocity / pad.mass;
             pad.velocity +=
                 pad.cur_acc * time.delta.as_secs_f32() + drag_acc * time.delta.as_secs_f32();
@@ -457,13 +464,13 @@ impl<'a> System<'a> for BallMovement {
             .map(|mut game_event_stream| game_event_stream.subscribe());
     }
 
-    fn run(&mut self, (transforms, mut balls, time, game_events): Self::Data) {
+    fn run(&mut self, (mut transforms, mut balls, time, game_events): Self::Data) {
         if let Some(game_event_token) = self.game_event_token {
             if let Some(GameEvent::Score) = game_events.read(&game_event_token).last() {
                 self.launched = false;
             }
             if self.launched {
-                for (_, ball, transform) in balls.join_mut(transforms) {
+                for (_, ball, transform) in balls.join_mut(&mut transforms) {
                     transform.position.x += ball.vel.x * time.delta.as_secs_f32();
                     transform.position.y += ball.vel.y * time.delta.as_secs_f32();
                 }
@@ -719,13 +726,13 @@ impl<'a> System<'a> for AIPadControl {
 
     fn init(&mut self, _store: &mut Store) {}
 
-    fn run(&mut self, (ais, pads, balls, transforms): Self::Data) {
+    fn run(&mut self, (ais, mut pads, balls, transforms): Self::Data) {
         if let Some(ball_transform) = balls
             .join(&transforms)
             .next()
             .map(|(_, _, ball_transform)| ball_transform.clone())
         {
-            for (_, _, pad, transform) in ais.join((pads, &transforms)) {
+            for (_, _, pad, transform) in ais.join((&mut pads, &transforms)) {
                 pad.cur_acc = if ball_transform.position.x > transform.position.x {
                     1.0
                 } else {
