@@ -31,8 +31,19 @@ impl<'a, C: Component> Joined for &'a Set<C> {
     }
 }
 
-impl<'a, C: Component> Joined for &'a Ref<'a, Set<C>> {
-    type Output = &'a C;
+impl<'a, 'b, C: Component> Joined for &'b Ref<'a, Set<C>> {
+    type Output = &'b C;
+
+    fn get_join_value(&mut self, entity: &Entity) -> JoinReturn<Self::Output> {
+        match self.get(entity) {
+            Some(component) => JoinReturn::Value(component),
+            None => JoinReturn::Skip,
+        }
+    }
+}
+
+impl<'a, 'b, C: Component> Joined for &'b RefMut<'a, Set<C>> {
+    type Output = &'b C;
 
     fn get_join_value(&mut self, entity: &Entity) -> JoinReturn<Self::Output> {
         match self.get(entity) {
@@ -57,23 +68,8 @@ impl<'a, C: Component> Joined for &'a mut Set<C> {
     }
 }
 
-impl<'a, C: Component> Joined for &'a mut RefMut<'a, Set<C>> {
-    type Output = &'a mut C;
-
-    fn get_join_value(&mut self, entity: &Entity) -> JoinReturn<Self::Output> {
-        //SAFETY FIXME write something that explains why this unsafe code
-        //is actually safe
-        unsafe {
-            match self.get_mut(entity) {
-                Some(component) => JoinReturn::Value(&mut *(component as *mut C)),
-                None => JoinReturn::Skip,
-            }
-        }
-    }
-}
-
-impl<'a, C: Component> Joined for RefMut<'a, Set<C>> {
-    type Output = &'a mut C;
+impl<'a, 'b, C: Component> Joined for &'b mut RefMut<'a, Set<C>> {
+    type Output = &'b mut C;
 
     fn get_join_value(&mut self, entity: &Entity) -> JoinReturn<Self::Output> {
         //SAFETY FIXME write something that explains why this unsafe code
