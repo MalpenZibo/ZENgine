@@ -241,7 +241,7 @@ impl<ST: SpriteType> RenderSystem<ST> {
             .unwrap();
 
         if self.window_specs.fullscreen {
-            let display_mode = self.get_display_mode(&video_subsystem);
+            let display_mode = self.get_display_mode(video_subsystem);
             window.set_display_mode(display_mode).unwrap();
             window.set_fullscreen(FullscreenType::True).unwrap();
         }
@@ -276,7 +276,7 @@ impl<ST: SpriteType> RenderSystem<ST> {
             Some(camera) => (
                 camera.1.get_projection()
                     * transforms
-                        .get(&camera.0)
+                        .get(camera.0)
                         .map(|transform| {
                             transform.get_transformation_matrix_inverse(true, true, false)
                         })

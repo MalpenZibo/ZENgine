@@ -90,7 +90,7 @@ impl Components {
 }
 
 pub trait AnySet: Downcast + Debug {
-    #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[allow(clippy::needless_borrow)]
     fn remove(&mut self, entity: &Entity);
 
     fn clear(&mut self);
@@ -99,6 +99,7 @@ downcast_rs::impl_downcast!(AnySet);
 
 pub type Set<C> = FnvHashMap<Entity, C>;
 impl<C: Component> AnySet for Set<C> {
+    #[allow(clippy::needless_borrow)]
     fn remove(&mut self, entity: &Entity) {
         self.remove(&entity);
     }

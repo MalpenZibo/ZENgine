@@ -27,15 +27,15 @@ fn copy_dir_content_recursive(dir: &Path, destination_dir: &Path) {
             });
         }
         for entry in fs::read_dir(dir).unwrap() {
-            let entry = entry.unwrap();
-            let path = entry.path();
+            let unwrapped_entry = entry.unwrap();
+            let path = unwrapped_entry.path();
+            let mut new_destination = destination_dir.to_path_buf();
+            new_destination.push(unwrapped_entry.file_name());
             if path.is_dir() {
-                let mut new_destination = destination_dir.to_path_buf();
-                new_destination.push(entry.file_name());
                 copy_dir_content_recursive(&path, &new_destination);
             } else {
                 let mut new_file_path = destination_dir.to_path_buf();
-                new_file_path.push(entry.file_name());
+                new_file_path.push(unwrapped_entry.file_name());
                 match std::fs::copy(&path, new_file_path.as_path()) {
                     Ok(_v) => {}
                     Err(e) => panic!(

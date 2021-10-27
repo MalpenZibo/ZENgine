@@ -113,7 +113,7 @@ fn main() {
               scale: 1.0
     ";
 
-    let bindings: Bindings<UserInput> = serde_yaml::from_str(&content).unwrap();
+    let bindings: Bindings<UserInput> = serde_yaml::from_str(content).unwrap();
 
     Engine::default()
         .with_system(PlatformSystem::default())

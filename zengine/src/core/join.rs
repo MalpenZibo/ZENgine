@@ -175,6 +175,7 @@ impl<'a, A: 'a + Component, B: 'a + Joined> Iterator for JoinIter<Iter<'a, Entit
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut next_value: Option<Self::Item> = None;
+        #[allow(clippy::while_let_on_iterator)]
         while let Some(entry) = self.iter.next() {
             next_value = Some((
                 entry.0,
@@ -199,6 +200,7 @@ impl<'a, A: 'a + Component, B: 'a + Joined> Iterator for JoinIter<IterMut<'a, En
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut next_value: Option<Self::Item> = None;
+        #[allow(clippy::while_let_on_iterator)]
         while let Some(entry) = self.iter.next() {
             next_value = Some((
                 entry.0,
