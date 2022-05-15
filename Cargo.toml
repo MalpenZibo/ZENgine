@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "zengine",
-    "zengine_macro_derive",
+    "zengine_ecs",
+    "zengine_macro",
     "examples/pong"
 ]
