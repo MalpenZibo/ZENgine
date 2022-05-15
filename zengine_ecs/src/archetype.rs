@@ -2,24 +2,35 @@ use crate::{
     component::{component_vec_to_mut, Component, ComponentColumn},
     world::Entity,
 };
-use std::{any::TypeId, sync::RwLock};
+use std::{
+    any::TypeId,
+    hash::{Hash, Hasher},
+    sync::RwLock,
+};
 
-pub type ArchetypeId = Vec<TypeId>;
+pub type ArchetypeId = u64;
+pub type ArchetypeSpecs = Vec<TypeId>;
+
+pub fn calculate_archetype_id(types: &[TypeId]) -> ArchetypeId {
+    let mut s = rustc_hash::FxHasher::default();
+    types.hash(&mut s);
+    s.finish()
+}
 
 #[derive(Default)]
 pub struct Archetype {
-    pub archetype_id: ArchetypeId,
+    pub archetype_specs: ArchetypeSpecs,
     pub entities: Vec<Entity>,
     pub components: Vec<Box<dyn ComponentColumn>>,
 }
 
 impl Archetype {
     pub fn new<T: Component>(
-        archetype_id: ArchetypeId,
+        archetype_specs: ArchetypeSpecs,
         from_archetype: Option<&Archetype>,
     ) -> Self {
         let mut archetype = Archetype {
-            archetype_id,
+            archetype_specs,
             entities: Vec::default(),
             components: Vec::with_capacity(
                 1 + from_archetype.map_or_else(|| 0, |a| a.components.len()),

@@ -1,9 +1,15 @@
-use std::{any::TypeId, ops::Deref};
+use std::{
+    any::TypeId,
+    collections::HashMap,
+    hash::{BuildHasherDefault, Hash, Hasher},
+    ops::Deref,
+};
 
+use nohash_hasher::NoHashHasher;
 use rustc_hash::FxHashMap;
 
 use crate::{
-    archetype::{Archetype, ArchetypeId},
+    archetype::{calculate_archetype_id, Archetype, ArchetypeId},
     component::Component,
 };
 
@@ -44,7 +50,7 @@ struct Edge {
 struct World {
     entity_generator: EntityGenerator,
     entities: FxHashMap<Entity, Record>,
-    archetypes: FxHashMap<ArchetypeId, Archetype>,
+    archetypes: HashMap<u64, Archetype, BuildHasherDefault<NoHashHasher<u64>>>,
 }
 
 impl World {
@@ -59,7 +65,14 @@ impl World {
 
         if let Some((new_archetype_id, new_row, replaced_entity, replaced_row)) =
             if let Some(record) = self.entities.get(&entity) {
-                match record.archetypeId.binary_search(&component_id) {
+                let mut archetype_specs = self
+                    .archetypes
+                    .get(&record.archetypeId)
+                    .unwrap()
+                    .archetype_specs
+                    .clone();
+
+                match archetype_specs.binary_search(&component_id) {
                     Ok(index) => {
                         // component already present in the entity archetype
                         // replace the old component with the new one
@@ -73,8 +86,8 @@ impl World {
                     Err(index) => {
                         // component not present in the entity archetype
                         // create the new archetype
-                        let mut new_archetype_id: ArchetypeId = record.archetypeId.clone();
-                        new_archetype_id.insert(index, component_id);
+                        archetype_specs.insert(index, component_id);
+                        let new_archetype_id = calculate_archetype_id(&archetype_specs);
 
                         let (components, replaced_entity) = self
                             .archetypes
@@ -87,9 +100,9 @@ impl World {
                                 archetype
                             } else {
                                 self.archetypes.insert(
-                                    new_archetype_id.clone(),
+                                    new_archetype_id,
                                     Archetype::new::<T>(
-                                        new_archetype_id.clone(),
+                                        archetype_specs,
                                         Some(self.archetypes.get(&record.archetypeId).unwrap()),
                                     ),
                                 );
