@@ -1,6 +1,6 @@
 use crate::{
     component::{component_vec_to_mut, Component, ComponentColumn},
-    world::Entity,
+    entity::Entity,
 };
 use std::{
     any::TypeId,
@@ -17,7 +17,7 @@ pub fn calculate_archetype_id(types: &[TypeId]) -> ArchetypeId {
     s.finish()
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Archetype {
     pub archetype_specs: ArchetypeSpecs,
     pub entities: Vec<Entity>,
@@ -25,27 +25,54 @@ pub struct Archetype {
 }
 
 impl Archetype {
-    pub fn new<T: Component>(
+    pub fn new<T: Component>(archetype_specs: ArchetypeSpecs) -> Self {
+        let mut archetype = Archetype {
+            archetype_specs,
+            entities: Vec::default(),
+            components: Vec::with_capacity(1),
+        };
+
+        archetype
+            .components
+            .push(Box::new(RwLock::new(Vec::<T>::new())));
+
+        archetype
+    }
+
+    pub fn new_from_archetype<T: Component>(
         archetype_specs: ArchetypeSpecs,
-        from_archetype: Option<&Archetype>,
+        from_archetype: &Archetype,
     ) -> Self {
         let mut archetype = Archetype {
             archetype_specs,
             entities: Vec::default(),
-            components: Vec::with_capacity(
-                1 + from_archetype.map_or_else(|| 0, |a| a.components.len()),
-            ),
+            components: Vec::with_capacity(1 + from_archetype.components.len()),
         };
 
-        if let Some(from_archetype) = from_archetype {
-            for c in from_archetype.components.iter() {
-                archetype.components.push(c.new_same_type());
-            }
+        for c in from_archetype.components.iter() {
+            archetype.components.push(c.new_same_type());
         }
 
         archetype
             .components
             .push(Box::new(RwLock::new(Vec::<T>::new())));
+
+        archetype
+    }
+
+    pub fn new_from_component(
+        archetype_specs: ArchetypeSpecs,
+        from_components: &Vec<Box<dyn ComponentColumn>>,
+    ) -> Self {
+        let mut archetype = Archetype {
+            archetype_specs,
+            entities: Vec::default(),
+            components: Vec::with_capacity(from_components.len()),
+        };
+
+        for c in from_components.iter() {
+            archetype.components.push(c.new_same_type());
+        }
 
         archetype
     }
@@ -64,30 +91,22 @@ impl Archetype {
         column[row_index] = component;
     }
 
-    pub fn extract_entity(
-        &mut self,
-        entity_row: usize,
-    ) -> (Vec<Box<dyn Component>>, Option<Entity>) {
-        self.entities.swap_remove(entity_row);
-
-        (
-            self.components
-                .iter_mut()
-                .map(|column| column.swap_remove(entity_row))
-                .collect(),
-            if self.entities.len() == 0 {
-                None
-            } else {
-                Some(self.entities[entity_row])
-            },
-        )
+    pub fn push<T: Component>(&mut self, component_index: usize, t: T) {
+        let component_column = component_vec_to_mut(&mut *self.components[component_index]);
+        component_column.push(t)
     }
 
-    pub fn push_components(&mut self, components: Vec<Box<dyn Component>>) {
-        let mut index = 0;
-        for component in components.into_iter() {
-            self.components[index].push(component);
-            index += 1;
-        }
+    /// Removes the component from an entity and pushes it to the other archetype
+    /// The type does not need to be known to call this function.
+    /// But the types of component_index and other_index need to match.
+    pub fn migrate_component(
+        &mut self,
+        component_index: usize,
+        entity_row: usize,
+        other_archetype: &mut Archetype,
+        other_index: usize,
+    ) {
+        self.components[component_index]
+            .migrate(entity_row, &mut *other_archetype.components[other_index]);
     }
 }

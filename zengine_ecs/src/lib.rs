@@ -1,7 +1,9 @@
 mod archetype;
 mod component;
+mod entity;
 pub mod world;
 
 pub enum ECSError {
-    EntityNotFound,
+    EntityNotValid,
+    EntityDontHaveComponent,
 }
