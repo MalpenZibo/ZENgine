@@ -21,8 +21,4 @@ impl EntityGenerator {
 
         entity
     }
-
-    pub fn valid_entity(&self, entity: Entity) -> bool {
-        entity.0 < self.current
-    }
 }

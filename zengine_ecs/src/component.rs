@@ -7,7 +7,7 @@ pub trait ComponentColumn: Debug {
     fn to_any_mut(&mut self) -> &mut dyn Any;
     fn swap_remove(&mut self, row_index: usize) -> Box<dyn Component>;
     fn new_same_type(&self) -> Box<dyn ComponentColumn>;
-    fn migrate(&mut self, entity_index: usize, other_component_vec: &mut dyn ComponentColumn);
+    fn migrate(&mut self, row_index: usize, other_component_vec: &mut dyn ComponentColumn);
 }
 
 impl<T: Component> ComponentColumn for RwLock<Vec<T>> {
@@ -26,8 +26,8 @@ impl<T: Component> ComponentColumn for RwLock<Vec<T>> {
         Box::new(RwLock::new(Vec::<T>::new()))
     }
 
-    fn migrate(&mut self, entity_index: usize, other_component_vec: &mut dyn ComponentColumn) {
-        let data: T = self.get_mut().unwrap().swap_remove(entity_index as usize);
+    fn migrate(&mut self, row_index: usize, other_component_vec: &mut dyn ComponentColumn) {
+        let data: T = self.get_mut().unwrap().swap_remove(row_index);
         component_vec_to_mut(other_component_vec).push(data);
     }
 }

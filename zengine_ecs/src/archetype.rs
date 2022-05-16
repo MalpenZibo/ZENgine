@@ -17,7 +17,7 @@ pub fn calculate_archetype_id(types: &[TypeId]) -> ArchetypeId {
     s.finish()
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct Archetype {
     pub archetype_specs: ArchetypeSpecs,
     pub entities: Vec<Entity>,
@@ -25,6 +25,14 @@ pub struct Archetype {
 }
 
 impl Archetype {
+    pub fn root() -> Self {
+        Archetype {
+            archetype_specs: vec![],
+            entities: Vec::default(),
+            components: Vec::default(),
+        }
+    }
+
     pub fn new<T: Component>(archetype_specs: ArchetypeSpecs) -> Self {
         let mut archetype = Archetype {
             archetype_specs,
