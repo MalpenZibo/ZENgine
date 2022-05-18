@@ -63,7 +63,33 @@ impl World {
         entity
     }
 
-    pub fn despawn(&mut self, entity: Entity) {}
+    pub fn despawn(&mut self, entity: Entity) -> Result<(), ECSError> {
+        if let Some(record) = self.entity_record.get(&entity) {
+            let archetype = self
+                .archetypes
+                .get_mut(record.archetype_index)
+                .expect("archetype should be present");
+            let row = record.row;
+
+            archetype.entities.swap_remove(row);
+            for c in archetype.components.iter_mut() {
+                c.swap_remove(row);
+            }
+
+            // get the entity that take the place of the old one
+            archetype
+                .entities
+                .get(record.row)
+                .and_then(|entity| self.entity_record.get_mut(entity))
+                .map(|record| record.row = row);
+
+            self.entity_record.remove(&entity);
+
+            Ok(())
+        } else {
+            Err(ECSError::EntityNotValid)
+        }
+    }
 
     pub fn add_component<T: ComponentBundle>(
         &mut self,
