@@ -17,6 +17,11 @@ pub fn calculate_archetype_id(types: &[TypeId]) -> ArchetypeId {
     s.finish()
 }
 
+pub enum ComponentSearch {
+    CurrentArchetype(Vec<(TypeId, usize, usize)>),
+    NewArchetype(Vec<(TypeId, usize, usize)>),
+}
+
 #[derive(Debug)]
 pub struct Archetype {
     pub archetype_specs: ArchetypeSpecs,
@@ -33,44 +38,9 @@ impl Archetype {
         }
     }
 
-    pub fn new<T: Component>(archetype_specs: ArchetypeSpecs) -> Self {
-        let mut archetype = Archetype {
-            archetype_specs,
-            entities: Vec::default(),
-            components: Vec::with_capacity(1),
-        };
-
-        archetype
-            .components
-            .push(Box::new(RwLock::new(Vec::<T>::new())));
-
-        archetype
-    }
-
-    pub fn new_from_archetype<T: Component>(
-        archetype_specs: ArchetypeSpecs,
-        from_archetype: &Archetype,
-    ) -> Self {
-        let mut archetype = Archetype {
-            archetype_specs,
-            entities: Vec::default(),
-            components: Vec::with_capacity(1 + from_archetype.components.len()),
-        };
-
-        for c in from_archetype.components.iter() {
-            archetype.components.push(c.new_same_type());
-        }
-
-        archetype
-            .components
-            .push(Box::new(RwLock::new(Vec::<T>::new())));
-
-        archetype
-    }
-
     pub fn new_from_component(
         archetype_specs: ArchetypeSpecs,
-        from_components: &Vec<Box<dyn ComponentColumn>>,
+        from_components: Vec<Box<dyn ComponentColumn>>,
     ) -> Self {
         let mut archetype = Archetype {
             archetype_specs,
@@ -78,30 +48,11 @@ impl Archetype {
             components: Vec::with_capacity(from_components.len()),
         };
 
-        for c in from_components.iter() {
-            archetype.components.push(c.new_same_type());
+        for c in from_components.into_iter() {
+            archetype.components.push(c);
         }
 
         archetype
-    }
-
-    pub fn len(&self) -> usize {
-        self.entities.len()
-    }
-
-    pub fn replace_component<T: Component>(
-        &mut self,
-        column_index: usize,
-        row_index: usize,
-        component: T,
-    ) {
-        let column = component_vec_to_mut(self.components.get_mut(column_index).unwrap().as_mut());
-        column[row_index] = component;
-    }
-
-    pub fn push<T: Component>(&mut self, component_index: usize, t: T) {
-        let component_column = component_vec_to_mut(&mut *self.components[component_index]);
-        component_column.push(t)
     }
 
     /// Removes the component from an entity and pushes it to the other archetype

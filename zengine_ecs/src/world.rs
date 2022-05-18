@@ -1,11 +1,11 @@
-use std::{any::TypeId, collections::HashMap, hash::BuildHasherDefault};
+use std::{collections::HashMap, hash::BuildHasherDefault};
 
 use nohash_hasher::NoHashHasher;
 use rustc_hash::FxHashMap;
 
 use crate::{
-    archetype::{calculate_archetype_id, Archetype},
-    component::Component,
+    archetype::{calculate_archetype_id, Archetype, ArchetypeSpecs},
+    component::{ComponentBundle, ComponentColumn},
     entity::{Entity, EntityGenerator},
     ECSError,
 };
@@ -16,6 +16,7 @@ struct Record {
     row: usize,
 }
 
+#[derive(Debug)]
 struct World {
     entity_generator: EntityGenerator,
     entity_record: FxHashMap<Entity, Record>,
@@ -64,51 +65,42 @@ impl World {
 
     pub fn despawn(&mut self, entity: Entity) {}
 
-    pub fn add_component<T: Component>(
+    pub fn add_component<T: ComponentBundle>(
         &mut self,
         entity: Entity,
-        component: T,
+        component_bundle: T,
     ) -> Result<(), ECSError> {
-        let component_id = TypeId::of::<T>();
+        let component_ids = T::get_types();
 
-        enum EntitySearch {
-            CurrentArchetype(usize, usize, usize),
-            NewArchetype(usize, usize, usize),
-        }
-
-        match self.entity_record.get(&entity).map(|record| {
-            self.archetypes
+        if let Some(record) = self.entity_record.get(&entity) {
+            let archetype = self
+                .archetypes
                 .get(record.archetype_index)
-                .expect("Wrong archetype index")
-                .archetype_specs
-                .binary_search(&component_id)
-                .map(|index| {
-                    EntitySearch::CurrentArchetype(record.archetype_index, index, record.row)
-                })
-                .unwrap_or_else(|err| {
-                    EntitySearch::NewArchetype(record.archetype_index, err, record.row)
-                })
-        }) {
-            Some(EntitySearch::CurrentArchetype(archetype_index, column_index, row_index)) => {
-                // Entity present and component already in the current archetype
-                // replace the old component with the new one
-                self.archetypes
-                    .get_mut(archetype_index)
-                    .unwrap()
-                    .replace_component(column_index, row_index, component);
+                .expect("archetype should be present");
 
-                Ok(())
+            let mut destination_archetype_specs = archetype.archetype_specs.clone();
+            let mut new_archetype = false;
+
+            for c_id in component_ids.iter() {
+                match destination_archetype_specs.binary_search(&c_id) {
+                    Err(insert_index) => {
+                        destination_archetype_specs.insert(insert_index, *c_id);
+                        new_archetype = true;
+                    }
+                    _ => {}
+                }
             }
-            Some(EntitySearch::NewArchetype(
-                source_archetype_index,
-                new_column_insert_position,
-                source_row_index,
-            )) => {
-                // calculate the new archetype specs and check if exist
-                let mut destination_archetype_specs = self.archetypes[source_archetype_index]
-                    .archetype_specs
-                    .clone();
-                destination_archetype_specs.insert(new_column_insert_position, component_id);
+            let column_indexes: Vec<usize> = destination_archetype_specs
+                .iter()
+                .enumerate()
+                .filter(|(_, a)| component_ids.iter().any(|b| **a == *b))
+                .map(|(index, _)| index)
+                .collect();
+
+            if new_archetype {
+                let source_archetype = record.archetype_index;
+                let source_row = record.row;
+
                 let destination_archetype_id = calculate_archetype_id(&destination_archetype_specs);
 
                 let destination_archetype_index = self
@@ -117,9 +109,27 @@ impl World {
                     .map(|index| *index)
                     .unwrap_or_else(|| {
                         let destination_archetype_index = self.archetypes.len();
-                        self.archetypes.push(Archetype::new_from_archetype::<T>(
+                        let mut component_columns: Vec<Box<dyn ComponentColumn>> = self
+                            .archetypes
+                            .get(source_archetype)
+                            .expect("source archetype should be present")
+                            .components
+                            .iter()
+                            .map(|column| column.new_same_type())
+                            .collect();
+
+                        let mut components = component_bundle.get_component_columns();
+                        for column_index in column_indexes.iter().rev() {
+                            if *column_index > component_columns.len() {
+                                component_columns.push(components.pop().unwrap());
+                            } else {
+                                component_columns.insert(*column_index, components.pop().unwrap());
+                            }
+                        }
+
+                        self.archetypes.push(Archetype::new_from_component(
                             destination_archetype_specs,
-                            self.archetypes.get(source_archetype_index).unwrap(),
+                            component_columns,
                         ));
                         self.archetype_map
                             .insert(destination_archetype_id, destination_archetype_index);
@@ -132,138 +142,160 @@ impl World {
                 // index_twice lets us mutably borrow from the world twice.
                 let (old_archetype, new_archetype) = index_twice(
                     &mut self.archetypes,
-                    source_archetype_index,
+                    source_archetype,
                     destination_archetype_index,
                 );
 
-                old_archetype.entities.swap_remove(source_row_index);
+                old_archetype.entities.swap_remove(source_row);
                 new_archetype.entities.push(entity);
 
-                for i in 0..old_archetype.components.len() {
-                    old_archetype.migrate_component(i, source_row_index, new_archetype, i);
+                let mut last_index = 0;
+                for column_index in column_indexes.iter() {
+                    for i in last_index..*column_index {
+                        old_archetype.migrate_component(i, source_row, new_archetype, i);
+                    }
+
+                    last_index = *column_index + 1;
                 }
 
-                new_archetype.push(new_column_insert_position, component);
-
-                for i in new_column_insert_position..old_archetype.components.len() {
-                    old_archetype.migrate_component(i, source_row_index, new_archetype, i);
+                for i in last_index..old_archetype.components.len() {
+                    old_archetype.migrate_component(i, source_row, new_archetype, i);
                 }
+
+                ComponentBundle::inser_into(new_archetype, component_bundle, column_indexes);
 
                 // component migrated
 
                 // update entity reference
 
-                // get the entity tthat take the place of the old one
+                // get the entity that take the place of the old one
                 old_archetype
                     .entities
-                    .get(source_row_index)
+                    .get(record.row)
                     .and_then(|entity| self.entity_record.get_mut(entity))
-                    .map(|record| record.row = source_row_index);
+                    .map(|record| record.row = source_row);
 
                 self.entity_record.get_mut(&entity).map(|record| {
                     record.archetype_index = destination_archetype_index;
                     record.row = new_archetype.entities.len() - 1;
                 });
-
-                Ok(())
+            } else {
+                ComponentBundle::replace_into(
+                    self.archetypes
+                        .get_mut(record.archetype_index)
+                        .expect("target archetype should be present"),
+                    component_bundle,
+                    record.row,
+                    column_indexes,
+                );
             }
-            None => Err(ECSError::EntityNotValid),
+
+            Ok(())
+        } else {
+            Err(ECSError::EntityNotValid)
         }
     }
 
-    pub fn remove_component<T: Component>(&mut self, entity: Entity) -> Result<(), ECSError> {
-        let component_id = TypeId::of::<T>();
+    pub fn remove_component<T: ComponentBundle>(&mut self, entity: Entity) -> Result<(), ECSError> {
+        let component_ids = T::get_types();
 
-        enum EntitySearch {
-            NewArchetype(usize, usize, usize),
-            ComponentNotFound,
-        };
-
-        match self.entity_record.get(&entity).map(|record| {
-            self.archetypes
+        if let Some(record) = self.entity_record.get(&entity) {
+            let archetype = self
+                .archetypes
                 .get(record.archetype_index)
-                .expect("Wrong archetype index")
+                .expect("archetype should be present");
+
+            let mut column_indexes: Vec<usize> = Vec::default();
+
+            for c_id in component_ids.iter() {
+                match archetype.archetype_specs.binary_search(&c_id) {
+                    Ok(index) => column_indexes.push(index),
+                    _ => {}
+                }
+            }
+            let (migrate_column_indexes, destination_archetype_specs): (
+                Vec<usize>,
+                ArchetypeSpecs,
+            ) = archetype
                 .archetype_specs
-                .binary_search(&component_id)
-                .map_or_else(
-                    |_| EntitySearch::ComponentNotFound,
-                    |column_index| {
-                        EntitySearch::NewArchetype(record.archetype_index, column_index, record.row)
-                    },
-                )
-        }) {
-            Some(EntitySearch::NewArchetype(
-                source_archetype_index,
-                old_column_insert_position,
-                source_row_index,
-            )) => {
-                // calculate the new archetype specs and check if exist
-                let mut destination_archetype_specs = self.archetypes[source_archetype_index]
-                    .archetype_specs
-                    .clone();
-                destination_archetype_specs.remove(old_column_insert_position);
-                let destination_archetype_id = calculate_archetype_id(&destination_archetype_specs);
+                .iter()
+                .enumerate()
+                .filter(|(_, c1)| !component_ids.iter().any(|c2| c2 == *c1))
+                .map(|(index, c)| (index, *c))
+                .unzip();
 
-                let destination_archetype_index = self
-                    .archetype_map
-                    .get(&destination_archetype_id)
-                    .map(|index| *index)
-                    .unwrap_or_else(|| {
-                        let destination_archetype_index = self.archetypes.len();
-                        self.archetypes.push(Archetype::new_from_component(
-                            destination_archetype_specs,
-                            &self
-                                .archetypes
-                                .get(source_archetype_index)
-                                .unwrap()
-                                .components,
-                        ));
-                        self.archetype_map
-                            .insert(destination_archetype_id, destination_archetype_index);
+            let source_archetype = record.archetype_index;
+            let source_row = record.row;
 
-                        destination_archetype_index
-                    });
+            let destination_archetype_id = calculate_archetype_id(&destination_archetype_specs);
 
-                // migrate component to the new archetype
+            let destination_archetype_index = self
+                .archetype_map
+                .get(&destination_archetype_id)
+                .map(|index| *index)
+                .unwrap_or_else(|| {
+                    let destination_archetype_index = self.archetypes.len();
+                    let component_columns: Vec<Box<dyn ComponentColumn>> = self
+                        .archetypes
+                        .get(source_archetype)
+                        .expect("source archetype should be present")
+                        .components
+                        .iter()
+                        .enumerate()
+                        .filter(|(index, _)| migrate_column_indexes.iter().any(|c| c == index))
+                        .map(|(_, column)| column.new_same_type())
+                        .collect();
 
-                // index_twice lets us mutably borrow from the world twice.
-                let (old_archetype, new_archetype) = index_twice(
-                    &mut self.archetypes,
-                    source_archetype_index,
-                    destination_archetype_index,
-                );
+                    self.archetypes.push(Archetype::new_from_component(
+                        destination_archetype_specs,
+                        component_columns,
+                    ));
+                    self.archetype_map
+                        .insert(destination_archetype_id, destination_archetype_index);
 
-                old_archetype.entities.swap_remove(source_row_index);
-                new_archetype.entities.push(entity);
-
-                for i in 0..old_column_insert_position {
-                    old_archetype.migrate_component(i, source_row_index, new_archetype, i);
-                }
-
-                for i in old_column_insert_position + 1..old_archetype.components.len() {
-                    old_archetype.migrate_component(i, source_row_index, new_archetype, i);
-                }
-
-                // component migrated
-
-                // update entity reference
-
-                // get the entity tthat take the place of the old one
-                old_archetype
-                    .entities
-                    .get(source_row_index)
-                    .and_then(|entity| self.entity_record.get_mut(entity))
-                    .map(|record| record.row = source_row_index);
-
-                self.entity_record.get_mut(&entity).map(|record| {
-                    record.archetype_index = destination_archetype_index;
-                    record.row = new_archetype.entities.len() - 1;
+                    destination_archetype_index
                 });
 
-                Ok(())
+            // migrate component to the new archetype
+
+            // index_twice lets us mutably borrow from the world twice.
+            let (old_archetype, new_archetype) = index_twice(
+                &mut self.archetypes,
+                source_archetype,
+                destination_archetype_index,
+            );
+
+            old_archetype.entities.swap_remove(source_row);
+            new_archetype.entities.push(entity);
+
+            for column_index in 0..new_archetype.components.len() {
+                old_archetype.migrate_component(
+                    migrate_column_indexes[column_index],
+                    source_row,
+                    new_archetype,
+                    column_index,
+                );
             }
-            Some(EntitySearch::ComponentNotFound) => Err(ECSError::EntityDontHaveComponent),
-            None => Err(ECSError::EntityNotValid),
+
+            // component migrated
+
+            // update entity reference
+
+            // get the entity that take the place of the old one
+            old_archetype
+                .entities
+                .get(record.row)
+                .and_then(|entity| self.entity_record.get_mut(entity))
+                .map(|record| record.row = source_row);
+
+            self.entity_record.get_mut(&entity).map(|record| {
+                record.archetype_index = destination_archetype_index;
+                record.row = new_archetype.entities.len() - 1;
+            });
+
+            Ok(())
+        } else {
+            Err(ECSError::EntityNotValid)
         }
     }
 }
@@ -281,6 +313,10 @@ fn index_twice<T>(slice: &mut [T], first: usize, second: usize) -> (&mut T, &mut
 
 #[cfg(test)]
 mod tests {
+    use std::sync::RwLock;
+
+    use crate::component::Component;
+
     use super::*;
 
     #[derive(Debug)]
@@ -291,12 +327,14 @@ mod tests {
     struct Component2 {}
     impl Component for Component2 {}
 
-    #[derive(Debug)]
-    struct Component3 {}
+    #[derive(Debug, PartialEq)]
+    struct Component3 {
+        data: u32,
+    }
     impl Component for Component3 {}
 
     #[test]
-    fn insert_component() {
+    fn component_insert() {
         let mut world = World::default();
 
         let entity = world.spawn();
@@ -309,6 +347,58 @@ mod tests {
                 archetype_index: 1,
                 row: 0
             })
+        );
+        assert_eq!(world.archetypes.len(), 2);
+    }
+
+    #[test]
+    fn multiple_component_insert() {
+        let mut world = World::default();
+
+        let entity = world.spawn();
+
+        world
+            .add_component(entity, (Component1 {}, Component3 { data: 3 }))
+            .unwrap();
+
+        assert_eq!(
+            world.entity_record.get(&entity),
+            Some(&Record {
+                archetype_index: 1,
+                row: 0
+            })
+        );
+        assert_eq!(world.archetypes.len(), 2);
+    }
+
+    #[test]
+    fn component_replace() {
+        let mut world = World::default();
+
+        let entity = world.spawn();
+
+        world
+            .add_component(entity, Component3 { data: 32 })
+            .unwrap();
+        world
+            .add_component(entity, Component3 { data: 42 })
+            .unwrap();
+
+        assert_eq!(
+            world.entity_record.get(&entity),
+            Some(&Record {
+                archetype_index: 1,
+                row: 0
+            })
+        );
+        assert_eq!(
+            world.archetypes[1].components[0]
+                .to_any()
+                .downcast_ref::<RwLock<Vec<Component3>>>()
+                .unwrap()
+                .read()
+                .unwrap()[0],
+            Component3 { data: 42 }
         );
         assert_eq!(world.archetypes.len(), 2);
     }
@@ -338,17 +428,21 @@ mod tests {
 
         let entity = world.spawn();
 
-        world.add_component(entity, Component1 {}).unwrap();
+        world
+            .add_component(entity, (Component1 {}, Component3 { data: 2 }))
+            .unwrap();
         world.add_component(entity, Component2 {}).unwrap();
-        world.remove_component::<Component2>(entity).unwrap();
+        world
+            .remove_component::<(Component1, Component3)>(entity)
+            .unwrap();
 
         assert_eq!(
             world.entity_record.get(&entity),
             Some(&Record {
-                archetype_index: 1,
+                archetype_index: 3,
                 row: 0
             })
         );
-        assert_eq!(world.archetypes.len(), 3);
+        assert_eq!(world.archetypes.len(), 4);
     }
 }

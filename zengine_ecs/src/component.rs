@@ -1,6 +1,81 @@
-use std::{any::Any, fmt::Debug, sync::RwLock};
+use std::{
+    any::{Any, TypeId},
+    fmt::Debug,
+    sync::RwLock,
+};
+
+use crate::archetype::Archetype;
+
+pub trait ComponentBundle {
+    fn get_types() -> Vec<TypeId>;
+
+    fn get_component_columns(&self) -> Vec<Box<dyn ComponentColumn>>;
+
+    fn inser_into(archetype: &mut Archetype, bundle: Self, columns: Vec<usize>);
+
+    fn replace_into(archetype: &mut Archetype, bundle: Self, row: usize, columns: Vec<usize>);
+}
 
 pub trait Component: Any + Debug {}
+
+impl<T: Component> ComponentBundle for T {
+    fn get_types() -> Vec<TypeId> {
+        vec![TypeId::of::<T>()]
+    }
+
+    fn get_component_columns(&self) -> Vec<Box<dyn ComponentColumn>> {
+        vec![Box::new(RwLock::new(Vec::<T>::new()))]
+    }
+
+    fn inser_into(archetype: &mut Archetype, bundle: Self, mut columns: Vec<usize>) {
+        let column_index = columns.pop().unwrap();
+        let column = component_vec_to_mut(&mut *archetype.components[column_index]);
+        column.push(bundle);
+    }
+
+    fn replace_into(archetype: &mut Archetype, bundle: Self, row: usize, mut columns: Vec<usize>) {
+        let column_index = columns.pop().unwrap();
+        let column = component_vec_to_mut(&mut *archetype.components[column_index]);
+        column[row] = bundle;
+    }
+}
+
+impl<A: Component, B: Component> ComponentBundle for (A, B) {
+    fn get_types() -> Vec<TypeId> {
+        vec![TypeId::of::<A>(), TypeId::of::<B>()]
+    }
+
+    fn get_component_columns(&self) -> Vec<Box<dyn ComponentColumn>> {
+        vec![
+            Box::new(RwLock::new(Vec::<A>::new())),
+            Box::new(RwLock::new(Vec::<B>::new())),
+        ]
+    }
+
+    fn inser_into(archetype: &mut Archetype, bundle: Self, mut columns: Vec<usize>) {
+        let (a, b) = bundle;
+
+        let column_index = columns.pop().unwrap();
+        let column = component_vec_to_mut::<B>(&mut *archetype.components[column_index]);
+        column.push(b);
+
+        let column_index = columns.pop().unwrap();
+        let column = component_vec_to_mut::<A>(&mut *archetype.components[column_index]);
+        column.push(a);
+    }
+
+    fn replace_into(archetype: &mut Archetype, bundle: Self, row: usize, mut columns: Vec<usize>) {
+        let (a, b) = bundle;
+
+        let e = columns.pop().unwrap();
+        let column = component_vec_to_mut::<B>(&mut *archetype.components[e]);
+        column[row] = b;
+
+        let e = columns.pop().unwrap();
+        let column = component_vec_to_mut::<A>(&mut *archetype.components[e]);
+        column[row] = a;
+    }
+}
 
 pub trait ComponentColumn: Debug {
     fn to_any(&self) -> &dyn Any;

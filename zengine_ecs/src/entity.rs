@@ -10,7 +10,7 @@ impl Deref for Entity {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct EntityGenerator {
     current: usize,
 }
