@@ -63,11 +63,11 @@ impl Archetype {
 
 #[cfg(test)]
 mod tests {
-    use std::{any::TypeId, sync::RwLock};
+    use std::any::TypeId;
 
     use crate::{
         component::{component_vec_to_mut, Component, ComponentBundle},
-        entity::{Entity, EntityGenerator},
+        entity::EntityGenerator,
     };
 
     use super::Archetype;
