@@ -109,7 +109,7 @@ mod tests {
         );
 
         archetype1.entities.push(entity);
-        Component1::inser_into(&mut archetype1, component1, vec![0]);
+        component1.inser_into(&mut archetype1, vec![0]);
 
         archetype1.migrate_component(0, 0, &mut archetype2, 0);
         archetype1.entities.remove(0);

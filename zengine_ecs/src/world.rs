@@ -200,7 +200,7 @@ impl World {
                     old_archetype.migrate_component(i, source_row, new_archetype, i);
                 }
 
-                ComponentBundle::inser_into(new_archetype, component_bundle, column_indexes);
+                component_bundle.inser_into(new_archetype, column_indexes);
 
                 // component migrated
 
@@ -220,11 +220,10 @@ impl World {
                     record.row = new_archetype.entities.len() - 1;
                 }
             } else {
-                ComponentBundle::replace_into(
+                component_bundle.replace_into(
                     self.archetypes
                         .get_mut(record.archetype_index)
                         .expect("target archetype should be present"),
-                    component_bundle,
                     record.row,
                     column_indexes,
                 );

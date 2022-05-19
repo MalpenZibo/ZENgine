@@ -6,17 +6,17 @@ use std::{
 
 use crate::archetype::Archetype;
 
+pub trait Component: Any + Sync + Send + Debug {}
+
 pub trait ComponentBundle {
     fn get_types() -> Vec<TypeId>;
 
     fn get_component_columns() -> Vec<Box<dyn ComponentColumn>>;
 
-    fn inser_into(archetype: &mut Archetype, bundle: Self, columns: Vec<usize>);
+    fn inser_into(self, archetype: &mut Archetype, columns: Vec<usize>);
 
-    fn replace_into(archetype: &mut Archetype, bundle: Self, row: usize, columns: Vec<usize>);
+    fn replace_into(self, archetype: &mut Archetype, row: usize, columns: Vec<usize>);
 }
-
-pub trait Component: Any + Debug {}
 
 impl<T: Component> ComponentBundle for T {
     fn get_types() -> Vec<TypeId> {
@@ -27,55 +27,78 @@ impl<T: Component> ComponentBundle for T {
         vec![Box::new(RwLock::new(Vec::<T>::new()))]
     }
 
-    fn inser_into(archetype: &mut Archetype, bundle: Self, mut columns: Vec<usize>) {
-        let column_index = columns.pop().unwrap();
+    fn inser_into(self, archetype: &mut Archetype, columns: Vec<usize>) {
+        let column_index = columns[0];
         let column = component_vec_to_mut(&mut *archetype.components[column_index]);
-        column.push(bundle);
+        column.push(self);
     }
 
-    fn replace_into(archetype: &mut Archetype, bundle: Self, row: usize, mut columns: Vec<usize>) {
-        let column_index = columns.pop().unwrap();
+    fn replace_into(self, archetype: &mut Archetype, row: usize, columns: Vec<usize>) {
+        let column_index = columns[0];
         let column = component_vec_to_mut(&mut *archetype.components[column_index]);
-        column[row] = bundle;
+        column[row] = self;
     }
 }
 
-impl<A: Component, B: Component> ComponentBundle for (A, B) {
-    fn get_types() -> Vec<TypeId> {
-        vec![TypeId::of::<A>(), TypeId::of::<B>()]
-    }
+macro_rules! impl_component_bundle_for_tuple {
+    ( $($ty:ident => $index:tt),* ) => {
+        impl<$($ty),*> ComponentBundle for ( $( $ty, )* )
+        where $( $ty: Component ),*
+        {
+            fn get_types() -> Vec<TypeId> {
+                vec![$( TypeId::of::<$ty>(), )*]
+            }
 
-    fn get_component_columns() -> Vec<Box<dyn ComponentColumn>> {
-        vec![
-            Box::new(RwLock::new(Vec::<A>::new())),
-            Box::new(RwLock::new(Vec::<B>::new())),
-        ]
-    }
+            fn get_component_columns() -> Vec<Box<dyn ComponentColumn>> {
+                vec![
+                    $( Box::new(RwLock::new(Vec::<$ty>::new())), )*
+                ]
+            }
 
-    fn inser_into(archetype: &mut Archetype, bundle: Self, mut columns: Vec<usize>) {
-        let (a, b) = bundle;
+            fn inser_into(self, archetype: &mut Archetype, columns: Vec<usize>) {
+                $(
+                    let column_index = columns[$index];
+                    let column = component_vec_to_mut::<$ty>(&mut *archetype.components[column_index]);
+                    column.push(self.$index);
+                ) *
 
-        let column_index = columns.pop().unwrap();
-        let column = component_vec_to_mut::<B>(&mut *archetype.components[column_index]);
-        column.push(b);
+            }
 
-        let column_index = columns.pop().unwrap();
-        let column = component_vec_to_mut::<A>(&mut *archetype.components[column_index]);
-        column.push(a);
-    }
-
-    fn replace_into(archetype: &mut Archetype, bundle: Self, row: usize, mut columns: Vec<usize>) {
-        let (a, b) = bundle;
-
-        let e = columns.pop().unwrap();
-        let column = component_vec_to_mut::<B>(&mut *archetype.components[e]);
-        column[row] = b;
-
-        let e = columns.pop().unwrap();
-        let column = component_vec_to_mut::<A>(&mut *archetype.components[e]);
-        column[row] = a;
+            fn replace_into(self, archetype: &mut Archetype, row: usize, columns: Vec<usize>) {
+                $(
+                    let column_index = columns[$index];
+                    let column = component_vec_to_mut::<$ty>(&mut *archetype.components[column_index]);
+                    column[row] = self.$index;
+                ) *
+            }
+        }
     }
 }
+impl_component_bundle_for_tuple!(A => 0, B => 1);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20, V => 21);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20, V => 21, W => 22);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20, V => 21, W => 22, X => 23);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20, V => 21, W => 22, X => 23, Y => 24);
+impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20, V => 21, W => 22, X => 23, Y => 24, Z => 25 );
 
 pub trait ComponentColumn: Debug {
     fn to_any(&self) -> &dyn Any;
