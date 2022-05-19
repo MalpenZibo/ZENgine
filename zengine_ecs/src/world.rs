@@ -17,7 +17,7 @@ struct Record {
 }
 
 #[derive(Debug)]
-struct World {
+pub struct World {
     entity_generator: EntityGenerator,
     entity_record: FxHashMap<Entity, Record>,
     archetype_map: HashMap<u64, usize, BuildHasherDefault<NoHashHasher<u64>>>,
@@ -44,7 +44,20 @@ impl Default for World {
 }
 
 impl World {
-    pub fn spawn(&mut self) -> Entity {
+    pub fn spawn_without_component(&mut self) -> Entity {
+        self.internal_spawn()
+    }
+
+    pub fn spawn<T: ComponentBundle>(&mut self, component_bundle: T) -> Entity {
+        let entity = self.internal_spawn();
+
+        self.add_component(entity, component_bundle)
+            .expect("entity should be present");
+
+        entity
+    }
+
+    fn internal_spawn(&mut self) -> Entity {
         let entity = self.entity_generator.generate();
 
         let root_archetype = self
@@ -77,11 +90,13 @@ impl World {
             }
 
             // get the entity that take the place of the old one
-            archetype
+            if let Some(record) = archetype
                 .entities
                 .get(record.row)
                 .and_then(|entity| self.entity_record.get_mut(entity))
-                .map(|record| record.row = row);
+            {
+                record.row = row
+            };
 
             self.entity_record.remove(&entity);
 
@@ -108,12 +123,9 @@ impl World {
             let mut new_archetype = false;
 
             for c_id in component_ids.iter() {
-                match destination_archetype_specs.binary_search(&c_id) {
-                    Err(insert_index) => {
-                        destination_archetype_specs.insert(insert_index, *c_id);
-                        new_archetype = true;
-                    }
-                    _ => {}
+                if let Err(insert_index) = destination_archetype_specs.binary_search(c_id) {
+                    destination_archetype_specs.insert(insert_index, *c_id);
+                    new_archetype = true;
                 }
             }
             let column_indexes: Vec<usize> = destination_archetype_specs
@@ -132,7 +144,7 @@ impl World {
                 let destination_archetype_index = self
                     .archetype_map
                     .get(&destination_archetype_id)
-                    .map(|index| *index)
+                    .copied()
                     .unwrap_or_else(|| {
                         let destination_archetype_index = self.archetypes.len();
                         let mut component_columns: Vec<Box<dyn ComponentColumn>> = self
@@ -144,7 +156,7 @@ impl World {
                             .map(|column| column.new_same_type())
                             .collect();
 
-                        let mut components = component_bundle.get_component_columns();
+                        let mut components = T::get_component_columns();
                         for column_index in column_indexes.iter().rev() {
                             if *column_index > component_columns.len() {
                                 component_columns.push(components.pop().unwrap());
@@ -195,16 +207,18 @@ impl World {
                 // update entity reference
 
                 // get the entity that take the place of the old one
-                old_archetype
+                if let Some(record) = old_archetype
                     .entities
                     .get(record.row)
                     .and_then(|entity| self.entity_record.get_mut(entity))
-                    .map(|record| record.row = source_row);
+                {
+                    record.row = source_row
+                }
 
-                self.entity_record.get_mut(&entity).map(|record| {
+                if let Some(record) = self.entity_record.get_mut(&entity) {
                     record.archetype_index = destination_archetype_index;
                     record.row = new_archetype.entities.len() - 1;
-                });
+                }
             } else {
                 ComponentBundle::replace_into(
                     self.archetypes
@@ -234,9 +248,8 @@ impl World {
             let mut column_indexes: Vec<usize> = Vec::default();
 
             for c_id in component_ids.iter() {
-                match archetype.archetype_specs.binary_search(&c_id) {
-                    Ok(index) => column_indexes.push(index),
-                    _ => {}
+                if let Ok(index) = archetype.archetype_specs.binary_search(c_id) {
+                    column_indexes.push(index)
                 }
             }
             let (migrate_column_indexes, destination_archetype_specs): (
@@ -258,7 +271,7 @@ impl World {
             let destination_archetype_index = self
                 .archetype_map
                 .get(&destination_archetype_id)
-                .map(|index| *index)
+                .copied()
                 .unwrap_or_else(|| {
                     let destination_archetype_index = self.archetypes.len();
                     let component_columns: Vec<Box<dyn ComponentColumn>> = self
@@ -294,7 +307,11 @@ impl World {
             old_archetype.entities.swap_remove(source_row);
             new_archetype.entities.push(entity);
 
-            for column_index in 0..new_archetype.components.len() {
+            for (column_index, _) in migrate_column_indexes
+                .iter()
+                .enumerate()
+                .take(new_archetype.components.len())
+            {
                 old_archetype.migrate_component(
                     migrate_column_indexes[column_index],
                     source_row,
@@ -308,16 +325,18 @@ impl World {
             // update entity reference
 
             // get the entity that take the place of the old one
-            old_archetype
+            if let Some(record) = old_archetype
                 .entities
                 .get(record.row)
                 .and_then(|entity| self.entity_record.get_mut(entity))
-                .map(|record| record.row = source_row);
+            {
+                record.row = source_row;
+            }
 
-            self.entity_record.get_mut(&entity).map(|record| {
+            if let Some(record) = self.entity_record.get_mut(&entity) {
                 record.archetype_index = destination_archetype_index;
                 record.row = new_archetype.entities.len() - 1;
-            });
+            };
 
             Ok(())
         } else {
@@ -360,10 +379,75 @@ mod tests {
     impl Component for Component3 {}
 
     #[test]
+    fn spawn_without_component() {
+        let mut world = World::default();
+
+        let entity = world.spawn_without_component();
+
+        assert_eq!(
+            world.entity_record.get(&entity),
+            Some(&Record {
+                archetype_index: 0,
+                row: 0
+            })
+        );
+        assert_eq!(world.archetypes.len(), 1);
+    }
+
+    #[test]
+    fn spawn() {
+        let mut world = World::default();
+
+        let entity = world.spawn(Component1 {});
+
+        assert_eq!(
+            world.entity_record.get(&entity),
+            Some(&Record {
+                archetype_index: 1,
+                row: 0
+            })
+        );
+        assert_eq!(world.archetypes.len(), 2);
+    }
+
+    #[test]
+    fn despawn() {
+        let mut world = World::default();
+
+        let entity1 = world.spawn_without_component();
+        world.add_component(entity1, Component1 {}).unwrap();
+
+        let entity2 = world.spawn_without_component();
+        world.add_component(entity2, Component1 {}).unwrap();
+
+        let entity3 = world.spawn_without_component();
+        world.add_component(entity3, Component1 {}).unwrap();
+
+        world.despawn(entity2).unwrap();
+
+        assert_eq!(
+            world.entity_record.get(&entity1),
+            Some(&Record {
+                archetype_index: 1,
+                row: 0
+            })
+        );
+        assert_eq!(world.entity_record.get(&entity2), None);
+        assert_eq!(
+            world.entity_record.get(&entity3),
+            Some(&Record {
+                archetype_index: 1,
+                row: 1
+            })
+        );
+        assert_eq!(world.archetypes.len(), 2);
+    }
+
+    #[test]
     fn component_insert() {
         let mut world = World::default();
 
-        let entity = world.spawn();
+        let entity = world.spawn_without_component();
 
         world.add_component(entity, Component1 {}).unwrap();
 
@@ -381,7 +465,7 @@ mod tests {
     fn multiple_component_insert() {
         let mut world = World::default();
 
-        let entity = world.spawn();
+        let entity = world.spawn_without_component();
 
         world
             .add_component(entity, (Component1 {}, Component3 { data: 3 }))
@@ -401,7 +485,7 @@ mod tests {
     fn component_replace() {
         let mut world = World::default();
 
-        let entity = world.spawn();
+        let entity = world.spawn_without_component();
 
         world
             .add_component(entity, Component3 { data: 32 })
@@ -433,7 +517,7 @@ mod tests {
     fn insert_two_component_same_entity() {
         let mut world = World::default();
 
-        let entity = world.spawn();
+        let entity = world.spawn_without_component();
 
         world.add_component(entity, Component1 {}).unwrap();
         world.add_component(entity, Component2 {}).unwrap();
@@ -452,7 +536,7 @@ mod tests {
     fn remove_component() {
         let mut world = World::default();
 
-        let entity = world.spawn();
+        let entity = world.spawn_without_component();
 
         world
             .add_component(entity, (Component1 {}, Component3 { data: 2 }))
@@ -470,5 +554,44 @@ mod tests {
             })
         );
         assert_eq!(world.archetypes.len(), 4);
+    }
+
+    #[test]
+    fn insert_multiple_entity_and_add_one_component() {
+        let mut world = World::default();
+
+        let entity1 = world.spawn_without_component();
+        world.add_component(entity1, Component1 {}).unwrap();
+
+        let entity2 = world.spawn_without_component();
+        world.add_component(entity2, Component1 {}).unwrap();
+
+        let entity3 = world.spawn_without_component();
+        world.add_component(entity3, Component1 {}).unwrap();
+
+        world.add_component(entity2, Component2 {}).unwrap();
+
+        assert_eq!(
+            world.entity_record.get(&entity1),
+            Some(&Record {
+                archetype_index: 1,
+                row: 0
+            })
+        );
+        assert_eq!(
+            world.entity_record.get(&entity2),
+            Some(&Record {
+                archetype_index: 2,
+                row: 0
+            })
+        );
+        assert_eq!(
+            world.entity_record.get(&entity3),
+            Some(&Record {
+                archetype_index: 1,
+                row: 1
+            })
+        );
+        assert_eq!(world.archetypes.len(), 3);
     }
 }

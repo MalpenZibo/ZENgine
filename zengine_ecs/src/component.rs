@@ -9,7 +9,7 @@ use crate::archetype::Archetype;
 pub trait ComponentBundle {
     fn get_types() -> Vec<TypeId>;
 
-    fn get_component_columns(&self) -> Vec<Box<dyn ComponentColumn>>;
+    fn get_component_columns() -> Vec<Box<dyn ComponentColumn>>;
 
     fn inser_into(archetype: &mut Archetype, bundle: Self, columns: Vec<usize>);
 
@@ -23,7 +23,7 @@ impl<T: Component> ComponentBundle for T {
         vec![TypeId::of::<T>()]
     }
 
-    fn get_component_columns(&self) -> Vec<Box<dyn ComponentColumn>> {
+    fn get_component_columns() -> Vec<Box<dyn ComponentColumn>> {
         vec![Box::new(RwLock::new(Vec::<T>::new()))]
     }
 
@@ -45,7 +45,7 @@ impl<A: Component, B: Component> ComponentBundle for (A, B) {
         vec![TypeId::of::<A>(), TypeId::of::<B>()]
     }
 
-    fn get_component_columns(&self) -> Vec<Box<dyn ComponentColumn>> {
+    fn get_component_columns() -> Vec<Box<dyn ComponentColumn>> {
         vec![
             Box::new(RwLock::new(Vec::<A>::new())),
             Box::new(RwLock::new(Vec::<B>::new())),

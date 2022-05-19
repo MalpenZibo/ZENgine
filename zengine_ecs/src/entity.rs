@@ -22,3 +22,26 @@ impl EntityGenerator {
         entity
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::EntityGenerator;
+
+    #[test]
+    fn generate_an_entity() {
+        let mut generator = EntityGenerator::default();
+
+        let entities = vec![
+            generator.generate(),
+            generator.generate(),
+            generator.generate(),
+            generator.generate(),
+        ];
+
+        assert_eq!(
+            entities.into_iter().map(|e| e.0).collect::<Vec<usize>>(),
+            vec!(0, 1, 2, 3)
+        );
+        assert_eq!(generator.current, 4);
+    }
+}

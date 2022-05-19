@@ -1,32 +1,23 @@
-use crate::{
-    component::{component_vec_to_mut, Component, ComponentColumn},
-    entity::Entity,
-};
+use crate::{component::ComponentColumn, entity::Entity};
 use std::{
     any::TypeId,
     hash::{Hash, Hasher},
-    sync::RwLock,
 };
 
 pub type ArchetypeId = u64;
 pub type ArchetypeSpecs = Vec<TypeId>;
 
-pub fn calculate_archetype_id(types: &[TypeId]) -> ArchetypeId {
+pub(crate) fn calculate_archetype_id(types: &[TypeId]) -> ArchetypeId {
     let mut s = rustc_hash::FxHasher::default();
     types.hash(&mut s);
     s.finish()
 }
 
-pub enum ComponentSearch {
-    CurrentArchetype(Vec<(TypeId, usize, usize)>),
-    NewArchetype(Vec<(TypeId, usize, usize)>),
-}
-
 #[derive(Debug)]
 pub struct Archetype {
-    pub archetype_specs: ArchetypeSpecs,
-    pub entities: Vec<Entity>,
-    pub components: Vec<Box<dyn ComponentColumn>>,
+    pub(crate) archetype_specs: ArchetypeSpecs,
+    pub(crate) entities: Vec<Entity>,
+    pub(crate) components: Vec<Box<dyn ComponentColumn>>,
 }
 
 impl Archetype {
@@ -67,5 +58,68 @@ impl Archetype {
     ) {
         self.components[component_index]
             .migrate(entity_row, &mut *other_archetype.components[other_index]);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{any::TypeId, sync::RwLock};
+
+    use crate::{
+        component::{component_vec_to_mut, Component, ComponentBundle},
+        entity::{Entity, EntityGenerator},
+    };
+
+    use super::Archetype;
+
+    #[derive(Debug, PartialEq)]
+    struct Component1 {}
+    impl Component for Component1 {}
+
+    #[derive(Debug)]
+    struct Component2 {}
+    impl Component for Component2 {}
+
+    #[test]
+    fn new_from_component() {
+        let archetype = Archetype::new_from_component(
+            Component1::get_types(),
+            Component1::get_component_columns(),
+        );
+
+        assert_eq!(archetype.components.len(), 1);
+        assert_eq!(archetype.archetype_specs, vec!(TypeId::of::<Component1>()))
+    }
+
+    #[test]
+    fn migrate_component() {
+        let mut generator = EntityGenerator::default();
+        let entity = generator.generate();
+
+        let component1 = Component1 {};
+
+        let mut archetype1 = Archetype::new_from_component(
+            Component1::get_types(),
+            Component1::get_component_columns(),
+        );
+
+        let mut archetype2 = Archetype::new_from_component(
+            <(Component1, Component2)>::get_types(),
+            <(Component1, Component2)>::get_component_columns(),
+        );
+
+        archetype1.entities.push(entity);
+        Component1::inser_into(&mut archetype1, component1, vec![0]);
+
+        archetype1.migrate_component(0, 0, &mut archetype2, 0);
+        archetype1.entities.remove(0);
+        archetype2.entities.push(entity);
+
+        assert_eq!(archetype1.entities.len(), 0);
+        assert_eq!(archetype2.entities.len(), 1);
+
+        let column = component_vec_to_mut::<Component1>(&mut *archetype2.components[0]);
+        let component: &Component1 = column.get(0).unwrap();
+        assert_eq!(component, &Component1 {})
     }
 }
