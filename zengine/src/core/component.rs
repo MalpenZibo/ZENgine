@@ -11,17 +11,9 @@ use std::fmt::Debug;
 
 pub trait Component: Any + Debug {}
 
-#[derive(Resource, Debug)]
+#[derive(Resource, Debug, Default)]
 pub struct Components {
     storages: FnvHashMap<TypeId, RefCell<Box<dyn AnySet>>>,
-}
-
-impl Default for Components {
-    fn default() -> Self {
-        Components {
-            storages: FnvHashMap::default(),
-        }
-    }
 }
 
 impl Components {

@@ -15,20 +15,11 @@ use std::cell::RefMut;
 pub trait Resource: Downcast + 'static {}
 downcast_rs::impl_downcast!(Resource);
 
+#[derive(Default)]
 pub struct Store {
     entities: Entities,
     components: Components,
     resources: FnvHashMap<TypeId, RefCell<Box<dyn Resource>>>,
-}
-
-impl Default for Store {
-    fn default() -> Self {
-        Store {
-            entities: Entities::default(),
-            components: Components::default(),
-            resources: FnvHashMap::default(),
-        }
-    }
 }
 
 impl Store {

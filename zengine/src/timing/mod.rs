@@ -6,14 +6,12 @@ use std::time::Duration;
 
 #[derive(Debug)]
 pub struct FrameLimiter {
-    fps: u32,
     frame_duration: Duration,
 }
 
 impl FrameLimiter {
     pub fn new(fps: u32) -> Self {
         FrameLimiter {
-            fps,
             frame_duration: Duration::from_secs(1) / fps,
         }
     }
@@ -22,7 +20,6 @@ impl FrameLimiter {
 impl Default for FrameLimiter {
     fn default() -> Self {
         FrameLimiter {
-            fps: 60,
             frame_duration: Duration::from_secs(1) / 60,
         }
     }
