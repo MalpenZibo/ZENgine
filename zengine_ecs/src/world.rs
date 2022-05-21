@@ -156,12 +156,13 @@ impl World {
                             .map(|column| column.new_same_type())
                             .collect();
 
-                        let mut components = T::get_component_columns();
-                        for column_index in column_indexes.iter().rev() {
-                            if *column_index > component_columns.len() {
-                                component_columns.push(components.pop().unwrap());
+                        let components = T::get_component_columns();
+                        for (index, c) in components.into_iter().enumerate() {
+                            let column_index = column_indexes[index];
+                            if column_index >= component_columns.len() {
+                                component_columns.push(c);
                             } else {
-                                component_columns.insert(*column_index, components.pop().unwrap());
+                                component_columns.insert(column_index, c);
                             }
                         }
 
@@ -357,7 +358,7 @@ fn index_twice<T>(slice: &mut [T], first: usize, second: usize) -> (&mut T, &mut
 
 #[cfg(test)]
 mod tests {
-    use std::sync::RwLock;
+    use std::{any::TypeId, sync::RwLock};
 
     use crate::component::Component;
 
@@ -376,6 +377,26 @@ mod tests {
         data: u32,
     }
     impl Component for Component3 {}
+
+    #[derive(Debug)]
+    struct Component4 {}
+    impl Component for Component4 {}
+
+    #[derive(Debug)]
+    struct Component5 {}
+    impl Component for Component5 {}
+
+    #[derive(Debug)]
+    struct Component6 {}
+    impl Component for Component6 {}
+
+    #[derive(Debug)]
+    struct Component7 {}
+    impl Component for Component7 {}
+
+    #[derive(Debug)]
+    struct Component8 {}
+    impl Component for Component8 {}
 
     #[test]
     fn spawn_without_component() {
@@ -538,21 +559,30 @@ mod tests {
         let entity = world.spawn_without_component();
 
         world
-            .add_component(entity, (Component1 {}, Component3 { data: 2 }))
+            .add_component(
+                entity,
+                (
+                    Component1 {},
+                    Component3 { data: 2 },
+                    Component7 {},
+                    Component4 {},
+                    Component6 {},
+                    Component8 {},
+                ),
+            )
             .unwrap();
-        world.add_component(entity, Component2 {}).unwrap();
         world
-            .remove_component::<(Component1, Component3)>(entity)
+            .remove_component::<(Component3, Component6, Component4)>(entity)
             .unwrap();
 
         assert_eq!(
             world.entity_record.get(&entity),
             Some(&Record {
-                archetype_index: 3,
+                archetype_index: 2,
                 row: 0
             })
         );
-        assert_eq!(world.archetypes.len(), 4);
+        assert_eq!(world.archetypes.len(), 3);
     }
 
     #[test]
@@ -590,6 +620,57 @@ mod tests {
                 archetype_index: 1,
                 row: 1
             })
+        );
+        assert_eq!(world.archetypes.len(), 3);
+    }
+
+    #[test]
+    fn add_component_and_replace_old_one() {
+        let mut world = World::default();
+
+        let entity = world.spawn_without_component();
+
+        world
+            .add_component(
+                entity,
+                (Component1 {}, Component3 { data: 2 }, Component7 {}),
+            )
+            .unwrap();
+        world
+            .add_component(
+                entity,
+                (Component4 {}, Component3 { data: 5 }, Component8 {}),
+            )
+            .unwrap();
+
+        assert_eq!(
+            world.entity_record.get(&entity),
+            Some(&Record {
+                archetype_index: 2,
+                row: 0
+            })
+        );
+        let component3_index = world.archetypes[2]
+            .archetype_specs
+            .iter()
+            .enumerate()
+            .find_map(|(index, c_id)| {
+                if *c_id == TypeId::of::<Component3>() {
+                    Some(index)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+
+        assert_eq!(
+            world.archetypes[2].components[component3_index]
+                .to_any()
+                .downcast_ref::<RwLock<Vec<Component3>>>()
+                .unwrap()
+                .read()
+                .unwrap()[0],
+            Component3 { data: 42 }
         );
         assert_eq!(world.archetypes.len(), 3);
     }
