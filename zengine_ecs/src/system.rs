@@ -33,7 +33,7 @@ impl<S: System<P>, P> AnySystem for SystemFunction<S, P> {
     }
 }
 
-trait SystemParam {
+pub trait SystemParam {
     fn fetch(world: &World) -> Self;
 }
 
