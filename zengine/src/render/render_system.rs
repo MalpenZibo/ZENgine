@@ -269,8 +269,7 @@ impl<ST: SpriteType> RenderSystem<ST> {
         transforms: &ReadSet<Transform>,
     ) -> (Matrix4x4, u32, u32) {
         match active_camera
-            .map(|active| cameras.get_key_value(&active.entity))
-            .flatten()
+            .and_then(|active| cameras.get_key_value(&active.entity))
             .or_else(|| cameras.iter().next())
         {
             Some(camera) => (

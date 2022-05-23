@@ -17,5 +17,5 @@ pub use serde;
 pub use serde_yaml;
 
 #[macro_use]
-extern crate zengine_macro_derive;
-pub use zengine_macro_derive::*;
+extern crate zengine_macro;
+pub use zengine_macro::*;

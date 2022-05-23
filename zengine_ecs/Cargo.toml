@@ -1,0 +1,8 @@
+[package]
+name = "zengine_ecs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rustc-hash = "1.1.0"
+nohash-hasher = "0.2.0"
