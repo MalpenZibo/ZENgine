@@ -43,7 +43,7 @@ impl SystemParam for () {
 
 macro_rules! impl_system_function {
     () => {
-        impl<Sys: Fn() -> () + 'static> System<()> for Sys
+        impl<Sys: Fn() + 'static> System<()> for Sys
         {
             fn run(&self, _world: &World) {
                 (self)();
@@ -51,7 +51,7 @@ macro_rules! impl_system_function {
         }
     };
     ($($param: ident),+) => {
-        impl<$($param: SystemParam),*, Sys: Fn( $($param),* ) -> () + 'static> System<((), $($param),*)> for Sys
+        impl<$($param: SystemParam),*, Sys: Fn( $($param),* ) + 'static> System<((), $($param),*)> for Sys
         {
             fn run(&self, world: &World) {
                 (self)($($param::fetch(world)),*);
