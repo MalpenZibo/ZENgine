@@ -8,14 +8,17 @@ use crate::archetype::Archetype;
 
 pub trait Component: Any + Sync + Send + Debug {}
 
+pub enum InsertType {
+    Add,
+    Replace(usize),
+}
+
 pub trait ComponentBundle {
     fn get_types() -> Vec<TypeId>;
 
-    fn get_component_columns() -> Vec<Box<dyn ComponentColumn>>;
+    fn get_component_columns() -> Vec<(TypeId, Box<dyn ComponentColumn>)>;
 
-    fn inser_into(self, archetype: &mut Archetype, columns: Vec<usize>);
-
-    fn replace_into(self, archetype: &mut Archetype, row: usize, columns: Vec<usize>);
+    fn inser_into(self, archetype: &mut Archetype, columns: Vec<(InsertType, usize)>);
 }
 
 impl<T: Component> ComponentBundle for T {
@@ -23,20 +26,18 @@ impl<T: Component> ComponentBundle for T {
         vec![TypeId::of::<T>()]
     }
 
-    fn get_component_columns() -> Vec<Box<dyn ComponentColumn>> {
-        vec![Box::new(RwLock::new(Vec::<T>::new()))]
+    fn get_component_columns() -> Vec<(TypeId, Box<dyn ComponentColumn>)> {
+        vec![(TypeId::of::<T>(), Box::new(RwLock::new(Vec::<T>::new())))]
     }
 
-    fn inser_into(self, archetype: &mut Archetype, columns: Vec<usize>) {
-        let column_index = columns[0];
+    fn inser_into(self, archetype: &mut Archetype, mut columns: Vec<(InsertType, usize)>) {
+        let (insert_type, column_index) = columns.pop().expect("should have a value");
         let column = component_vec_to_mut(&mut *archetype.components[column_index]);
-        column.push(self);
-    }
-
-    fn replace_into(self, archetype: &mut Archetype, row: usize, columns: Vec<usize>) {
-        let column_index = columns[0];
-        let column = component_vec_to_mut(&mut *archetype.components[column_index]);
-        column[row] = self;
+        if let InsertType::Replace(row) = insert_type {
+            column[row] = self;
+        } else {
+            column.push(self);
+        }
     }
 }
 
@@ -49,27 +50,23 @@ macro_rules! impl_component_bundle_for_tuple {
                 vec![$( TypeId::of::<$ty>(), )*]
             }
 
-            fn get_component_columns() -> Vec<Box<dyn ComponentColumn>> {
+            fn get_component_columns() -> Vec<(TypeId, Box<dyn ComponentColumn>)> {
                 vec![
-                    $( Box::new(RwLock::new(Vec::<$ty>::new())), )*
+                    $( (TypeId::of::<$ty>() ,Box::new(RwLock::new(Vec::<$ty>::new()))), )*
                 ]
             }
 
-            fn inser_into(self, archetype: &mut Archetype, columns: Vec<usize>) {
+            fn inser_into(self, archetype: &mut Archetype,  columns: Vec<(InsertType, usize)>) {
                 $(
-                    let column_index = columns[$index];
-                    let column = component_vec_to_mut::<$ty>(&mut *archetype.components[column_index]);
-                    column.push(self.$index);
+                    let (insert_type, column_index) = columns.get($index).unwrap();
+                    let column = component_vec_to_mut::<$ty>(&mut *archetype.components[*column_index]);
+                    if let InsertType::Replace(row) = insert_type {
+                        column[*row] = self.$index;
+                    } else {
+                        column.push(self.$index);
+                    }
                 ) *
 
-            }
-
-            fn replace_into(self, archetype: &mut Archetype, row: usize, columns: Vec<usize>) {
-                $(
-                    let column_index = columns[$index];
-                    let column = component_vec_to_mut::<$ty>(&mut *archetype.components[column_index]);
-                    column[row] = self.$index;
-                ) *
             }
         }
     }
@@ -104,7 +101,7 @@ pub trait ComponentColumn: Debug {
     fn to_any(&self) -> &dyn Any;
     fn to_any_mut(&mut self) -> &mut dyn Any;
     fn swap_remove(&mut self, row_index: usize) -> Box<dyn Component>;
-    fn new_same_type(&self) -> Box<dyn ComponentColumn>;
+    fn new_same_type(&self) -> (TypeId, Box<dyn ComponentColumn>);
     fn migrate(&mut self, row_index: usize, other_component_vec: &mut dyn ComponentColumn);
 }
 
@@ -120,8 +117,8 @@ impl<T: Component> ComponentColumn for RwLock<Vec<T>> {
         Box::new(self.get_mut().unwrap().swap_remove(row_index))
     }
 
-    fn new_same_type(&self) -> Box<dyn ComponentColumn> {
-        Box::new(RwLock::new(Vec::<T>::new()))
+    fn new_same_type(&self) -> (TypeId, Box<dyn ComponentColumn>) {
+        (TypeId::of::<T>(), Box::new(RwLock::new(Vec::<T>::new())))
     }
 
     fn migrate(&mut self, row_index: usize, other_component_vec: &mut dyn ComponentColumn) {

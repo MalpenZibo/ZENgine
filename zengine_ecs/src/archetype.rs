@@ -31,7 +31,7 @@ impl Archetype {
 
     pub fn new_from_component(
         archetype_specs: ArchetypeSpecs,
-        from_components: Vec<Box<dyn ComponentColumn>>,
+        mut from_components: Vec<(TypeId, Box<dyn ComponentColumn>)>,
     ) -> Self {
         let mut archetype = Archetype {
             archetype_specs,
@@ -39,7 +39,9 @@ impl Archetype {
             components: Vec::with_capacity(from_components.len()),
         };
 
-        for c in from_components.into_iter() {
+        from_components.sort_by(|(a_type, _), (b_type, _)| a_type.cmp(b_type));
+
+        for (_, c) in from_components.into_iter() {
             archetype.components.push(c);
         }
 
@@ -66,7 +68,7 @@ mod tests {
     use std::any::TypeId;
 
     use crate::{
-        component::{component_vec_to_mut, Component, ComponentBundle},
+        component::{component_vec_to_mut, Component, ComponentBundle, InsertType},
         entity::EntityGenerator,
     };
 
@@ -103,22 +105,31 @@ mod tests {
             Component1::get_component_columns(),
         );
 
+        let mut specs = <(Component1, Component2)>::get_types();
+        specs.sort_by(|a, b| a.cmp(b));
+
         let mut archetype2 = Archetype::new_from_component(
-            <(Component1, Component2)>::get_types(),
+            specs,
             <(Component1, Component2)>::get_component_columns(),
         );
 
         archetype1.entities.push(entity);
-        component1.inser_into(&mut archetype1, vec![0]);
+        component1.inser_into(&mut archetype1, vec![(InsertType::Add, 0)]);
 
-        archetype1.migrate_component(0, 0, &mut archetype2, 0);
+        let index = archetype2
+            .archetype_specs
+            .iter()
+            .position(|c| *c == TypeId::of::<Component1>())
+            .unwrap();
+
+        archetype1.migrate_component(0, 0, &mut archetype2, index);
         archetype1.entities.remove(0);
         archetype2.entities.push(entity);
 
         assert_eq!(archetype1.entities.len(), 0);
         assert_eq!(archetype2.entities.len(), 1);
 
-        let column = component_vec_to_mut::<Component1>(&mut *archetype2.components[0]);
+        let column = component_vec_to_mut::<Component1>(&mut *archetype2.components[index]);
         let component: &Component1 = column.get(0).unwrap();
         assert_eq!(component, &Component1 {})
     }
