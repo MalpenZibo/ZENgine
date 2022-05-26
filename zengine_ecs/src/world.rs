@@ -7,6 +7,7 @@ use crate::{
     archetype::{calculate_archetype_id, Archetype, ArchetypeSpecs},
     component::{ComponentBundle, ComponentColumn, InsertType},
     entity::{Entity, EntityGenerator},
+    query::{Query, QueryParameter, QueryRunner},
     ECSError,
 };
 
@@ -21,7 +22,7 @@ pub struct World {
     entity_generator: EntityGenerator,
     entity_record: FxHashMap<Entity, Record>,
     archetype_map: HashMap<u64, usize, BuildHasherDefault<NoHashHasher<u64>>>,
-    archetypes: Vec<Archetype>,
+    pub archetypes: Vec<Archetype>,
 }
 
 impl Default for World {
@@ -390,6 +391,10 @@ impl World {
         } else {
             Err(ECSError::EntityNotValid)
         }
+    }
+
+    pub fn query<'a, T: QueryParameter<'a>>(&'a self) -> Query<T> {
+        QueryRunner::<T>::run(self)
     }
 }
 
