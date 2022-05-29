@@ -1,12 +1,10 @@
 use std::{
     any::TypeId,
-    iter::Zip,
+    iter::{zip, Zip},
     sync::{RwLockReadGuard, RwLockWriteGuard},
 };
 
-use itertools::izip;
-
-use crate::{archetype::Archetype, world::World};
+use crate::{archetype::Archetype, iterators::QueryIterator, iterators::Zip3, world::World};
 
 pub struct Query<'a, T: QueryParameters> {
     pub data: <T as QueryParameterFetch<'a>>::FetchItem,
@@ -32,6 +30,12 @@ pub trait QueryParameterFetch<'a> {
 pub trait QueryIter<'a> {
     type Iter: Iterator;
     fn iter(&'a mut self) -> Self::Iter;
+}
+
+pub trait GetItem<'a> {
+    type Item;
+
+    fn get_item(&'a mut self, row: usize) -> Option<Self::Item>;
 }
 
 #[doc(hidden)]
@@ -204,6 +208,14 @@ impl<'a, 'b, T: 'static> QueryIter<'b> for RwLockReadGuard<'a, Vec<T>> {
     }
 }
 
+impl<'a, 'b, T: 'static> GetItem<'b> for RwLockReadGuard<'a, Vec<T>> {
+    type Item = &'b T;
+
+    fn get_item(&'b mut self, row: usize) -> Option<Self::Item> {
+        self.get(row)
+    }
+}
+
 impl<'a, 'b, T: 'static> QueryIter<'b> for RwLockWriteGuard<'a, Vec<T>> {
     type Iter = std::slice::IterMut<'b, T>;
     fn iter(&'b mut self) -> Self::Iter {
@@ -211,17 +223,52 @@ impl<'a, 'b, T: 'static> QueryIter<'b> for RwLockWriteGuard<'a, Vec<T>> {
     }
 }
 
+impl<'a, 'b, T: 'static> GetItem<'b> for RwLockWriteGuard<'a, Vec<T>> {
+    type Item = &'b mut T;
+
+    fn get_item(&'b mut self, row: usize) -> Option<Self::Item> {
+        self.get_mut(row)
+    }
+}
+
+pub trait Table<'a> {
+    type Item;
+
+    fn get_row(&'a mut self, row: usize) -> Option<Self::Item>;
+}
+
+impl<'a, A: GetItem<'a>> Table<'a> for (A,) {
+    type Item = (A::Item,);
+
+    fn get_row(&'a mut self, row: usize) -> Option<Self::Item> {
+        match self.0.get_item(row) {
+            Some(item) => Some((item,)),
+            None => None,
+        }
+    }
+}
+
+impl<'a, A: GetItem<'a>, B: GetItem<'a>> Table<'a> for (A, B) {
+    type Item = (A::Item, B::Item);
+    fn get_row(&'a mut self, row: usize) -> Option<Self::Item> {
+        match (self.0.get_item(row), self.1.get_item(row)) {
+            (Some(item1), Some(item2)) => Some((item1, item2)),
+            _ => None,
+        }
+    }
+}
+
 impl<'a, 'b, A: QueryParameter> QueryIter<'b> for Query<'a, (A,)>
 where
     <<A as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem: QueryIter<'b>,
 {
-    type Iter = ChainedIterator<
+    type Iter = QueryIterator<
     <<<A as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem as QueryIter<
     'b,
 >>::Iter
     >;
     fn iter(&'b mut self) -> Self::Iter {
-        ChainedIterator::new(self.data.iter_mut().map(|a| a.iter()).collect())
+        QueryIterator::new(self.data.iter_mut().map(|a| a.iter()).collect())
     }
 }
 
@@ -230,7 +277,7 @@ where
     <<A as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem: QueryIter<'b>,
     <<B as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem: QueryIter<'b>,
 {
-    type Iter = ChainedIterator<
+    type Iter = QueryIterator<
         Zip<
             <<<A as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem as QueryIter<
                 'b,
@@ -241,85 +288,47 @@ where
         >,
     >;
     fn iter(&'b mut self) -> Self::Iter {
-        ChainedIterator::new(
+        QueryIterator::new(
             self.data
                 .iter_mut()
-                .map(|(a, b)| izip!(a.iter(), b.iter()))
+                .map(|(a, b)| zip(a.iter(), b.iter()))
                 .collect(),
         )
     }
 }
 
-#[doc(hidden)]
-/// A series of iterators of the same type that are traversed in a row.
-pub struct ChainedIterator<I: Iterator> {
-    current_iter: Option<I>,
-    iterators: Vec<I>,
-}
-
-impl<I: Iterator> ChainedIterator<I> {
-    #[doc(hidden)]
-    pub fn new(mut iterators: Vec<I>) -> Self {
-        let current_iter = iterators.pop();
-        Self {
-            current_iter,
-            iterators,
-        }
-    }
-}
-
-impl<I: Iterator> Iterator for ChainedIterator<I> {
-    type Item = I::Item;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        // Chain the iterators together.
-        // If the end of one iterator is reached go to the next.
-
-        match self.current_iter {
-            Some(ref mut iter) => match iter.next() {
-                None => {
-                    self.current_iter = self.iterators.pop();
-                    if let Some(ref mut iter) = self.current_iter {
-                        iter.next()
-                    } else {
-                        None
-                    }
-                }
-                item => item,
-            },
-            None => None,
-        }
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let mut min = 0;
-        let mut max = 0;
-
-        if let Some(current_iter) = &self.current_iter {
-            let (i_min, i_max) = current_iter.size_hint();
-            min += i_min;
-            max += i_max.unwrap();
-        }
-
-        for i in self.iterators.iter() {
-            let (i_min, i_max) = i.size_hint();
-            min += i_min;
-            // This function is designed under the assumption that all
-            // iterators passed in implement size_hint, which works fine
-            // for kudo's purposes.
-            max += i_max.unwrap();
-        }
-        (min, Some(max))
+impl<'a, 'b, A: QueryParameter, B: QueryParameter, C: QueryParameter> QueryIter<'b>
+    for Query<'a, (A, B, C)>
+where
+    <<A as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem: QueryIter<'b>,
+    <<B as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem: QueryIter<'b>,
+    <<C as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem: QueryIter<'b>,
+{
+    type Iter = QueryIterator<
+        Zip3<
+            <<<A as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem as QueryIter<
+                'b,
+            >>::Iter,
+            <<<B as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem as QueryIter<
+                'b,
+            >>::Iter,
+            <<<C as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem as QueryIter<
+                'b,
+            >>::Iter
+        >,
+    >;
+    fn iter(&'b mut self) -> Self::Iter {
+        QueryIterator::new(
+            self.data
+                .iter_mut()
+                .map(|(a, b, c)| Zip3::new(a.iter(), b.iter(), c.iter()))
+                .collect(),
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{iter::Map, ops::Range};
-
-    use itertools::{izip, Zip};
 
     use crate::{component::Component, world::World};
 
@@ -336,6 +345,12 @@ mod tests {
         data: u32,
     }
     impl Component for Test2 {}
+
+    #[derive(Debug)]
+    struct Test3 {
+        data: u32,
+    }
+    impl Component for Test3 {}
 
     #[test]
     fn simple_query() {
@@ -363,6 +378,25 @@ mod tests {
         let mut query = world.query::<(&mut Test1, &Test2)>();
 
         for (a, b) in query.iter() {
+            a.data = 5;
+        }
+
+        println!("{:?}", query.data);
+
+        assert_eq!(query.data.len(), 1);
+    }
+
+    #[test]
+    fn tuple_query_3() {
+        let mut world = World::default();
+
+        world.spawn((Test1 { data: 3 }, Test2 { data: 3 }));
+        world.spawn(Test1 { data: 3 });
+        world.spawn(Test3 { data: 3 });
+
+        let mut query = world.query::<(&mut Test1, &Test2, &Test3)>();
+
+        for (a, b, c) in query.iter() {
             a.data = 5;
         }
 

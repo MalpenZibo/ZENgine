@@ -7,4 +7,3 @@ edition = "2021"
 zengine_macro = { path = "../zengine_macro" }
 rustc-hash = "1.1.0"
 nohash-hasher = "0.2.0"
-itertools = "0.10.2"
