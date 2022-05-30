@@ -1,5 +1,7 @@
 use std::any::Any;
 
+use zengine_macro::all_tuples;
+
 use crate::world::World;
 
 pub type SystemStorage = Vec<Box<dyn AnySystem>>;
@@ -59,33 +61,8 @@ macro_rules! impl_system_function {
         }
     }
 }
-impl_system_function!();
-impl_system_function!(A);
-impl_system_function!(A, B);
-impl_system_function!(A, B, C);
-impl_system_function!(A, B, C, D);
-impl_system_function!(A, B, C, D, E);
-impl_system_function!(A, B, C, D, E, F);
-impl_system_function!(A, B, C, D, E, F, G);
-impl_system_function!(A, B, C, D, E, F, G, H);
-impl_system_function!(A, B, C, D, E, F, G, H, I);
-impl_system_function!(A, B, C, D, E, F, G, H, I, J);
-impl_system_function!(A, B, C, D, E, F, G, H, I, J, K);
-impl_system_function!(A, B, C, D, E, F, G, H, I, J, K, L);
-impl_system_function!(A, B, C, D, E, F, G, H, I, J, K, L, M);
-impl_system_function!(A, B, C, D, E, F, G, H, I, J, K, L, M, N);
-impl_system_function!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O);
-impl_system_function!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P);
-impl_system_function!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q);
-impl_system_function!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R);
-impl_system_function!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S);
-impl_system_function!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T);
-impl_system_function!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U);
-impl_system_function!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V);
-impl_system_function!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W);
-impl_system_function!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X);
-impl_system_function!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y);
-impl_system_function!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z);
+
+all_tuples!(impl_system_function, 0, 26, F);
 
 #[cfg(test)]
 mod tests {
@@ -122,14 +99,14 @@ mod tests {
 
     struct TestArgs1 {}
     impl SystemParam for TestArgs1 {
-        fn fetch(world: &World) -> Self {
+        fn fetch(_world: &World) -> Self {
             TestArgs1 {}
         }
     }
 
     struct TestArgs2 {}
     impl SystemParam for TestArgs2 {
-        fn fetch(world: &World) -> Self {
+        fn fetch(_world: &World) -> Self {
             TestArgs2 {}
         }
     }
@@ -138,11 +115,11 @@ mod tests {
         println!("hello")
     }
 
-    fn test2(test1: TestArgs1) {
+    fn test2(_test1: TestArgs1) {
         println!("hello2")
     }
 
-    fn test3(test1: TestArgs1, test2: TestArgs1) {
+    fn test3(_test1: TestArgs1, _test2: TestArgs1) {
         println!("hello3")
     }
 
