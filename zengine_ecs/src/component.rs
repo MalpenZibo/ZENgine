@@ -4,6 +4,8 @@ use std::{
     sync::RwLock,
 };
 
+use zengine_macro::all_positional_tuples;
+
 use crate::archetype::Archetype;
 
 pub trait Component: Any + Sync + Send + Debug {}
@@ -56,10 +58,10 @@ macro_rules! impl_component_bundle_for_tuple {
                 ]
             }
 
-            fn inser_into(self, archetype: &mut Archetype,  columns: Vec<(InsertType, usize)>) {
+            fn inser_into(self, _archetype: &mut Archetype, _columns: Vec<(InsertType, usize)>) {
                 $(
-                    let (insert_type, column_index) = columns.get($index).unwrap();
-                    let column = component_vec_to_mut::<$ty>(&mut *archetype.components[*column_index]);
+                    let (insert_type, column_index) = _columns.get($index).unwrap();
+                    let column = component_vec_to_mut::<$ty>(&mut *_archetype.components[*column_index]);
                     if let InsertType::Replace(row) = insert_type {
                         column[*row] = self.$index;
                     } else {
@@ -71,31 +73,7 @@ macro_rules! impl_component_bundle_for_tuple {
         }
     }
 }
-impl_component_bundle_for_tuple!(A => 0, B => 1);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20, V => 21);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20, V => 21, W => 22);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20, V => 21, W => 22, X => 23);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20, V => 21, W => 22, X => 23, Y => 24);
-impl_component_bundle_for_tuple!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7, I => 8, J => 9, K => 10, L => 11, M => 12, N => 13, O => 14, P => 15, Q => 16, R => 17, S => 18, T => 19, U => 20, V => 21, W => 22, X => 23, Y => 24, Z => 25 );
+all_positional_tuples!(impl_component_bundle_for_tuple, 0, 26, C);
 
 pub trait ComponentColumn: Debug {
     fn to_any(&self) -> &dyn Any;
