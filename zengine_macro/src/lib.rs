@@ -149,24 +149,35 @@ pub fn all_positional_tuples(input: TokenStream) -> TokenStream {
     })
 }
 
+struct ZipInput {
+    end: usize,
+}
+
+impl Parse for ZipInput {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let end = input.parse::<LitInt>()?.base10_parse()?;
+
+        Ok(ZipInput { end })
+    }
+}
+
 #[proc_macro]
-pub fn generate_zip(_item: TokenStream) -> TokenStream {
-    let a: Vec<char> = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".to_string().chars().collect();
+pub fn generate_zip(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ZipInput);
     let mut expanded = quote! {};
 
-    for zip_number in 3..26 {
-        let name = syn::Ident::new(&format!("Zip{}", zip_number), Span::call_site());
+    for zip_number in 3..input.end {
+        let name = format_ident!("Zip{}", zip_number);
 
-        let identity = syn::Ident::new(&a[0].to_string(), Span::call_site());
-        let identity_lower = syn::Ident::new(&a[0].to_string().to_lowercase(), Span::call_site());
+        let identity = format_ident!("Z{}", 0 as usize);
+        let identity_lower = format_ident!("z{}", 0 as usize);
 
         let mut generics_with_where = quote!( #identity: Iterator );
         let mut generics = quote!( #identity );
         let mut generics_args = quote!( #identity_lower: #identity );
         for i in 1..zip_number {
-            let identity = syn::Ident::new(&a[i].to_string(), Span::call_site());
-            let identity_lower =
-                syn::Ident::new(&a[i].to_string().to_lowercase(), Span::call_site());
+            let identity = format_ident!("Z{}", i);
+            let identity_lower = format_ident!("z{}", i);
 
             generics_with_where.extend(quote! { , #identity: Iterator });
             generics.extend(quote! { , #identity });
@@ -180,51 +191,39 @@ pub fn generate_zip(_item: TokenStream) -> TokenStream {
         for _i in 0..zip_number - 1 {
             zip_type.extend(quote! { std::iter::Zip< });
         }
-        zip_type.extend(quote! { A, B> });
+        zip_type.extend(quote! { Z0, Z1> });
 
         for i in 2..zip_number {
-            let identity = syn::Ident::new(&a[i].to_string(), Span::call_site());
+            let identity = format_ident!("Z{}", i);
             zip_type.extend(quote! { , #identity > });
         }
 
-        let identity1_lower = syn::Ident::new(&a[0].to_string().to_lowercase(), Span::call_site());
-        let identity2_lower = syn::Ident::new(&a[1].to_string().to_lowercase(), Span::call_site());
+        let identity1_lower = format_ident!("z{}", 0 as usize);
+        let identity2_lower = format_ident!("z{}", 1 as usize);
         let mut zip_constructor = quote! { std::iter::zip(#identity1_lower, #identity2_lower) };
-
         for i in 2..zip_number {
-            let identity_lower =
-                syn::Ident::new(&a[i].to_string().to_lowercase(), Span::call_site());
+            let identity_lower = format_ident!("z{}", i);
             zip_constructor = quote! { std::iter::zip(#zip_constructor, #identity_lower) };
         }
 
-        let identity1_lower = syn::Ident::new(&a[0].to_string().to_lowercase(), Span::call_site());
-        let identity2_lower = syn::Ident::new(&a[1].to_string().to_lowercase(), Span::call_site());
         let mut map_constructor_args = quote! { (#identity1_lower, #identity2_lower) };
-
         for i in 2..zip_number {
-            let identity_lower =
-                syn::Ident::new(&a[i].to_string().to_lowercase(), Span::call_site());
+            let identity_lower = format_ident!("z{}", i);
             map_constructor_args = quote! { (#map_constructor_args, #identity_lower) };
         }
-        let mut map_constructor_res = quote! {};
-        for i in 0..zip_number {
-            let identity_lower =
-                syn::Ident::new(&a[i].to_string().to_lowercase(), Span::call_site());
-            if i == zip_number - 1 {
-                map_constructor_res.extend(quote! { #identity_lower });
-            } else {
-                map_constructor_res.extend(quote! { #identity_lower, });
-            }
+
+        let identity_lower = format_ident!("z{}", 0 as usize);
+        let mut map_constructor_res = quote! { #identity_lower };
+        for i in 1..zip_number {
+            let identity_lower = format_ident!("z{}", i);
+            map_constructor_res.extend(quote! { , #identity_lower });
         }
 
-        let mut iter_output = quote! {};
-        for i in 0..zip_number {
-            let identity = syn::Ident::new(&a[i].to_string(), Span::call_site());
-            if i == zip_number - 1 {
-                iter_output.extend(quote! { #identity ::Item });
-            } else {
-                iter_output.extend(quote! { #identity ::Item, });
-            }
+        let identity = format_ident!("Z{}", 0 as usize);
+        let mut iter_output = quote! { #identity ::Item };
+        for i in 1..zip_number {
+            let identity = format_ident!("Z{}", i);
+            iter_output.extend(quote! { , #identity ::Item });
         }
 
         let map_constructor = quote! { |#map_constructor_args| ( #map_constructor_res ) };

@@ -1,6 +1,6 @@
 use zengine_macro::generate_zip;
 
-generate_zip!();
+generate_zip!(26);
 
 #[doc(hidden)]
 /// A series of iterators of the same type that are traversed in a row.

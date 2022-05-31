@@ -4,6 +4,8 @@ use std::{
     sync::{RwLockReadGuard, RwLockWriteGuard},
 };
 
+use zengine_macro::all_tuples;
+
 use crate::{archetype::Archetype, iterators::QueryIterator, iterators::Zip3, world::World};
 
 pub struct Query<'a, T: QueryParameters> {
@@ -123,6 +125,7 @@ impl<'a, T: 'static> QueryParameterFetch<'a> for WriteQueryParameterFetch<T> {
 }
 
 macro_rules! impl_query_parameters {
+    () => {};
     ($ty: ident) => {
         impl<$ty: QueryParameter> QueryParameters for ($ty,) {}
 
@@ -172,34 +175,7 @@ macro_rules! impl_query_parameters {
         }
     };
 }
-impl_query_parameters!(A);
-impl_query_parameters!(A, B);
-impl_query_parameters!(A, B, C);
-impl_query_parameters!(A, B, C, D);
-impl_query_parameters!(A, B, C, D, E);
-impl_query_parameters!(A, B, C, D, E, F);
-impl_query_parameters!(A, B, C, D, E, F, G);
-impl_query_parameters!(A, B, C, D, E, F, G, H);
-impl_query_parameters!(A, B, C, D, E, F, G, H, I);
-impl_query_parameters!(A, B, C, D, E, F, G, H, I, J);
-impl_query_parameters!(A, B, C, D, E, F, G, H, I, J, K);
-impl_query_parameters!(A, B, C, D, E, F, G, H, I, J, K, L);
-impl_query_parameters!(A, B, C, D, E, F, G, H, I, J, K, L, M);
-impl_query_parameters!(A, B, C, D, E, F, G, H, I, J, K, L, M, N);
-impl_query_parameters!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O);
-impl_query_parameters!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P);
-impl_query_parameters!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q);
-impl_query_parameters!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R);
-impl_query_parameters!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S);
-impl_query_parameters!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T);
-impl_query_parameters!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U);
-impl_query_parameters!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V);
-impl_query_parameters!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W);
-impl_query_parameters!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X);
-impl_query_parameters!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y);
-impl_query_parameters!(
-    A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z
-);
+all_tuples!(impl_query_parameters, 0, 26, P);
 
 impl<'a, 'b, T: 'static> QueryIter<'b> for RwLockReadGuard<'a, Vec<T>> {
     type Iter = std::slice::Iter<'b, T>;
@@ -342,7 +318,7 @@ mod tests {
 
     #[derive(Debug)]
     struct Test2 {
-        data: u32,
+        _data: u32,
     }
     impl Component for Test2 {}
 
@@ -356,52 +332,67 @@ mod tests {
     fn simple_query() {
         let mut world = World::default();
 
-        world.spawn((Test1 { data: 3 }, Test2 { data: 3 }));
-        world.spawn(Test1 { data: 3 });
+        world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }));
+        world.spawn(Test1 { data: 2 });
 
         let mut query = world.query::<(&Test1,)>();
 
-        for f in query.iter() {}
-
-        println!("{:?}", query.data);
-
-        assert_eq!(query.data.len(), 2);
+        assert_eq!(query.iter().count(), 2);
     }
 
     #[test]
     fn tuple_query() {
         let mut world = World::default();
 
-        world.spawn((Test1 { data: 3 }, Test2 { data: 3 }));
+        world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }));
+        world.spawn(Test1 { data: 3 });
+
+        let mut query = world.query::<(&Test1, &Test2)>();
+
+        assert_eq!(query.iter().count(), 1);
+    }
+
+    #[test]
+    fn tuple_with_mutable_query() {
+        let mut world = World::default();
+
+        world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }));
+        world.spawn((Test1 { data: 3 }, Test2 { _data: 2 }));
         world.spawn(Test1 { data: 3 });
 
         let mut query = world.query::<(&mut Test1, &Test2)>();
 
-        for (a, b) in query.iter() {
+        assert_eq!(query.iter().count(), 2);
+
+        for (a, _b) in query.iter() {
             a.data = 5;
         }
 
-        println!("{:?}", query.data);
-
-        assert_eq!(query.data.len(), 1);
+        for (a, _b) in query.iter() {
+            assert_eq!(a.data, 5);
+        }
     }
 
     #[test]
-    fn tuple_query_3() {
+    fn tuple_with_2_mutable_query() {
         let mut world = World::default();
 
-        world.spawn((Test1 { data: 3 }, Test2 { data: 3 }));
+        world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }, Test3 { data: 3 }));
         world.spawn(Test1 { data: 3 });
         world.spawn(Test3 { data: 3 });
+        world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }, Test3 { data: 3 }));
 
-        let mut query = world.query::<(&mut Test1, &Test2, &Test3)>();
+        let mut query = world.query::<(&mut Test1, &Test2, &mut Test3)>();
+        assert_eq!(query.iter().count(), 2);
 
-        for (a, b, c) in query.iter() {
+        for (a, _b, c) in query.iter() {
             a.data = 5;
+            c.data = 7;
         }
 
-        println!("{:?}", query.data);
-
-        assert_eq!(query.data.len(), 1);
+        for (a, _b, c) in query.iter() {
+            assert_eq!(a.data, 5);
+            assert_eq!(c.data, 7);
+        }
     }
 }

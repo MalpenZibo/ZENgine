@@ -61,7 +61,6 @@ macro_rules! impl_system_function {
         }
     }
 }
-
 all_tuples!(impl_system_function, 0, 26, F);
 
 #[cfg(test)]
