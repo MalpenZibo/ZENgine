@@ -169,8 +169,8 @@ pub fn generate_zip(input: TokenStream) -> TokenStream {
     for zip_number in 3..input.end {
         let name = format_ident!("Zip{}", zip_number);
 
-        let identity = format_ident!("Z{}", 0 as usize);
-        let identity_lower = format_ident!("z{}", 0 as usize);
+        let identity = format_ident!("Z{}", 0_usize);
+        let identity_lower = format_ident!("z{}", 0_usize);
 
         let mut generics_with_where = quote!( #identity: Iterator );
         let mut generics = quote!( #identity );
@@ -198,8 +198,8 @@ pub fn generate_zip(input: TokenStream) -> TokenStream {
             zip_type.extend(quote! { , #identity > });
         }
 
-        let identity1_lower = format_ident!("z{}", 0 as usize);
-        let identity2_lower = format_ident!("z{}", 1 as usize);
+        let identity1_lower = format_ident!("z{}", 0_usize);
+        let identity2_lower = format_ident!("z{}", 1_usize);
         let mut zip_constructor = quote! { std::iter::zip(#identity1_lower, #identity2_lower) };
         for i in 2..zip_number {
             let identity_lower = format_ident!("z{}", i);
@@ -212,14 +212,14 @@ pub fn generate_zip(input: TokenStream) -> TokenStream {
             map_constructor_args = quote! { (#map_constructor_args, #identity_lower) };
         }
 
-        let identity_lower = format_ident!("z{}", 0 as usize);
+        let identity_lower = format_ident!("z{}", 0_usize);
         let mut map_constructor_res = quote! { #identity_lower };
         for i in 1..zip_number {
             let identity_lower = format_ident!("z{}", i);
             map_constructor_res.extend(quote! { , #identity_lower });
         }
 
-        let identity = format_ident!("Z{}", 0 as usize);
+        let identity = format_ident!("Z{}", 0_usize);
         let mut iter_output = quote! { #identity ::Item };
         for i in 1..zip_number {
             let identity = format_ident!("Z{}", i);
@@ -234,7 +234,7 @@ pub fn generate_zip(input: TokenStream) -> TokenStream {
             }
 
             impl #generics_with_where #name #generics {
-                #[allow(non_snake_case)]
+                #[allow(clippy::too_many_arguments)]
                 pub fn new (#generics_args) -> Self {
                     Self {
                         inner: #zip_constructor

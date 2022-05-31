@@ -217,10 +217,7 @@ impl<'a, A: GetItem<'a>> Table<'a> for (A,) {
     type Item = (A::Item,);
 
     fn get_row(&'a mut self, row: usize) -> Option<Self::Item> {
-        match self.0.get_item(row) {
-            Some(item) => Some((item,)),
-            None => None,
-        }
+        self.0.get_item(row).map(|item| (item,))
     }
 }
 

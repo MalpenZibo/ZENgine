@@ -393,7 +393,7 @@ impl World {
         }
     }
 
-    pub fn query<'a, T: QueryParameters>(&'a self) -> Query<T> {
+    pub fn query<T: QueryParameters>(&self) -> Query<T> {
         Query {
             data: T::fetch(self),
         }
