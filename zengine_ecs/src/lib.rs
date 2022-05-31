@@ -1,6 +1,8 @@
 mod archetype;
 mod component;
 mod entity;
+mod iterators;
+pub mod query;
 pub mod system;
 pub mod world;
 

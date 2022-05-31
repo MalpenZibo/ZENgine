@@ -2,6 +2,7 @@ use crate::{component::ComponentColumn, entity::Entity};
 use std::{
     any::TypeId,
     hash::{Hash, Hasher},
+    sync::RwLock,
 };
 
 pub type ArchetypeId = u64;
@@ -60,6 +61,13 @@ impl Archetype {
     ) {
         self.components[component_index]
             .migrate(entity_row, &mut *other_archetype.components[other_index]);
+    }
+
+    pub(crate) fn get<T: 'static>(&self, index: usize) -> &RwLock<Vec<T>> {
+        self.components[index]
+            .to_any()
+            .downcast_ref::<RwLock<Vec<T>>>()
+            .unwrap()
     }
 }
 

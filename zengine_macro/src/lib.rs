@@ -148,3 +148,115 @@ pub fn all_positional_tuples(input: TokenStream) -> TokenStream {
         )*
     })
 }
+
+struct ZipInput {
+    end: usize,
+}
+
+impl Parse for ZipInput {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let end = input.parse::<LitInt>()?.base10_parse()?;
+
+        Ok(ZipInput { end })
+    }
+}
+
+#[proc_macro]
+pub fn generate_zip(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ZipInput);
+    let mut expanded = quote! {};
+
+    for zip_number in 3..input.end {
+        let name = format_ident!("Zip{}", zip_number);
+
+        let identity = format_ident!("Z{}", 0_usize);
+        let identity_lower = format_ident!("z{}", 0_usize);
+
+        let mut generics_with_where = quote!( #identity: Iterator );
+        let mut generics = quote!( #identity );
+        let mut generics_args = quote!( #identity_lower: #identity );
+        for i in 1..zip_number {
+            let identity = format_ident!("Z{}", i);
+            let identity_lower = format_ident!("z{}", i);
+
+            generics_with_where.extend(quote! { , #identity: Iterator });
+            generics.extend(quote! { , #identity });
+            generics_args.extend(quote! { , #identity_lower: #identity })
+        }
+
+        let generics = quote!( < #generics > );
+        let generics_with_where = quote!( < #generics_with_where > );
+
+        let mut zip_type = quote! {};
+        for _i in 0..zip_number - 1 {
+            zip_type.extend(quote! { std::iter::Zip< });
+        }
+        zip_type.extend(quote! { Z0, Z1> });
+
+        for i in 2..zip_number {
+            let identity = format_ident!("Z{}", i);
+            zip_type.extend(quote! { , #identity > });
+        }
+
+        let identity1_lower = format_ident!("z{}", 0_usize);
+        let identity2_lower = format_ident!("z{}", 1_usize);
+        let mut zip_constructor = quote! { std::iter::zip(#identity1_lower, #identity2_lower) };
+        for i in 2..zip_number {
+            let identity_lower = format_ident!("z{}", i);
+            zip_constructor = quote! { std::iter::zip(#zip_constructor, #identity_lower) };
+        }
+
+        let mut map_constructor_args = quote! { (#identity1_lower, #identity2_lower) };
+        for i in 2..zip_number {
+            let identity_lower = format_ident!("z{}", i);
+            map_constructor_args = quote! { (#map_constructor_args, #identity_lower) };
+        }
+
+        let identity_lower = format_ident!("z{}", 0_usize);
+        let mut map_constructor_res = quote! { #identity_lower };
+        for i in 1..zip_number {
+            let identity_lower = format_ident!("z{}", i);
+            map_constructor_res.extend(quote! { , #identity_lower });
+        }
+
+        let identity = format_ident!("Z{}", 0_usize);
+        let mut iter_output = quote! { #identity ::Item };
+        for i in 1..zip_number {
+            let identity = format_ident!("Z{}", i);
+            iter_output.extend(quote! { , #identity ::Item });
+        }
+
+        let map_constructor = quote! { |#map_constructor_args| ( #map_constructor_res ) };
+
+        expanded.extend(quote! {
+            pub struct #name #generics_with_where {
+                inner: #zip_type,
+            }
+
+            impl #generics_with_where #name #generics {
+                #[allow(clippy::too_many_arguments)]
+                pub fn new (#generics_args) -> Self {
+                    Self {
+                        inner: #zip_constructor
+                    }
+                }
+            }
+
+            impl #generics_with_where Iterator for #name #generics {
+                type Item = (#iter_output);
+
+                #[inline(always)]
+                fn next(&mut self) -> Option<Self::Item> {
+                    self.inner.next().map(#map_constructor)
+                }
+                #[inline]
+                fn size_hint(&self) -> (usize, Option<usize>) {
+                    self.inner.size_hint()
+                }
+            }
+
+        });
+    }
+
+    TokenStream::from(expanded)
+}
