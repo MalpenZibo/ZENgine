@@ -1,5 +1,5 @@
 mod archetype;
-mod component;
+pub mod component;
 mod entity;
 mod iterators;
 pub mod query;

@@ -4,9 +4,9 @@ use std::{
     sync::{RwLockReadGuard, RwLockWriteGuard},
 };
 
-use zengine_macro::all_tuples;
+use zengine_macro::{all_tuples, query_iter_for_tuple};
 
-use crate::{archetype::Archetype, iterators::QueryIterator, iterators::Zip3, world::World};
+use crate::{archetype::Archetype, iterators::*, world::World};
 
 pub struct Query<'a, T: QueryParameters> {
     pub data: <T as QueryParameterFetch<'a>>::FetchItem,
@@ -32,12 +32,6 @@ pub trait QueryParameterFetch<'a> {
 pub trait QueryIter<'a> {
     type Iter: Iterator;
     fn iter(&'a mut self) -> Self::Iter;
-}
-
-pub trait GetItem<'a> {
-    type Item;
-
-    fn get_item(&'a mut self, row: usize) -> Option<Self::Item>;
 }
 
 #[doc(hidden)]
@@ -184,14 +178,6 @@ impl<'a, 'b, T: 'static> QueryIter<'b> for RwLockReadGuard<'a, Vec<T>> {
     }
 }
 
-impl<'a, 'b, T: 'static> GetItem<'b> for RwLockReadGuard<'a, Vec<T>> {
-    type Item = &'b T;
-
-    fn get_item(&'b mut self, row: usize) -> Option<Self::Item> {
-        self.get(row)
-    }
-}
-
 impl<'a, 'b, T: 'static> QueryIter<'b> for RwLockWriteGuard<'a, Vec<T>> {
     type Iter = std::slice::IterMut<'b, T>;
     fn iter(&'b mut self) -> Self::Iter {
@@ -199,106 +185,7 @@ impl<'a, 'b, T: 'static> QueryIter<'b> for RwLockWriteGuard<'a, Vec<T>> {
     }
 }
 
-impl<'a, 'b, T: 'static> GetItem<'b> for RwLockWriteGuard<'a, Vec<T>> {
-    type Item = &'b mut T;
-
-    fn get_item(&'b mut self, row: usize) -> Option<Self::Item> {
-        self.get_mut(row)
-    }
-}
-
-pub trait Table<'a> {
-    type Item;
-
-    fn get_row(&'a mut self, row: usize) -> Option<Self::Item>;
-}
-
-impl<'a, A: GetItem<'a>> Table<'a> for (A,) {
-    type Item = (A::Item,);
-
-    fn get_row(&'a mut self, row: usize) -> Option<Self::Item> {
-        self.0.get_item(row).map(|item| (item,))
-    }
-}
-
-impl<'a, A: GetItem<'a>, B: GetItem<'a>> Table<'a> for (A, B) {
-    type Item = (A::Item, B::Item);
-    fn get_row(&'a mut self, row: usize) -> Option<Self::Item> {
-        match (self.0.get_item(row), self.1.get_item(row)) {
-            (Some(item1), Some(item2)) => Some((item1, item2)),
-            _ => None,
-        }
-    }
-}
-
-impl<'a, 'b, A: QueryParameter> QueryIter<'b> for Query<'a, (A,)>
-where
-    <<A as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem: QueryIter<'b>,
-{
-    type Iter = QueryIterator<
-    <<<A as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem as QueryIter<
-    'b,
->>::Iter
-    >;
-    fn iter(&'b mut self) -> Self::Iter {
-        QueryIterator::new(self.data.iter_mut().map(|a| a.iter()).collect())
-    }
-}
-
-impl<'a, 'b, A: QueryParameter, B: QueryParameter> QueryIter<'b> for Query<'a, (A, B)>
-where
-    <<A as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem: QueryIter<'b>,
-    <<B as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem: QueryIter<'b>,
-{
-    type Iter = QueryIterator<
-        Zip<
-            <<<A as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem as QueryIter<
-                'b,
-            >>::Iter,
-            <<<B as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem as QueryIter<
-                'b,
-            >>::Iter,
-        >,
-    >;
-    fn iter(&'b mut self) -> Self::Iter {
-        QueryIterator::new(
-            self.data
-                .iter_mut()
-                .map(|(a, b)| zip(a.iter(), b.iter()))
-                .collect(),
-        )
-    }
-}
-
-impl<'a, 'b, A: QueryParameter, B: QueryParameter, C: QueryParameter> QueryIter<'b>
-    for Query<'a, (A, B, C)>
-where
-    <<A as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem: QueryIter<'b>,
-    <<B as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem: QueryIter<'b>,
-    <<C as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem: QueryIter<'b>,
-{
-    type Iter = QueryIterator<
-        Zip3<
-            <<<A as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem as QueryIter<
-                'b,
-            >>::Iter,
-            <<<B as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem as QueryIter<
-                'b,
-            >>::Iter,
-            <<<C as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem as QueryIter<
-                'b,
-            >>::Iter
-        >,
-    >;
-    fn iter(&'b mut self) -> Self::Iter {
-        QueryIterator::new(
-            self.data
-                .iter_mut()
-                .map(|(a, b, c)| Zip3::new(a.iter(), b.iter(), c.iter()))
-                .collect(),
-        )
-    }
-}
+query_iter_for_tuple!(26);
 
 #[cfg(test)]
 mod tests {
