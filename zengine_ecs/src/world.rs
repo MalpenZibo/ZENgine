@@ -508,6 +508,12 @@ mod tests {
     struct Component8 {}
     impl Component for Component8 {}
 
+    #[derive(Debug, PartialEq)]
+    struct Resource1 {
+        data: u32,
+    }
+    impl Resource for Resource1 {}
+
     #[test]
     fn spawn_without_component() {
         let mut world = World::default();
@@ -802,5 +808,29 @@ mod tests {
             Component3 { data: 42 }
         );
         assert_eq!(world.archetypes.len(), 3);
+    }
+
+    #[test]
+    fn resources() {
+        let mut world = World::default();
+
+        world.create_resource(Resource1 { data: 4 });
+
+        {
+            let res = world.get_resource::<Resource1>().unwrap();
+
+            assert_eq!(res.data, 4);
+        }
+
+        {
+            let mut res = world.get_mut_resource::<Resource1>().unwrap();
+            res.data = 7;
+        }
+
+        {
+            let res = world.get_resource::<Resource1>().unwrap();
+
+            assert_eq!(res.data, 7);
+        }
     }
 }
