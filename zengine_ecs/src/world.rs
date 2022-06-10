@@ -1,4 +1,10 @@
-use std::{any::TypeId, collections::HashMap, hash::BuildHasherDefault};
+use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
+    fmt::Debug,
+    hash::BuildHasherDefault,
+    sync::{RwLock, RwLockReadGuard, RwLockWriteGuard},
+};
 
 use nohash_hasher::NoHashHasher;
 use rustc_hash::FxHashMap;
@@ -17,12 +23,29 @@ struct Record {
     row: usize,
 }
 
+pub trait Resource: Any + Sync + Send + Debug {}
+
+pub trait ResourceCell: Debug {
+    fn to_any(&self) -> &dyn Any;
+    fn to_any_mut(&mut self) -> &mut dyn Any;
+}
+
+impl<T: Resource> ResourceCell for RwLock<T> {
+    fn to_any(&self) -> &dyn Any {
+        self
+    }
+    fn to_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
 #[derive(Debug)]
 pub struct World {
     entity_generator: EntityGenerator,
     entity_record: FxHashMap<Entity, Record>,
     archetype_map: HashMap<u64, usize, BuildHasherDefault<NoHashHasher<u64>>>,
-    pub archetypes: Vec<Archetype>,
+    pub(crate) archetypes: Vec<Archetype>,
+    resources: FxHashMap<TypeId, Box<dyn ResourceCell>>,
 }
 
 impl Default for World {
@@ -32,6 +55,7 @@ impl Default for World {
             entity_record: FxHashMap::default(),
             archetype_map: HashMap::default(),
             archetypes: Vec::default(),
+            resources: FxHashMap::default(),
         };
 
         let root_archetype = Archetype::root();
@@ -397,6 +421,37 @@ impl World {
         Query {
             data: T::fetch(self),
         }
+    }
+
+    pub fn get_resource<T: Resource + 'static>(&self) -> Option<RwLockReadGuard<T>> {
+        let type_id = TypeId::of::<T>();
+
+        self.resources.get(&type_id).map(|r| {
+            r.to_any()
+                .downcast_ref::<RwLock<T>>()
+                .expect("donwcasting error")
+                .try_read()
+                .expect("lock error")
+        })
+    }
+
+    pub fn get_mut_resource<T: Resource + 'static>(&mut self) -> Option<RwLockWriteGuard<T>> {
+        let type_id = TypeId::of::<T>();
+
+        self.resources.get_mut(&type_id).map(|r| {
+            r.to_any_mut()
+                .downcast_mut::<RwLock<T>>()
+                .expect("donwcasting error")
+                .try_write()
+                .expect("lock error")
+        })
+    }
+
+    pub fn create_resource<T: Resource + 'static>(&mut self, resource: T) {
+        let type_id = TypeId::of::<T>();
+
+        self.resources
+            .insert(type_id, Box::new(RwLock::new(resource)));
     }
 }
 
