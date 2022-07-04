@@ -1,4 +1,5 @@
 [workspace]
+exclude = ["benches"]
 members = [
     "zengine",
     "zengine_ecs",

@@ -182,7 +182,7 @@ impl<'a, A: 'a + Component, B: 'a + Joined> Iterator for JoinIter<Iter<'a, Entit
                 entry.1,
                 match self.joined.get_join_value(entry.0) {
                     JoinReturn::Value(other) => other,
-                    JoinReturn::Skip => break,
+                    JoinReturn::Skip => continue,
                 },
             ));
 
@@ -207,7 +207,7 @@ impl<'a, A: 'a + Component, B: 'a + Joined> Iterator for JoinIter<IterMut<'a, En
                 entry.1,
                 match self.joined.get_join_value(entry.0) {
                     JoinReturn::Value(other) => other,
-                    JoinReturn::Skip => break,
+                    JoinReturn::Skip => continue,
                 },
             ));
 
@@ -237,7 +237,7 @@ macro_rules! impl_join_iterator_for_tuple {
                         $(
                             match self.joined.$index.get_join_value(entry.0) {
                                 JoinReturn::Value(other) => other,
-                                JoinReturn::Skip => break,
+                                JoinReturn::Skip => continue,
                             }
                         ), *
                     ));
@@ -295,7 +295,7 @@ macro_rules! impl_join_mut_iterator_for_tuple {
                         $(
                             match self.joined.$index.get_join_value(entry.0) {
                                 JoinReturn::Value(other) => other,
-                                JoinReturn::Skip => break,
+                                JoinReturn::Skip => continue,
                             }
                         ), *
                     ));
