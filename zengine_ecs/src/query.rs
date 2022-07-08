@@ -16,21 +16,32 @@ pub struct Query<'a, T: QueryParameters> {
     pub data: <T as QueryParameterFetch<'a>>::FetchItem,
 }
 
+pub struct QueryCache {
+    last_archetypes_count: usize,
+    matched_archetypes: Vec<(usize, Vec<usize>)>,
+}
+
 pub trait QueryParameters: for<'a> QueryParameterFetch<'a> {}
 
 pub trait QueryParameter {
-    type Item: for<'a> QueryParameterFetch<'a>;
+    type Item: for<'a> QueryParameterFetchFromArchetype<'a>;
 
     fn matches_archetype(archetype: &Archetype) -> bool;
 }
 
 pub trait QueryParameterFetch<'a> {
     type FetchItem;
+
+    fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem;
+}
+
+pub trait QueryParameterFetchFromArchetype<'a> {
     type ArchetypeFetchItem;
 
-    fn fetch(world: &'a World) -> Self::FetchItem;
-
-    fn fetch_from_archetype(archetype: &'a Archetype) -> Self::ArchetypeFetchItem;
+    fn fetch_from_archetype(
+        archetype: &'a Archetype,
+        column_cache: Option<usize>,
+    ) -> (Self::ArchetypeFetchItem, usize);
 }
 
 pub trait QueryIter<'a> {
@@ -53,30 +64,58 @@ impl<T: 'static> QueryParameter for &T {
 }
 
 impl<'a, T: 'static> QueryParameterFetch<'a> for ReadQueryParameterFetch<T> {
-    type FetchItem = Vec<Self::ArchetypeFetchItem>;
-    type ArchetypeFetchItem = RwLockReadGuard<'a, Vec<T>>;
+    type FetchItem = Vec<RwLockReadGuard<'a, Vec<T>>>;
 
-    fn fetch_from_archetype(archetype: &'a Archetype) -> Self::ArchetypeFetchItem {
-        let type_id = TypeId::of::<T>();
-        let index = archetype
-            .archetype_specs
-            .iter()
-            .position(|c| *c == type_id)
-            .unwrap();
-
-        archetype.get(index).try_read().unwrap()
-    }
-
-    fn fetch(world: &'a World) -> Self::FetchItem {
+    fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem {
         let mut result: Self::FetchItem = Vec::default();
-        let type_id = TypeId::of::<T>();
-        for a in world.archetypes.iter() {
-            if let Some(index) = a.archetype_specs.iter().position(|c| *c == type_id) {
-                result.push(a.get(index).try_read().unwrap());
+        if let Some(cache) = cache {
+            for (archetype, columns_vector) in cache
+                .matched_archetypes
+                .iter()
+                .map(|(i, column_indexes)| (world.archetypes.get(*i).unwrap(), column_indexes))
+            {
+                result.push(archetype.get(columns_vector[0]).try_read().unwrap());
             }
+        } else {
+            let mut new_cache = QueryCache {
+                last_archetypes_count: world.archetypes.len(),
+                matched_archetypes: Vec::default(),
+            };
+            let type_id = TypeId::of::<T>();
+            for (archetype_index, a) in world.archetypes.iter().enumerate() {
+                if let Some(index) = a.archetype_specs.iter().position(|c| *c == type_id) {
+                    new_cache
+                        .matched_archetypes
+                        .push((archetype_index, vec![index]));
+                    result.push(a.get(index).try_read().unwrap());
+                }
+            }
+            cache.replace(new_cache);
         }
 
         result
+    }
+}
+
+impl<'a, T: 'static> QueryParameterFetchFromArchetype<'a> for ReadQueryParameterFetch<T> {
+    type ArchetypeFetchItem = RwLockReadGuard<'a, Vec<T>>;
+
+    fn fetch_from_archetype(
+        archetype: &'a Archetype,
+        column_cache: Option<usize>,
+    ) -> (Self::ArchetypeFetchItem, usize) {
+        if let Some(column) = column_cache {
+            (archetype.get(column).try_read().unwrap(), column)
+        } else {
+            let type_id = TypeId::of::<T>();
+            let index = archetype
+                .archetype_specs
+                .iter()
+                .position(|c| *c == type_id)
+                .unwrap();
+
+            (archetype.get(index).try_read().unwrap(), index)
+        }
     }
 }
 
@@ -95,30 +134,58 @@ impl<T: 'static> QueryParameter for &mut T {
 }
 
 impl<'a, T: 'static> QueryParameterFetch<'a> for WriteQueryParameterFetch<T> {
-    type FetchItem = Vec<Self::ArchetypeFetchItem>;
-    type ArchetypeFetchItem = RwLockWriteGuard<'a, Vec<T>>;
+    type FetchItem = Vec<RwLockWriteGuard<'a, Vec<T>>>;
 
-    fn fetch_from_archetype(archetype: &'a Archetype) -> Self::ArchetypeFetchItem {
-        let type_id = TypeId::of::<T>();
-        let index = archetype
-            .archetype_specs
-            .iter()
-            .position(|c| *c == type_id)
-            .unwrap();
-
-        archetype.get(index).try_write().unwrap()
-    }
-
-    fn fetch(world: &'a World) -> Self::FetchItem {
+    fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem {
         let mut result: Self::FetchItem = Vec::default();
-        let type_id = TypeId::of::<T>();
-        for a in world.archetypes.iter() {
-            if let Some(index) = a.archetype_specs.iter().position(|c| *c == type_id) {
-                result.push(a.get(index).try_write().unwrap());
+        if let Some(cache) = cache {
+            for (archetype, columns_vector) in cache
+                .matched_archetypes
+                .iter()
+                .map(|(i, column_indexes)| (world.archetypes.get(*i).unwrap(), column_indexes))
+            {
+                result.push(archetype.get(columns_vector[0]).try_write().unwrap());
             }
+        } else {
+            let mut new_cache = QueryCache {
+                last_archetypes_count: world.archetypes.len(),
+                matched_archetypes: Vec::default(),
+            };
+            let type_id = TypeId::of::<T>();
+            for (archetype_index, a) in world.archetypes.iter().enumerate() {
+                if let Some(index) = a.archetype_specs.iter().position(|c| *c == type_id) {
+                    new_cache
+                        .matched_archetypes
+                        .push((archetype_index, vec![index]));
+                    result.push(a.get(index).try_write().unwrap());
+                }
+            }
+            cache.replace(new_cache);
         }
 
         result
+    }
+}
+
+impl<'a, T: 'static> QueryParameterFetchFromArchetype<'a> for WriteQueryParameterFetch<T> {
+    type ArchetypeFetchItem = RwLockWriteGuard<'a, Vec<T>>;
+
+    fn fetch_from_archetype(
+        archetype: &'a Archetype,
+        column_cache: Option<usize>,
+    ) -> (Self::ArchetypeFetchItem, usize) {
+        if let Some(column) = column_cache {
+            (archetype.get(column).try_write().unwrap(), column)
+        } else {
+            let type_id = TypeId::of::<T>();
+            let index = archetype
+                .archetype_specs
+                .iter()
+                .position(|c| *c == type_id)
+                .unwrap();
+
+            (archetype.get(index).try_write().unwrap(), index)
+        }
     }
 }
 
@@ -128,22 +195,35 @@ macro_rules! impl_query_parameters {
         impl<$ty: QueryParameter> QueryParameters for ($ty,) {}
 
         impl<'a, $ty: QueryParameter> QueryParameterFetch<'a> for ($ty,) {
-            type FetchItem = Vec<Self::ArchetypeFetchItem>;
-            type ArchetypeFetchItem = <$ty::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem;
+            type FetchItem = Vec<<$ty::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem>;
 
-            fn fetch(world: &'a World) -> Self::FetchItem {
+            fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem {
                 let mut result: Self::FetchItem = Vec::default();
-                for a in world.archetypes.iter() {
-                    if $ty::matches_archetype(&a) {
-                        result.push(Self::fetch_from_archetype(a));
+                if let Some(cache) = cache {
+                    for (archetype, columns_vector) in cache
+                        .matched_archetypes
+                        .iter()
+                        .map(|(i, column_indexes)| (world.archetypes.get(*i).unwrap(), column_indexes)) {
+                        for c in columns_vector {
+                            result.push( <$ty::Item as QueryParameterFetchFromArchetype<'a>>::fetch_from_archetype(archetype, Some(*c)).0);
+                        }
                     }
+                } else {
+                    let mut new_cache = QueryCache {
+                        last_archetypes_count: world.archetypes.len(),
+                        matched_archetypes: Vec::default(),
+                    };
+                    for (archetype_index, a) in world.archetypes.iter().enumerate() {
+                        if $ty::matches_archetype(&a) {
+                            let (column, column_index) = <$ty::Item as QueryParameterFetchFromArchetype<'a>>::fetch_from_archetype(a, None);
+                            new_cache.matched_archetypes.push((archetype_index, vec!(column_index)));
+                            result.push(column);
+                        }
+                    }
+                    cache.replace(new_cache);
                 }
 
                 result
-            }
-
-            fn fetch_from_archetype(archetype: &'a Archetype) -> Self::ArchetypeFetchItem {
-                <$ty::Item as QueryParameterFetch<'a>>::fetch_from_archetype(archetype)
             }
         }
     };
@@ -151,24 +231,47 @@ macro_rules! impl_query_parameters {
         impl<$($ty: QueryParameter),*> QueryParameters for ($($ty,)*) {}
 
         impl<'a, $($ty: QueryParameter),*> QueryParameterFetch<'a> for ($($ty,)*) {
-            type FetchItem = Vec<Self::ArchetypeFetchItem>;
-            type ArchetypeFetchItem = ( $(<$ty::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem),*);
+            type FetchItem = Vec<( $(<$ty::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem),*)>;
 
-            fn fetch(world: &'a World) -> Self::FetchItem {
+            fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem {
                 let mut result: Self::FetchItem = Vec::default();
-                for a in world.archetypes.iter() {
-                    if $($ty::matches_archetype(&a))&&* {
-                        result.push(Self::fetch_from_archetype(a));
+                if let Some(cache) = cache {
+                    for (archetype, columns_vector) in cache
+                        .matched_archetypes
+                        .iter()
+                        .map(|(i, column_indexes)| (world.archetypes.get(*i).unwrap(), column_indexes)) {
+
+                    let mut column_index_iter = columns_vector.iter();
+
+                    let data = ($( {
+                        let column_index = column_index_iter.next().unwrap();
+                        <$ty::Item as QueryParameterFetchFromArchetype<'a>>::fetch_from_archetype(archetype, Some(*column_index)).0
+                    }),*);
+
+                    result.push(data);
+                }
+                } else {
+                    let mut new_cache = QueryCache {
+                        last_archetypes_count: world.archetypes.len(),
+                        matched_archetypes: Vec::default(),
+                    };
+                    for (archetype_index, a) in world.archetypes.iter().enumerate() {
+                        if $($ty::matches_archetype(&a))&&* {
+                            let mut column_indexes = Vec::default();
+                            let data = ($( {
+                                let (column, column_index) = <$ty::Item as QueryParameterFetchFromArchetype<'a>>::fetch_from_archetype(a, None);
+                                column_indexes.push(column_index);
+
+                                column}
+                            ),*);
+
+                            new_cache.matched_archetypes.push((archetype_index, column_indexes));
+                            result.push(data);
+                        }
                     }
                 }
 
                 result
-            }
-
-            fn fetch_from_archetype(archetype: &'a Archetype) -> Self::ArchetypeFetchItem {
-                (
-                    $(<$ty::Item as QueryParameterFetch<'a>>::fetch_from_archetype(archetype)),*
-                )
             }
         }
     };
@@ -223,7 +326,7 @@ mod tests {
         world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }));
         world.spawn(Test1 { data: 2 });
 
-        let mut query: Query<(&Test1,)> = world.query::<(&Test1,)>();
+        let mut query: Query<(&Test1,)> = world.query::<(&Test1,)>(None);
 
         assert_eq!(query.iter().count(), 2);
     }
@@ -235,7 +338,7 @@ mod tests {
         world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }));
         world.spawn(Test1 { data: 3 });
 
-        let mut query = world.query::<(&Test1, &Test2)>();
+        let mut query = world.query::<(&Test1, &Test2)>(None);
 
         assert_eq!(query.iter().count(), 1);
     }
@@ -248,7 +351,7 @@ mod tests {
         world.spawn((Test1 { data: 3 }, Test2 { _data: 2 }));
         world.spawn(Test1 { data: 3 });
 
-        let mut query = world.query::<(&mut Test1, &Test2)>();
+        let mut query = world.query::<(&mut Test1, &Test2)>(None);
 
         assert_eq!(query.iter().count(), 2);
 
@@ -270,7 +373,7 @@ mod tests {
         world.spawn(Test3 { data: 3 });
         world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }, Test3 { data: 3 }));
 
-        let mut query = world.query::<(&mut Test1, &Test2, &mut Test3)>();
+        let mut query = world.query::<(&mut Test1, &Test2, &mut Test3)>(None);
         assert_eq!(query.iter().count(), 2);
 
         for (a, _b, c) in query.iter() {

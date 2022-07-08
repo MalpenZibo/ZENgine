@@ -119,6 +119,36 @@ pub fn all_tuples(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
+pub fn all_tuples_with_idexes(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as AllTuples);
+    let len = input.end - input.start;
+    let mut ident_tuples = Vec::with_capacity(len);
+    for i in input.start..=input.end {
+        let ident = format_ident!("{}{}", input.ident, i);
+        let position: Index = syn::Index {
+            index: i as u32,
+            span: Span::call_site(),
+        };
+        ident_tuples.push(quote! {
+            #ident => #position
+        });
+    }
+
+    let macro_ident = &input.macro_ident;
+    let invocations = (input.start..=input.end).map(|i| {
+        let ident_tuples = &ident_tuples[0..i - input.start];
+        quote! {
+            #macro_ident!(#(#ident_tuples),*);
+        }
+    });
+    TokenStream::from(quote! {
+        #(
+            #invocations
+        )*
+    })
+}
+
+#[proc_macro]
 pub fn all_positional_tuples(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as AllTuples);
     let len = input.end - input.start;
@@ -281,10 +311,10 @@ pub fn query_iter_for_tuple(input: TokenStream) -> TokenStream {
     expanded.extend(quote!{
         impl<'a, 'b, Z: QueryParameter> QueryIter<'b> for Query<'a, (Z,)>
         where
-            <<Z as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem: QueryIter<'b>,
+            <<Z as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem: QueryIter<'b>,
         {
             type Iter = QueryIterator<
-            <<<Z as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem as QueryIter<
+            <<<Z as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem as QueryIter<
             'b,
         >>::Iter
             >;
@@ -297,15 +327,15 @@ pub fn query_iter_for_tuple(input: TokenStream) -> TokenStream {
     expanded.extend(quote!{
         impl<'a, 'b, Z0: QueryParameter, Z1: QueryParameter> QueryIter<'b> for Query<'a, (Z0, Z1)>
             where
-                <<Z0 as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem: QueryIter<'b>,
-                <<Z1 as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem: QueryIter<'b>,
+                <<Z0 as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem: QueryIter<'b>,
+                <<Z1 as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem: QueryIter<'b>,
             {
                 type Iter = QueryIterator<
                     Zip<
-                        <<<Z0 as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem as QueryIter<
+                        <<<Z0 as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem as QueryIter<
                             'b,
                         >>::Iter,
-                        <<<Z1 as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem as QueryIter<
+                        <<<Z1 as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem as QueryIter<
                             'b,
                         >>::Iter,
                     >,
@@ -328,8 +358,8 @@ pub fn query_iter_for_tuple(input: TokenStream) -> TokenStream {
         let identity_lowercase = format_ident!("z{}", 0_usize);
         let mut generics = quote! { #identity: QueryParameter };
         let mut tuple = quote! { #identity };
-        let mut where_clause = quote! { <<#identity as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem: QueryIter<'b> };
-        let mut zip_args = quote! { <<<#identity as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem as QueryIter<'b,>>::Iter };
+        let mut where_clause = quote! { <<#identity as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem: QueryIter<'b> };
+        let mut zip_args = quote! { <<<#identity as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem as QueryIter<'b,>>::Iter };
         let mut tuple_args = quote! { #identity_lowercase };
         let mut tuple_iter = quote! { #identity_lowercase.iter() };
         for i in 1..zip_number {
@@ -337,8 +367,8 @@ pub fn query_iter_for_tuple(input: TokenStream) -> TokenStream {
             let identity_lowercase = format_ident!("z{}", i);
             generics.extend(quote! { , #identity: QueryParameter });
             tuple.extend(quote! { , #identity });
-            where_clause.extend(quote! { , <<#identity as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem: QueryIter<'b> });
-            zip_args.extend(quote! { , <<<#identity as QueryParameter>::Item as QueryParameterFetch<'a>>::ArchetypeFetchItem as QueryIter<'b,>>::Iter });
+            where_clause.extend(quote! { , <<#identity as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem: QueryIter<'b> });
+            zip_args.extend(quote! { , <<<#identity as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem as QueryIter<'b,>>::Iter });
             tuple_args.extend(quote! { , #identity_lowercase });
             tuple_iter.extend(quote! { , #identity_lowercase.iter() });
         }

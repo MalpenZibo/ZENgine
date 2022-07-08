@@ -13,7 +13,7 @@ use crate::{
     archetype::{calculate_archetype_id, Archetype, ArchetypeSpecs},
     component::{ComponentBundle, ComponentColumn, InsertType},
     entity::{Entity, EntityGenerator},
-    query::{Query, QueryParameters},
+    query::{Query, QueryCache, QueryParameters},
     ECSError,
 };
 
@@ -417,9 +417,9 @@ impl World {
         }
     }
 
-    pub fn query<T: QueryParameters>(&self) -> Query<T> {
+    pub fn query<T: QueryParameters>(&self, mut cache: Option<QueryCache>) -> Query<T> {
         Query {
-            data: T::fetch(self),
+            data: T::fetch(self, &mut cache),
         }
     }
 
