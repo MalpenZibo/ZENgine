@@ -8,6 +8,10 @@ use zengine_macro::{all_tuples, query_iter_for_tuple};
 
 use crate::{archetype::Archetype, iterators::*, world::World};
 
+pub trait FetchableQuery<T: QueryParameters> {
+    fn fetch(world: &World) -> Self;
+}
+
 pub struct Query<'a, T: QueryParameters> {
     pub data: <T as QueryParameterFetch<'a>>::FetchItem,
 }
@@ -169,7 +173,7 @@ macro_rules! impl_query_parameters {
         }
     };
 }
-all_tuples!(impl_query_parameters, 0, 26, P);
+all_tuples!(impl_query_parameters, 0, 14, P);
 
 impl<'a, 'b, T: 'static> QueryIter<'b> for RwLockReadGuard<'a, Vec<T>> {
     type Iter = std::slice::Iter<'b, T>;
@@ -185,12 +189,12 @@ impl<'a, 'b, T: 'static> QueryIter<'b> for RwLockWriteGuard<'a, Vec<T>> {
     }
 }
 
-query_iter_for_tuple!(26);
+query_iter_for_tuple!(14);
 
 #[cfg(test)]
 mod tests {
 
-    use crate::{component::Component, world::World};
+    use crate::{component::Component, query::Query, world::World};
 
     use super::QueryIter;
 
@@ -219,7 +223,7 @@ mod tests {
         world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }));
         world.spawn(Test1 { data: 2 });
 
-        let mut query = world.query::<(&Test1,)>();
+        let mut query: Query<(&Test1,)> = world.query::<(&Test1,)>();
 
         assert_eq!(query.iter().count(), 2);
     }

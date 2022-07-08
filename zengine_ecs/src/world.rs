@@ -435,12 +435,12 @@ impl World {
         })
     }
 
-    pub fn get_mut_resource<T: Resource + 'static>(&mut self) -> Option<RwLockWriteGuard<T>> {
+    pub fn get_mut_resource<T: Resource + 'static>(&self) -> Option<RwLockWriteGuard<T>> {
         let type_id = TypeId::of::<T>();
 
-        self.resources.get_mut(&type_id).map(|r| {
-            r.to_any_mut()
-                .downcast_mut::<RwLock<T>>()
+        self.resources.get(&type_id).map(|r| {
+            r.to_any()
+                .downcast_ref::<RwLock<T>>()
                 .expect("donwcasting error")
                 .try_write()
                 .expect("lock error")

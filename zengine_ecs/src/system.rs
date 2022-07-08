@@ -1,20 +1,22 @@
-use std::any::Any;
+use std::{
+    any::Any,
+    sync::{RwLockReadGuard, RwLockWriteGuard},
+};
 
 use zengine_macro::all_tuples;
 
-use crate::world::World;
+use crate::{
+    query::{Query, QueryParameters},
+    world::{Resource, World},
+};
 
 pub type SystemStorage = Vec<Box<dyn AnySystem>>;
 
 pub trait SystemManager {
-    fn add_system<P: Any, S: System<P>>(self, system: S) -> Self;
+    fn add_system<'a, P: Any, S: System<P>>(self, system: S) -> Self;
 }
 
 pub trait AnySystem {
-    fn run(&self, world: &World);
-}
-
-pub trait System<P>: Any {
     fn run(&self, world: &World);
 }
 
@@ -25,7 +27,7 @@ struct SystemFunction<S: System<P>, P> {
 
 impl<S: System<P>, P> SystemFunction<S, P> {
     pub fn run(&self, world: &World) {
-        self.system.run(world)
+        self.system.run_system(world)
     }
 }
 
@@ -35,33 +37,71 @@ impl<S: System<P>, P> AnySystem for SystemFunction<S, P> {
     }
 }
 
-pub trait SystemParam {
+pub trait System<P>: Any {
+    fn run_system(&self, world: &World);
+}
+
+pub trait AnySystemParam {
     fn fetch(world: &World) -> Self;
 }
 
-impl SystemParam for () {
-    fn fetch(_world: &World) -> Self {}
+impl<P> AnySystemParam for P
+where
+    P: for<'a> SystemParam<'a>,
+{
+    fn fetch(world: &World) -> Self {
+        P::fetch(world)
+    }
+}
+
+pub trait SystemParam<'a> {
+    fn fetch(world: &'a World) -> Self;
+}
+
+impl<'a> SystemParam<'a> for () {
+    fn fetch(_world: &'a World) -> Self {}
+}
+
+impl<'a, T: QueryParameters> SystemParam<'a> for Query<'a, T> {
+    fn fetch(world: &'a World) -> Self {
+        world.query::<T>()
+    }
+}
+
+type Res<'a, R> = RwLockReadGuard<'a, R>;
+type ResMut<'a, R> = RwLockWriteGuard<'a, R>;
+
+impl<'a, R: Resource> SystemParam<'a> for Res<'a, R> {
+    fn fetch(world: &'a World) -> Self {
+        world.get_resource().unwrap()
+    }
+}
+
+impl<'a, R: Resource> SystemParam<'a> for ResMut<'a, R> {
+    fn fetch(world: &'a World) -> Self {
+        world.get_mut_resource().unwrap()
+    }
 }
 
 macro_rules! impl_system_function {
     () => {
-        impl<Sys: Fn() + 'static> System<()> for Sys
+        impl< Sys: Fn() + 'static> System<()> for Sys
         {
-            fn run(&self, _world: &World) {
+            fn run_system(&self, _world: &World) {
                 (self)();
             }
         }
     };
     ($($param: ident),+) => {
-        impl<$($param: SystemParam),*, Sys: Fn( $($param),* ) + 'static> System<((), $($param),*)> for Sys
+        impl<$($param: AnySystemParam),*, Sys: Fn( $($param),* ) + 'static> System<((), $($param),*)> for Sys
         {
-            fn run(&self, world: &World) {
+            fn run_system(&self, world: &World) {
                 (self)($($param::fetch(world)),*);
             }
         }
     }
 }
-all_tuples!(impl_system_function, 0, 26, F);
+all_tuples!(impl_system_function, 0, 14, F);
 
 #[cfg(test)]
 mod tests {
@@ -78,7 +118,7 @@ mod tests {
     }
 
     impl SystemManager for Executor {
-        fn add_system<P: Any, S: System<P>>(mut self, system: S) -> Self {
+        fn add_system<'a, P: Any, S: System<P>>(mut self, system: S) -> Self {
             self.systems.push(Box::new(SystemFunction {
                 system,
                 _marker: PhantomData::default(),
@@ -97,14 +137,14 @@ mod tests {
     }
 
     struct TestArgs1 {}
-    impl SystemParam for TestArgs1 {
+    impl<'a> SystemParam<'a> for TestArgs1 {
         fn fetch(_world: &World) -> Self {
             TestArgs1 {}
         }
     }
 
     struct TestArgs2 {}
-    impl SystemParam for TestArgs2 {
+    impl<'a> SystemParam<'a> for TestArgs2 {
         fn fetch(_world: &World) -> Self {
             TestArgs2 {}
         }
