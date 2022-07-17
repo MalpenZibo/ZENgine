@@ -45,7 +45,7 @@ impl<'a, T: QueryParameters> SystemParam for Query<'a, T> {
     type Fetch = QueryState<T>;
 }
 
-pub type Res<'a, R> = RwLockReadGuard<'a, R>;
+pub type Res<'a, R> = Option<RwLockReadGuard<'a, R>>;
 
 pub struct ResState<R: Resource> {
     _marker: std::marker::PhantomData<R>,
@@ -63,7 +63,7 @@ impl<'a, R: Resource> SystemParamFetch<'a> for ResState<R> {
     type Item = Res<'a, R>;
 
     fn fetch(&mut self, world: &'a World) -> Self::Item {
-        world.get_resource().unwrap()
+        world.get_resource()
     }
 }
 
@@ -71,7 +71,7 @@ impl<'a, R: Resource> SystemParam for Res<'a, R> {
     type Fetch = ResState<R>;
 }
 
-pub type ResMut<'a, R> = RwLockWriteGuard<'a, R>;
+pub type ResMut<'a, R> = Option<RwLockWriteGuard<'a, R>>;
 
 pub struct ResMutState<R: Resource> {
     _marker: std::marker::PhantomData<R>,
@@ -89,7 +89,7 @@ impl<'a, R: Resource> SystemParamFetch<'a> for ResMutState<R> {
     type Item = ResMut<'a, R>;
 
     fn fetch(&mut self, world: &'a World) -> Self::Item {
-        world.get_mut_resource().unwrap()
+        world.get_mut_resource()
     }
 }
 
