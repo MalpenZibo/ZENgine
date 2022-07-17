@@ -67,6 +67,12 @@ impl<'a, T: 'static> QueryParameterFetch<'a> for ReadQueryParameterFetch<T> {
     type FetchItem = Vec<RwLockReadGuard<'a, Vec<T>>>;
 
     fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem {
+        if let Some(some_cache) = cache {
+            if some_cache.last_archetypes_count != world.archetypes.len() {
+                cache.take();
+            }
+        }
+
         let mut result: Self::FetchItem = Vec::default();
         if let Some(cache) = cache {
             for (archetype, columns_vector) in cache
