@@ -1,137 +1,234 @@
-use std::{
-    any::Any,
-    sync::{RwLockReadGuard, RwLockWriteGuard},
-};
+use std::sync::{RwLockReadGuard, RwLockWriteGuard};
 
-use zengine_macro::all_tuples_with_idexes;
+use zengine_macro::all_tuples;
 
 use crate::{
-    query::{Query, QueryParameters},
+    query::{Query, QueryCache, QueryParameters},
     world::{Resource, World},
 };
 
-pub type SystemStorage = Vec<Box<dyn AnySystem>>;
-
-pub trait SystemManager {
-    fn add_system<'a, P: Any, C: Any + Default, S: System<P, C>>(self, system: S) -> Self;
+pub trait SystemParam: Sized {
+    type Fetch: for<'a> SystemParamFetch<'a> + Default;
 }
 
-pub trait AnySystem {
-    fn run(&mut self, world: &World);
+//pub trait SystemParam: Sized + for<'a> SystemParamFetch<'a> {}
+
+pub trait SystemParamFetch<'a> {
+    type Item;
+    //type Cache;
+    //fn fetch(world: &'a World, cache: &'a mut Self::Cache) -> Self;
+    fn fetch(&self, world: &'a World) -> Self::Item;
 }
 
-struct SystemFunction<S: System<P, C>, P, C: Default> {
-    _marker: std::marker::PhantomData<P>,
-    system: S,
-    cache: C,
+pub struct QueryState<T: QueryParameters> {
+    _marker: std::marker::PhantomData<T>,
 }
-
-impl<S: System<P, C>, P, C: Default> SystemFunction<S, P, C> {
-    pub fn run_function_system(&mut self, world: &World) {
-        self.system.run_system(world, &mut self.cache);
+impl<T: QueryParameters> Default for QueryState<T> {
+    fn default() -> Self {
+        QueryState {
+            _marker: std::marker::PhantomData::default(),
+        }
     }
 }
 
-impl<S: System<P, C>, P, C: Default> AnySystem for SystemFunction<S, P, C> {
-    fn run(&mut self, world: &World) {
-        self.run_function_system(world)
+impl<'a, T: QueryParameters> SystemParamFetch<'a> for QueryState<T> {
+    type Item = Query<'a, T>;
+    //type Cache = Option<QueryCache>;
+    // fn fetch(world: &'a World, cache: &'a mut Self::Cache) -> Self {
+    //     if let Some(some_cache) = cache {
+    //         if some_cache.last_archetypes_count != world.archetypes.len() {
+    //             cache.take();
+    //         }
+    //     }
+    //     Query {
+    //         data: T::fetch(world, cache),
+    //     }
+    // }
+    fn fetch(&self, world: &'a World) -> Self::Item {
+        Query {
+            data: T::fetch(world, &mut None),
+        }
     }
 }
 
-pub trait System<P, C>: Any {
-    fn run_system(&self, world: &World, cache: &mut C);
+impl<'a, T: QueryParameters> SystemParam for Query<'a, T> {
+    type Fetch = QueryState<T>;
 }
 
-pub trait AnySystemParam {
-    type Cache;
-    fn fetch(world: &World, cache: &mut Self::Cache) -> Self;
-}
+pub type SystemParamItem<'a, P> = <<P as SystemParam>::Fetch as SystemParamFetch<'a>>::Item;
 
-impl<P, C> AnySystemParam for P
-where
-    P: for<'a> SystemParam<'a, Cache = C>,
-{
-    type Cache = C;
-    fn fetch(world: &World, cache: &mut Self::Cache) -> Self {
-        P::fetch(world, cache)
-    }
+pub struct ResState<R: Resource> {
+    _marker: std::marker::PhantomData<R>,
 }
-
-pub trait SystemParam<'a> {
-    type Cache;
-    fn fetch(world: &'a World, cache: &mut Self::Cache) -> Self;
-}
-
-impl<'a> SystemParam<'a> for () {
-    type Cache = ();
-    fn fetch(_world: &'a World, _cache: &mut Self::Cache) -> Self {}
-}
-
-impl<'a, T: QueryParameters> SystemParam<'a> for Query<'a, T> {
-    type Cache = ();
-    fn fetch(world: &'a World, cache: &mut Self::Cache) -> Self {
-        world.query::<T>(None)
+impl<T: Resource> Default for ResState<T> {
+    fn default() -> Self {
+        ResState {
+            _marker: std::marker::PhantomData::default(),
+        }
     }
 }
 
 type Res<'a, R> = RwLockReadGuard<'a, R>;
 type ResMut<'a, R> = RwLockWriteGuard<'a, R>;
 
-impl<'a, R: Resource> SystemParam<'a> for Res<'a, R> {
-    type Cache = ();
-    fn fetch(world: &'a World, _cache: &mut Self::Cache) -> Self {
+impl<'a, R: Resource> SystemParamFetch<'a> for ResState<R> {
+    type Item = Res<'a, R>;
+    //type Cache = ();
+    // fn fetch(world: &'a World, _cache: &'a mut Self::Cache) -> Self {
+    //     world.get_resource().unwrap()
+    // }
+    fn fetch(&self, world: &'a World) -> Self::Item {
         world.get_resource().unwrap()
     }
 }
+impl<'a, R: Resource> SystemParam for Res<'a, R> {
+    type Fetch = ResState<R>;
+}
 
-impl<'a, R: Resource> SystemParam<'a> for ResMut<'a, R> {
-    type Cache = ();
-    fn fetch(world: &'a World, _cache: &mut Self::Cache) -> Self {
-        world.get_mut_resource().unwrap()
+type Local<'a, T> = &'a mut T;
+
+pub trait SystemFunction<P: SystemParam> {
+    fn run_function(&self, parameter: SystemParamItem<P>);
+}
+
+impl<Param: SystemParam, F> IntoSystem<Param> for F
+where
+    F: SystemFunction<Param>,
+{
+    type System = F;
+    fn into_system(self) -> SystemWrapper<Self::System, Param> {
+        SystemWrapper {
+            _marker: std::marker::PhantomData::default(),
+            function: self,
+            param_state: Param::Fetch::default(),
+        }
     }
+}
+
+trait IntoSystem<P: SystemParam> {
+    type System: SystemFunction<P>;
+
+    fn into_system(self) -> SystemWrapper<Self::System, P>;
+}
+
+struct SystemWrapper<F: SystemFunction<P>, P: SystemParam> {
+    _marker: std::marker::PhantomData<P>,
+    function: F,
+    param_state: P::Fetch,
+}
+
+impl<F: SystemFunction<P>, P: SystemParam> System for SystemWrapper<F, P> {
+    fn run(&self, world: &World) {
+        let data: <<P as SystemParam>::Fetch as SystemParamFetch>::Item =
+            <P as SystemParam>::Fetch::fetch(&self.param_state, world);
+        self.function.run_function(data);
+    }
+}
+
+pub trait System {
+    fn run(&self, world: &World);
 }
 
 macro_rules! impl_system_function {
     () => {
-        impl< Sys: Fn() + 'static> System<(), ()> for Sys
+        #[allow(non_snake_case)]
+        impl<'a> SystemParamFetch<'a> for () {
+            type Item = ();
+            fn fetch(&self, _world: &'a World) -> Self::Item {
+                ()
+            }
+        }
+
+        impl SystemParam for () {
+            type Fetch = ();
+        }
+
+        #[allow(non_snake_case)]
+        impl<Sys> SystemFunction<()> for Sys
+        where
+            for<'a> &'a Sys: Fn(),
         {
-            fn run_system(&self, _world: &World, _cache: &mut ()) {
-                (self)();
+            fn run_function(&self, _parameter: SystemParamItem<()>) {
+                #[allow(clippy::too_many_arguments)]
+                fn call_inner(f: impl Fn()) {
+                    f()
+                }
+
+                call_inner(self)
             }
         }
     };
-    ($($param: ident => $index:tt),+) => {
-        impl<$($param: AnySystemParam),*, Sys: Fn( $($param),* ) + 'static> System<((), $($param),*), ($($param::Cache),*,)> for Sys
+    ($($param: ident),+) => {
+        #[allow(non_snake_case)]
+        impl<'a, $($param: SystemParamFetch<'a>),*> SystemParamFetch<'a> for ($($param,)*) {
+            type Item = ($($param::Item,)*);
+            fn fetch(&self, world: &'a World) -> Self::Item {
+                let ($($param,)*) = self;
+
+                ($($param::fetch($param, world),)*)
+            }
+        }
+
+        impl<$($param: SystemParam),*> SystemParam for ($($param,)*) {
+            type Fetch = ($($param::Fetch,)*);
+        }
+
+        #[allow(non_snake_case)]
+        impl<$($param: SystemParam),*, Sys> SystemFunction<($($param,)*)> for Sys
+        where
+            for<'a> &'a Sys: Fn( $($param),*)
+                + Fn(
+                    $(<<$param as SystemParam>::Fetch as SystemParamFetch>::Item,)*
+                ),
         {
-            fn run_system(&self, world: &World, cache: &mut ($($param::Cache),*,)) {
-                (self)($($param::fetch(world, &mut cache.$index)),*);
+            fn run_function(&self, parameter: SystemParamItem<($($param,)*)>) {
+                #[allow(clippy::too_many_arguments)]
+                fn call_inner<$($param),*>(f: impl Fn($($param,)*), $($param: $param,)*) {
+                    f($($param,)*)
+                }
+
+                let ($($param,)*) = parameter;
+                call_inner(self, $($param),*)
             }
         }
     }
 }
-all_tuples_with_idexes!(impl_system_function, 0, 14, F);
+all_tuples!(impl_system_function, 0, 12, F);
 
 #[cfg(test)]
 mod tests {
     use std::{any::Any, marker::PhantomData};
 
-    use crate::world::World;
+    use crate::{
+        component::Component,
+        query::{Query, QueryCache},
+        world::{self, Resource, World},
+    };
 
-    use super::{System, SystemFunction, SystemManager, SystemParam, SystemStorage};
+    use super::{IntoSystem, Local, Res, System, SystemFunction, SystemParam, SystemWrapper};
 
     #[derive(Default)]
     struct Executor {
         world: World,
-        systems: SystemStorage,
+        systems: Vec<Box<dyn System>>,
     }
 
-    impl SystemManager for Executor {
-        fn add_system<'a, P: Any, C: Any + Default, S: System<P, C>>(mut self, system: S) -> Self {
-            self.systems.push(Box::new(SystemFunction {
-                system,
-                cache: C::default(),
-                _marker: PhantomData::default(),
-            }));
+    // trait Test {
+    //     fn launch(&mut self, world: &World) {}
+    // }
+
+    // impl<S: AnySystemFunction<P, C>, P, C> Test for (S, C, PhantomData<P>) {
+    //     fn launch(&mut self, world: &World) {
+    //         //self.0.run_system(world, &mut self.1);
+    //     }
+    // }
+
+    impl Executor {
+        fn add_system<Params: SystemParam + 'static>(
+            mut self,
+            system: impl IntoSystem<Params> + 'static,
+        ) -> Self {
+            self.systems.push(Box::new(system.into_system()));
 
             self
         }
@@ -145,15 +242,15 @@ mod tests {
         }
     }
 
-    struct TestArgs1 {}
-    impl<'a> SystemParam<'a> for TestArgs1 {
-        type Cache = u32;
-        fn fetch(_world: &World, cache: &mut Self::Cache) -> Self {
-            println!("cache1 check");
-            assert_eq!(*cache, 0);
-            TestArgs1 {}
-        }
-    }
+    // struct TestArgs1 {}
+    // impl<'a> SystemParam<'a> for TestArgs1 {
+    //     type Cache = u32;
+    //     fn fetch(_world: &World, cache: &mut Self::Cache) -> Self {
+    //         println!("cache1 check");
+    //         assert_eq!(*cache, 0);
+    //         TestArgs1 {}
+    //     }
+    // }
 
     #[derive(PartialEq, Debug)]
     struct CacheTest {
@@ -164,34 +261,61 @@ mod tests {
             Self { data: 6 }
         }
     }
-    struct TestArgs2 {}
-    impl<'a> SystemParam<'a> for TestArgs2 {
-        type Cache = CacheTest;
-        fn fetch(_world: &World, cache: &mut Self::Cache) -> Self {
-            println!("cache2 check");
-            assert_eq!(*cache, CacheTest { data: 6 });
-            TestArgs2 {}
-        }
+    // struct TestArgs2 {}
+    // impl<'a> SystemParam<'a> for TestArgs2 {
+    //     type Cache = CacheTest;
+    //     fn fetch(_world: &World, cache: &mut Self::Cache) -> Self {
+    //         println!("cache2 check");
+    //         assert_eq!(*cache, CacheTest { data: 6 });
+    //         TestArgs2 {}
+    //     }
+    // }
+
+    #[derive(Debug, Default)]
+    struct Resource1 {
+        data: u32,
     }
+    impl Resource for Resource1 {}
+
+    #[derive(Debug)]
+    struct Component1 {
+        data: u32,
+    }
+    impl Component for Component1 {}
 
     fn test() {
         println!("hello")
     }
 
-    fn test2(_test1: TestArgs1) {
-        println!("hello2")
-    }
+    // fn test2(_test1: TestArgs1) {
+    //     println!("hello2")
+    // }
 
-    fn test3(_test1: TestArgs1, _test2: TestArgs2) {
-        println!("hello3")
-    }
+    // fn test3(_test1: TestArgs1, _test2: TestArgs2) {
+    //     println!("hello3")
+    // }
+
+    fn test4(query: Query<(&Component1,)>) {}
+    fn test5(res: Res<Resource1>) {}
+    fn test6(local: Res<Resource1>, query: Query<(&Component1,)>) {}
 
     #[test]
     fn test_executor() {
+        // let mut list: Vec<Box<dyn System>> = Vec::default();
+
+        // let t = Box::new(SystemWrapper {
+        //     system: test6,
+        //     cache: (Resource1::default(), None),
+        //     _marker: PhantomData::default(),
+        // });
+
+        // list.push(t);
+
         Executor::default()
             .add_system(test)
-            .add_system(test2)
-            .add_system(test3)
+            .add_system(test4)
+            .add_system(test5)
+            .add_system(test6)
             .run();
     }
 }

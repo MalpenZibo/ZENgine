@@ -17,7 +17,7 @@ pub struct Query<'a, T: QueryParameters> {
 }
 
 pub struct QueryCache {
-    last_archetypes_count: usize,
+    pub last_archetypes_count: usize,
     matched_archetypes: Vec<(usize, Vec<usize>)>,
 }
 
