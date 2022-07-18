@@ -41,7 +41,7 @@ impl<T: Resource> ResourceCell for RwLock<T> {
 
 #[derive(Debug)]
 pub struct World {
-    entity_generator: EntityGenerator,
+    pub(crate) entity_generator: EntityGenerator,
     entity_record: FxHashMap<Entity, Record>,
     archetype_map: HashMap<u64, usize, BuildHasherDefault<NoHashHasher<u64>>>,
     pub(crate) archetypes: Vec<Archetype>,
@@ -452,6 +452,16 @@ impl World {
 
         self.resources
             .insert(type_id, Box::new(RwLock::new(resource)));
+    }
+
+    pub fn destroy_resource<T: Resource>(&mut self) {
+        let type_id = TypeId::of::<T>();
+
+        self.resources.remove(&type_id);
+    }
+
+    pub fn destroy_resource_with_type_id(&mut self, id: TypeId) {
+        self.resources.remove(&id);
     }
 }
 

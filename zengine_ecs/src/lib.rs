@@ -1,4 +1,5 @@
 mod archetype;
+pub mod command;
 pub mod component;
 mod entity;
 mod iterators;
