@@ -8,7 +8,7 @@ use crate::{
 };
 
 pub trait Command {
-    fn exec(self, world: &mut World);
+    fn apply(self, world: &mut World);
 }
 
 type CommandState = Vec<Box<dyn Command>>;
@@ -19,7 +19,7 @@ struct SpawnCommand<T: ComponentBundle> {
 }
 
 impl<T: ComponentBundle> Command for SpawnCommand<T> {
-    fn exec(self, world: &mut World) {
+    fn apply(self, world: &mut World) {
         world.add_component(self.entity, self.components);
     }
 }
@@ -29,7 +29,7 @@ struct DespawnCommand {
 }
 
 impl Command for DespawnCommand {
-    fn exec(self, world: &mut World) {
+    fn apply(self, world: &mut World) {
         world.despawn(self.entity);
     }
 }
@@ -39,7 +39,7 @@ struct CreateResourceCommand<T: Resource> {
 }
 
 impl<T: Resource> Command for CreateResourceCommand<T> {
-    fn exec(self, world: &mut World) {
+    fn apply(self, world: &mut World) {
         world.create_resource(self.resource);
     }
 }
@@ -49,7 +49,7 @@ struct DestroyResourceCommand {
 }
 
 impl Command for DestroyResourceCommand {
-    fn exec(self, world: &mut World) {
+    fn apply(self, world: &mut World) {
         world.destroy_resource_with_type_id(self.resource_type);
     }
 }

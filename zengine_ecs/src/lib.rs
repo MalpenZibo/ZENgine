@@ -7,9 +7,3 @@ pub mod query;
 pub mod system;
 pub mod system_parameter;
 pub mod world;
-
-#[derive(Debug)]
-pub enum ECSError {
-    EntityNotValid,
-    EntityDontHaveComponent,
-}

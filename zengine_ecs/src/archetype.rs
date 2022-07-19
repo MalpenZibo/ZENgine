@@ -103,7 +103,7 @@ mod tests {
 
     #[test]
     fn migrate_component() {
-        let mut generator = EntityGenerator::default();
+        let generator = EntityGenerator::default();
         let entity = generator.generate();
 
         let component1 = Component1 {};
@@ -114,7 +114,7 @@ mod tests {
         );
 
         let mut specs = <(Component1, Component2)>::get_types();
-        specs.sort_by(|a, b| a.cmp(b));
+        specs.sort();
 
         let mut archetype2 = Archetype::new_from_component(
             specs,
