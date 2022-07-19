@@ -73,7 +73,7 @@ macro_rules! impl_component_bundle_for_tuple {
         }
     }
 }
-all_positional_tuples!(impl_component_bundle_for_tuple, 0, 26, C);
+all_positional_tuples!(impl_component_bundle_for_tuple, 0, 14, C);
 
 pub trait ComponentColumn: Debug {
     fn to_any(&self) -> &dyn Any;

@@ -13,7 +13,7 @@ use crate::{
     archetype::{calculate_archetype_id, Archetype, ArchetypeSpecs},
     component::{ComponentBundle, ComponentColumn, InsertType},
     entity::{Entity, EntityGenerator},
-    query::{Query, QueryParameters},
+    query::{Query, QueryCache, QueryParameters},
     ECSError,
 };
 
@@ -417,9 +417,9 @@ impl World {
         }
     }
 
-    pub fn query<T: QueryParameters>(&self) -> Query<T> {
+    pub fn query<T: QueryParameters>(&self, mut cache: Option<QueryCache>) -> Query<T> {
         Query {
-            data: T::fetch(self),
+            data: T::fetch(self, &mut cache),
         }
     }
 
@@ -435,12 +435,12 @@ impl World {
         })
     }
 
-    pub fn get_mut_resource<T: Resource + 'static>(&mut self) -> Option<RwLockWriteGuard<T>> {
+    pub fn get_mut_resource<T: Resource + 'static>(&self) -> Option<RwLockWriteGuard<T>> {
         let type_id = TypeId::of::<T>();
 
-        self.resources.get_mut(&type_id).map(|r| {
-            r.to_any_mut()
-                .downcast_mut::<RwLock<T>>()
+        self.resources.get(&type_id).map(|r| {
+            r.to_any()
+                .downcast_ref::<RwLock<T>>()
                 .expect("donwcasting error")
                 .try_write()
                 .expect("lock error")
