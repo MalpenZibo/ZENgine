@@ -7,8 +7,18 @@ use crate::{
     world::{Resource, World},
 };
 
-pub trait Command {
+pub trait Command: ApplyCommand {
     fn apply(self, world: &mut World);
+}
+
+pub trait ApplyCommand {
+    fn apply_boxed(self: Box<Self>, world: &mut World);
+}
+
+impl<T: Command> ApplyCommand for T {
+    fn apply_boxed(self: Box<Self>, world: &mut World) {
+        self.apply(world)
+    }
 }
 
 type CommandState = Vec<Box<dyn Command>>;
@@ -93,6 +103,12 @@ impl<'a> SystemParamFetch<'a> for CommandState {
         Commands {
             queue: self,
             entities: &world.entity_generator,
+        }
+    }
+
+    fn apply(&mut self, world: &mut World) {
+        for q in self.drain(0..) {
+            q.apply_boxed(world);
         }
     }
 }

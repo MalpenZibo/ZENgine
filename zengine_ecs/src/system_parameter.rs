@@ -14,7 +14,7 @@ pub trait SystemParamFetch<'a> {
 
     fn fetch(&'a mut self, world: &'a World) -> Self::Item;
 
-    fn apply(&self, _world: &mut World) {}
+    fn apply(&mut self, _world: &mut World) {}
 }
 
 pub type SystemParamItem<'a, P> = <<P as SystemParam>::Fetch as SystemParamFetch<'a>>::Item;
