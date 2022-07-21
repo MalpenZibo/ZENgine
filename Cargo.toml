@@ -1,8 +1,22 @@
+[package]
+name = "zengine"
+version = "0.1.0"
+edition = "2021"
+categories = ["game-engines", "graphics", "rendering"]
+description = "A simple 2D ECS game engine"
+exclude = [".github/", "crates/", "assets/", "benches/"]
+homepage = ""
+keywords = ["game", "engine", "gamedev", "graphics", "zengine"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/malpenzibo/zengine"
+
 [workspace]
 exclude = ["benches"]
-members = [
-    "zengine",
-    "zengine_ecs",
-    "zengine_macro",
-    "examples/pong"
-]
+members = ["crates/*"]
+
+[dependencies]
+
+[[example]]
+name = "Pong"
+path = "pong/main.rs"

@@ -23,25 +23,31 @@ where
     }
 }
 
-trait IntoSystem<P: SystemParam> {
+pub trait IntoSystem<P: SystemParam> {
     type System: SystemFunction<P>;
 
     fn into_system(self) -> SystemWrapper<Self::System, P>;
 }
 
-struct SystemWrapper<F: SystemFunction<P>, P: SystemParam> {
+pub struct SystemWrapper<F: SystemFunction<P>, P: SystemParam> {
     _marker: std::marker::PhantomData<P>,
     function: F,
     param_state: P::Fetch,
 }
 
 pub trait System {
+    fn init(&mut self, world: &mut World);
+
     fn run(&mut self, world: &World);
 
     fn apply(&mut self, world: &mut World);
 }
 
 impl<F: SystemFunction<P>, P: SystemParam> System for SystemWrapper<F, P> {
+    fn init(&mut self, world: &mut World) {
+        self.param_state.init(world);
+    }
+
     fn run(&mut self, world: &World) {
         let data: <<P as SystemParam>::Fetch as SystemParamFetch>::Item =
             <P as SystemParam>::Fetch::fetch(&mut self.param_state, world);

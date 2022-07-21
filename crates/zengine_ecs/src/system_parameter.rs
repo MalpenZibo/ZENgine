@@ -12,6 +12,8 @@ pub trait SystemParam: Sized {
 pub trait SystemParamFetch<'a> {
     type Item;
 
+    fn init(&mut self, _world: &mut World) {}
+
     fn fetch(&'a mut self, world: &'a World) -> Self::Item;
 
     fn apply(&mut self, _world: &mut World) {}
