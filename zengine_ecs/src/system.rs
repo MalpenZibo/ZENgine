@@ -37,6 +37,8 @@ struct SystemWrapper<F: SystemFunction<P>, P: SystemParam> {
 
 pub trait System {
     fn run(&mut self, world: &World);
+
+    fn apply(&self, world: &mut World);
 }
 
 impl<F: SystemFunction<P>, P: SystemParam> System for SystemWrapper<F, P> {
@@ -44,6 +46,10 @@ impl<F: SystemFunction<P>, P: SystemParam> System for SystemWrapper<F, P> {
         let data: <<P as SystemParam>::Fetch as SystemParamFetch>::Item =
             <P as SystemParam>::Fetch::fetch(&mut self.param_state, world);
         self.function.run_function(data);
+    }
+
+    fn apply(&self, world: &mut World) {
+        self.param_state.apply(world);
     }
 }
 
@@ -84,6 +90,12 @@ macro_rules! impl_system_function {
                 let ($($param,)*) = self;
 
                 ($($param::fetch($param, world),)*)
+            }
+
+            fn apply(&self, world: &mut World) {
+                let ($($param,)*) = self;
+
+                ($($param::apply($param, world),)*);
             }
         }
 

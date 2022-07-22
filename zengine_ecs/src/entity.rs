@@ -1,4 +1,7 @@
-use std::ops::Deref;
+use std::{
+    ops::Deref,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct Entity(usize);
@@ -12,14 +15,12 @@ impl Deref for Entity {
 
 #[derive(Default, Debug)]
 pub struct EntityGenerator {
-    current: usize,
+    current: AtomicUsize,
 }
 impl EntityGenerator {
-    pub fn generate(&mut self) -> Entity {
-        let entity = Entity(self.current);
-        self.current += 1;
-
-        entity
+    pub fn generate(&self) -> Entity {
+        let current = self.current.fetch_add(1, Ordering::Relaxed);
+        Entity(current)
     }
 }
 
@@ -42,6 +43,6 @@ mod tests {
             entities.into_iter().map(|e| e.0).collect::<Vec<usize>>(),
             vec!(0, 1, 2, 3)
         );
-        assert_eq!(generator.current, 4);
+        assert_eq!(*generator.current.get_mut(), 4);
     }
 }

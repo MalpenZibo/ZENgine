@@ -14,7 +14,6 @@ use crate::{
     component::{ComponentBundle, ComponentColumn, InsertType},
     entity::{Entity, EntityGenerator},
     query::{Query, QueryCache, QueryParameters},
-    ECSError,
 };
 
 #[derive(PartialEq, Debug)]
@@ -41,7 +40,7 @@ impl<T: Resource> ResourceCell for RwLock<T> {
 
 #[derive(Debug)]
 pub struct World {
-    entity_generator: EntityGenerator,
+    pub(crate) entity_generator: EntityGenerator,
     entity_record: FxHashMap<Entity, Record>,
     archetype_map: HashMap<u64, usize, BuildHasherDefault<NoHashHasher<u64>>>,
     pub(crate) archetypes: Vec<Archetype>,
@@ -76,8 +75,7 @@ impl World {
     pub fn spawn<T: ComponentBundle>(&mut self, component_bundle: T) -> Entity {
         let entity = self.internal_spawn();
 
-        self.add_component(entity, component_bundle)
-            .expect("entity should be present");
+        self.add_component(entity, component_bundle);
 
         entity
     }
@@ -101,7 +99,7 @@ impl World {
         entity
     }
 
-    pub fn despawn(&mut self, entity: Entity) -> Result<(), ECSError> {
+    pub fn despawn(&mut self, entity: Entity) {
         if let Some(record) = self.entity_record.get(&entity) {
             let archetype = self
                 .archetypes
@@ -124,18 +122,10 @@ impl World {
             };
 
             self.entity_record.remove(&entity);
-
-            Ok(())
-        } else {
-            Err(ECSError::EntityNotValid)
         }
     }
 
-    pub fn add_component<T: ComponentBundle>(
-        &mut self,
-        entity: Entity,
-        component_bundle: T,
-    ) -> Result<(), ECSError> {
+    pub fn add_component<T: ComponentBundle>(&mut self, entity: Entity, component_bundle: T) {
         let component_ids = T::get_types();
 
         if let Some(record) = self.entity_record.get(&entity) {
@@ -302,14 +292,10 @@ impl World {
                         .collect(),
                 );
             }
-
-            Ok(())
-        } else {
-            Err(ECSError::EntityNotValid)
         }
     }
 
-    pub fn remove_component<T: ComponentBundle>(&mut self, entity: Entity) -> Result<(), ECSError> {
+    pub fn remove_component<T: ComponentBundle>(&mut self, entity: Entity) {
         let component_ids = T::get_types();
 
         if let Some(record) = self.entity_record.get(&entity) {
@@ -409,11 +395,7 @@ impl World {
             if let Some(record) = self.entity_record.get_mut(&entity) {
                 record.archetype_index = destination_archetype_index;
                 record.row = new_archetype.entities.len() - 1;
-            };
-
-            Ok(())
-        } else {
-            Err(ECSError::EntityNotValid)
+            }
         }
     }
 
@@ -452,6 +434,16 @@ impl World {
 
         self.resources
             .insert(type_id, Box::new(RwLock::new(resource)));
+    }
+
+    pub fn destroy_resource<T: Resource>(&mut self) {
+        let type_id = TypeId::of::<T>();
+
+        self.resources.remove(&type_id);
+    }
+
+    pub fn destroy_resource_with_type_id(&mut self, id: TypeId) {
+        self.resources.remove(&id);
     }
 }
 
@@ -551,15 +543,15 @@ mod tests {
         let mut world = World::default();
 
         let entity1 = world.spawn_without_component();
-        world.add_component(entity1, Component1 {}).unwrap();
+        world.add_component(entity1, Component1 {});
 
         let entity2 = world.spawn_without_component();
-        world.add_component(entity2, Component1 {}).unwrap();
+        world.add_component(entity2, Component1 {});
 
         let entity3 = world.spawn_without_component();
-        world.add_component(entity3, Component1 {}).unwrap();
+        world.add_component(entity3, Component1 {});
 
-        world.despawn(entity2).unwrap();
+        world.despawn(entity2);
 
         assert_eq!(
             world.entity_record.get(&entity1),
@@ -585,7 +577,7 @@ mod tests {
 
         let entity = world.spawn_without_component();
 
-        world.add_component(entity, Component1 {}).unwrap();
+        world.add_component(entity, Component1 {});
 
         assert_eq!(
             world.entity_record.get(&entity),
@@ -603,9 +595,7 @@ mod tests {
 
         let entity = world.spawn_without_component();
 
-        world
-            .add_component(entity, (Component1 {}, Component3 { data: 3 }))
-            .unwrap();
+        world.add_component(entity, (Component1 {}, Component3 { data: 3 }));
 
         assert_eq!(
             world.entity_record.get(&entity),
@@ -623,12 +613,8 @@ mod tests {
 
         let entity = world.spawn_without_component();
 
-        world
-            .add_component(entity, Component3 { data: 32 })
-            .unwrap();
-        world
-            .add_component(entity, Component3 { data: 42 })
-            .unwrap();
+        world.add_component(entity, Component3 { data: 32 });
+        world.add_component(entity, Component3 { data: 42 });
 
         assert_eq!(
             world.entity_record.get(&entity),
@@ -655,8 +641,8 @@ mod tests {
 
         let entity = world.spawn_without_component();
 
-        world.add_component(entity, Component1 {}).unwrap();
-        world.add_component(entity, Component2 {}).unwrap();
+        world.add_component(entity, Component1 {});
+        world.add_component(entity, Component2 {});
 
         assert_eq!(
             world.entity_record.get(&entity),
@@ -674,22 +660,18 @@ mod tests {
 
         let entity = world.spawn_without_component();
 
-        world
-            .add_component(
-                entity,
-                (
-                    Component1 {},
-                    Component3 { data: 2 },
-                    Component7 {},
-                    Component4 {},
-                    Component6 {},
-                    Component8 {},
-                ),
-            )
-            .unwrap();
-        world
-            .remove_component::<(Component3, Component6, Component4)>(entity)
-            .unwrap();
+        world.add_component(
+            entity,
+            (
+                Component1 {},
+                Component3 { data: 2 },
+                Component7 {},
+                Component4 {},
+                Component6 {},
+                Component8 {},
+            ),
+        );
+        world.remove_component::<(Component3, Component6, Component4)>(entity);
 
         assert_eq!(
             world.entity_record.get(&entity),
@@ -706,15 +688,15 @@ mod tests {
         let mut world = World::default();
 
         let entity1 = world.spawn_without_component();
-        world.add_component(entity1, Component1 {}).unwrap();
+        world.add_component(entity1, Component1 {});
 
         let entity2 = world.spawn_without_component();
-        world.add_component(entity2, Component1 {}).unwrap();
+        world.add_component(entity2, Component1 {});
 
         let entity3 = world.spawn_without_component();
-        world.add_component(entity3, Component1 {}).unwrap();
+        world.add_component(entity3, Component1 {});
 
-        world.add_component(entity2, Component2 {}).unwrap();
+        world.add_component(entity2, Component2 {});
 
         assert_eq!(
             world.entity_record.get(&entity1),
@@ -746,8 +728,8 @@ mod tests {
 
         let entity = world.spawn_without_component();
 
-        world.add_component(entity, Component1 {}).unwrap();
-        world.add_component(entity, Component4 {}).unwrap();
+        world.add_component(entity, Component1 {});
+        world.add_component(entity, Component4 {});
 
         assert_eq!(
             world.entity_record.get(&entity),
@@ -765,18 +747,14 @@ mod tests {
 
         let entity = world.spawn_without_component();
 
-        world
-            .add_component(
-                entity,
-                (Component1 {}, Component3 { data: 2 }, Component7 {}),
-            )
-            .unwrap();
-        world
-            .add_component(
-                entity,
-                (Component4 {}, Component3 { data: 42 }, Component8 {}),
-            )
-            .unwrap();
+        world.add_component(
+            entity,
+            (Component1 {}, Component3 { data: 2 }, Component7 {}),
+        );
+        world.add_component(
+            entity,
+            (Component4 {}, Component3 { data: 42 }, Component8 {}),
+        );
 
         assert_eq!(
             world.entity_record.get(&entity),
