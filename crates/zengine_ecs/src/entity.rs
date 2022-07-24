@@ -14,7 +14,7 @@ impl Deref for Entity {
 }
 
 #[derive(Default, Debug)]
-pub struct EntityGenerator {
+pub(crate) struct EntityGenerator {
     current: AtomicUsize,
 }
 impl EntityGenerator {

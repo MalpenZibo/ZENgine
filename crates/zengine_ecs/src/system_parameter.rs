@@ -49,13 +49,13 @@ impl<'a, T: QueryParameters> SystemParam for Query<'a, T> {
     type Fetch = QueryState<T>;
 }
 
-pub type Res<'a, R> = Option<RwLockReadGuard<'a, R>>;
+pub type Res<'a, R> = RwLockReadGuard<'a, R>;
 
-pub struct ResState<R: Resource> {
+pub struct ResState<R: Resource + Default> {
     _marker: std::marker::PhantomData<R>,
 }
 
-impl<T: Resource> Default for ResState<T> {
+impl<T: Resource + Default> Default for ResState<T> {
     fn default() -> Self {
         ResState {
             _marker: std::marker::PhantomData::default(),
@@ -63,25 +63,31 @@ impl<T: Resource> Default for ResState<T> {
     }
 }
 
-impl<'a, R: Resource> SystemParamFetch<'a> for ResState<R> {
+impl<'a, R: Resource + Default> SystemParamFetch<'a> for ResState<R> {
     type Item = Res<'a, R>;
 
+    fn init(&mut self, world: &mut World) {
+        if world.get_resource::<R>().is_none() {
+            world.create_resource::<R>(R::default())
+        }
+    }
+
     fn fetch(&mut self, world: &'a World) -> Self::Item {
-        world.get_resource()
+        world.get_resource().unwrap()
     }
 }
 
-impl<'a, R: Resource> SystemParam for Res<'a, R> {
+impl<'a, R: Resource + Default> SystemParam for Res<'a, R> {
     type Fetch = ResState<R>;
 }
 
-pub type ResMut<'a, R> = Option<RwLockWriteGuard<'a, R>>;
+pub type ResMut<'a, R> = RwLockWriteGuard<'a, R>;
 
-pub struct ResMutState<R: Resource> {
+pub struct ResMutState<R: Resource + Default> {
     _marker: std::marker::PhantomData<R>,
 }
 
-impl<T: Resource> Default for ResMutState<T> {
+impl<T: Resource + Default> Default for ResMutState<T> {
     fn default() -> Self {
         ResMutState {
             _marker: std::marker::PhantomData::default(),
@@ -89,16 +95,74 @@ impl<T: Resource> Default for ResMutState<T> {
     }
 }
 
-impl<'a, R: Resource> SystemParamFetch<'a> for ResMutState<R> {
+impl<'a, R: Resource + Default> SystemParamFetch<'a> for ResMutState<R> {
     type Item = ResMut<'a, R>;
+
+    fn init(&mut self, world: &mut World) {
+        if world.get_resource::<R>().is_none() {
+            world.create_resource::<R>(R::default())
+        }
+    }
+
+    fn fetch(&mut self, world: &'a World) -> Self::Item {
+        world.get_mut_resource().unwrap()
+    }
+}
+
+impl<'a, R: Resource + Default> SystemParam for ResMut<'a, R> {
+    type Fetch = ResMutState<R>;
+}
+
+pub type OptionalRes<'a, R> = Option<RwLockReadGuard<'a, R>>;
+
+pub struct OptionalResState<R: Resource> {
+    _marker: std::marker::PhantomData<R>,
+}
+
+impl<T: Resource> Default for OptionalResState<T> {
+    fn default() -> Self {
+        OptionalResState {
+            _marker: std::marker::PhantomData::default(),
+        }
+    }
+}
+
+impl<'a, R: Resource> SystemParamFetch<'a> for OptionalResState<R> {
+    type Item = OptionalRes<'a, R>;
+
+    fn fetch(&mut self, world: &'a World) -> Self::Item {
+        world.get_resource()
+    }
+}
+
+impl<'a, R: Resource> SystemParam for OptionalRes<'a, R> {
+    type Fetch = OptionalResState<R>;
+}
+
+pub type OptionalResMut<'a, R> = Option<RwLockWriteGuard<'a, R>>;
+
+pub struct OptionalResMutState<R: Resource> {
+    _marker: std::marker::PhantomData<R>,
+}
+
+impl<T: Resource> Default for OptionalResMutState<T> {
+    fn default() -> Self {
+        OptionalResMutState {
+            _marker: std::marker::PhantomData::default(),
+        }
+    }
+}
+
+impl<'a, R: Resource> SystemParamFetch<'a> for OptionalResMutState<R> {
+    type Item = OptionalResMut<'a, R>;
 
     fn fetch(&mut self, world: &'a World) -> Self::Item {
         world.get_mut_resource()
     }
 }
 
-impl<'a, R: Resource> SystemParam for ResMut<'a, R> {
-    type Fetch = ResMutState<R>;
+impl<'a, R: Resource> SystemParam for OptionalResMut<'a, R> {
+    type Fetch = OptionalResMutState<R>;
 }
 
 pub type Local<'a, T> = &'a mut T;

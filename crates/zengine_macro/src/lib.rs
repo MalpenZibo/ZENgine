@@ -7,18 +7,26 @@ use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input,
     token::Comma,
-    DeriveInput, Ident, Index, LitInt, Result,
+    DeriveInput, Ident, Index, LitInt, Path, Result,
 };
+
+mod zengine_manifest;
+use zengine_manifest::ZENgineManifest;
+
+pub(crate) fn zengine_ecs_path() -> syn::Path {
+    ZENgineManifest::default().get_path("zengine_ecs")
+}
 
 #[proc_macro_derive(Component)]
 pub fn component_macro_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
+    let zengine_ecs_path: Path = crate::zengine_ecs_path();
 
     let name = input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     let expanded = quote! {
-        impl #impl_generics Component for #name #ty_generics #where_clause {}
+        impl #impl_generics #zengine_ecs_path::component::Component for #name #ty_generics #where_clause {}
     };
 
     TokenStream::from(expanded)
@@ -27,12 +35,13 @@ pub fn component_macro_derive(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(Resource)]
 pub fn resource_macro_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
+    let zengine_ecs_path: Path = crate::zengine_ecs_path();
 
     let name = input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     let expanded = quote! {
-        impl #impl_generics Resource for #name #ty_generics #where_clause {}
+        impl #impl_generics #zengine_ecs_path::world::Resource for #name #ty_generics #where_clause {}
     };
 
     TokenStream::from(expanded)
@@ -41,12 +50,13 @@ pub fn resource_macro_derive(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(InputType)]
 pub fn input_type_macro_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
+    let zengine_event_path = ZENgineManifest::default().get_path("zengine_event");
 
     let name = input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     let expanded = quote! {
-        impl #impl_generics InputType for #name #ty_generics #where_clause {}
+        impl #impl_generics #zengine_event_path::InputType for #name #ty_generics #where_clause {}
     };
 
     TokenStream::from(expanded)
@@ -55,12 +65,13 @@ pub fn input_type_macro_derive(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(SpriteType)]
 pub fn sprite_type_macro_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
+    let zengine_graphic_path = ZENgineManifest::default().get_path("zengine_graphic");
 
     let name = input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     let expanded = quote! {
-        impl #impl_generics SpriteType for #name #ty_generics #where_clause {}
+        impl #impl_generics #zengine_graphic_path::SpriteType for #name #ty_generics #where_clause {}
     };
 
     TokenStream::from(expanded)

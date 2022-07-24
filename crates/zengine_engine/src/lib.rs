@@ -59,21 +59,21 @@ impl Default for Engine {
 }
 
 impl Engine {
-    fn add_system<Params: SystemParam + 'static, I: IntoSystem<Params> + 'static>(
+    pub fn add_system<Params: SystemParam + 'static, I: IntoSystem<Params> + 'static>(
         mut self,
         system: I,
     ) -> Self {
         self.add_system_into_stage(system, StageLabel::Update)
     }
 
-    fn add_startup_system<Params: SystemParam + 'static, I: IntoSystem<Params> + 'static>(
+    pub fn add_startup_system<Params: SystemParam + 'static, I: IntoSystem<Params> + 'static>(
         mut self,
         system: I,
     ) -> Self {
         self.add_system_into_stage(system, StageLabel::Startup)
     }
 
-    fn add_system_into_stage<Params: SystemParam + 'static, I: IntoSystem<Params> + 'static>(
+    pub fn add_system_into_stage<Params: SystemParam + 'static, I: IntoSystem<Params> + 'static>(
         mut self,
         system: I,
         stage: StageLabel,
@@ -85,7 +85,7 @@ impl Engine {
         self
     }
 
-    fn run(mut self) {
+    pub fn run(mut self) {
         let mut stages: Vec<Stage> = self
             .stage_order
             .iter()

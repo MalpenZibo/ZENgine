@@ -6,7 +6,9 @@ use std::{
 
 use zengine_macro::{all_tuples, query_iter_for_tuple};
 
-use crate::{archetype::Archetype, iterators::*, world::World};
+use crate::{
+    archetype::Archetype, component::Component, entity::Entity, iterators::*, world::World,
+};
 
 pub trait FetchableQuery<T: QueryParameters> {
     fn fetch(world: &World) -> Self;
@@ -54,7 +56,61 @@ pub struct ReadQueryParameterFetch<T> {
     phantom: std::marker::PhantomData<T>,
 }
 
-impl<T: 'static> QueryParameter for &T {
+impl QueryParameter for &Entity {
+    type Item = ReadQueryParameterFetch<Entity>;
+
+    fn matches_archetype(_archetype: &Archetype) -> bool {
+        true
+    }
+}
+
+impl<'a> QueryParameterFetch<'a> for ReadQueryParameterFetch<Entity> {
+    type FetchItem = Vec<&'a Vec<Entity>>;
+
+    fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem {
+        if let Some(some_cache) = cache {
+            if some_cache.last_archetypes_count != world.archetypes.len() {
+                cache.take();
+            }
+        }
+
+        let mut result: Self::FetchItem = Vec::default();
+        if let Some(cache) = cache {
+            for (archetype, columns_vector) in cache
+                .matched_archetypes
+                .iter()
+                .map(|(i, column_indexes)| (world.archetypes.get(*i).unwrap(), column_indexes))
+            {
+                result.push(&archetype.entities);
+            }
+        } else {
+            let mut new_cache = QueryCache {
+                last_archetypes_count: world.archetypes.len(),
+                matched_archetypes: Vec::default(),
+            };
+            for (archetype_index, a) in world.archetypes.iter().enumerate() {
+                new_cache.matched_archetypes.push((archetype_index, vec![]));
+                result.push(&a.entities);
+            }
+            cache.replace(new_cache);
+        }
+
+        result
+    }
+}
+
+impl<'a> QueryParameterFetchFromArchetype<'a> for ReadQueryParameterFetch<Entity> {
+    type ArchetypeFetchItem = &'a Vec<Entity>;
+
+    fn fetch_from_archetype(
+        archetype: &'a Archetype,
+        _column_cache: Option<usize>,
+    ) -> (Self::ArchetypeFetchItem, usize) {
+        (&archetype.entities, 0)
+    }
+}
+
+impl<T: Component + 'static> QueryParameter for &T {
     type Item = ReadQueryParameterFetch<T>;
 
     fn matches_archetype(archetype: &Archetype) -> bool {
@@ -63,7 +119,7 @@ impl<T: 'static> QueryParameter for &T {
     }
 }
 
-impl<'a, T: 'static> QueryParameterFetch<'a> for ReadQueryParameterFetch<T> {
+impl<'a, T: Component + 'static> QueryParameterFetch<'a> for ReadQueryParameterFetch<T> {
     type FetchItem = Vec<RwLockReadGuard<'a, Vec<T>>>;
 
     fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem {
@@ -103,7 +159,9 @@ impl<'a, T: 'static> QueryParameterFetch<'a> for ReadQueryParameterFetch<T> {
     }
 }
 
-impl<'a, T: 'static> QueryParameterFetchFromArchetype<'a> for ReadQueryParameterFetch<T> {
+impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
+    for ReadQueryParameterFetch<T>
+{
     type ArchetypeFetchItem = RwLockReadGuard<'a, Vec<T>>;
 
     fn fetch_from_archetype(
@@ -130,7 +188,7 @@ pub struct WriteQueryParameterFetch<T> {
     phantom: std::marker::PhantomData<T>,
 }
 
-impl<T: 'static> QueryParameter for &mut T {
+impl<T: Component + 'static> QueryParameter for &mut T {
     type Item = WriteQueryParameterFetch<T>;
 
     fn matches_archetype(archetype: &Archetype) -> bool {
@@ -139,7 +197,7 @@ impl<T: 'static> QueryParameter for &mut T {
     }
 }
 
-impl<'a, T: 'static> QueryParameterFetch<'a> for WriteQueryParameterFetch<T> {
+impl<'a, T: Component + 'static> QueryParameterFetch<'a> for WriteQueryParameterFetch<T> {
     type FetchItem = Vec<RwLockWriteGuard<'a, Vec<T>>>;
 
     fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem {
@@ -173,7 +231,9 @@ impl<'a, T: 'static> QueryParameterFetch<'a> for WriteQueryParameterFetch<T> {
     }
 }
 
-impl<'a, T: 'static> QueryParameterFetchFromArchetype<'a> for WriteQueryParameterFetch<T> {
+impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
+    for WriteQueryParameterFetch<T>
+{
     type ArchetypeFetchItem = RwLockWriteGuard<'a, Vec<T>>;
 
     fn fetch_from_archetype(
@@ -283,6 +343,13 @@ macro_rules! impl_query_parameters {
     };
 }
 all_tuples!(impl_query_parameters, 0, 14, P);
+
+impl<'a, 'b> QueryIter<'b> for &'a Vec<Entity> {
+    type Iter = std::slice::Iter<'b, Entity>;
+    fn iter(&'b mut self) -> Self::Iter {
+        <[Entity]>::iter(self)
+    }
+}
 
 impl<'a, 'b, T: 'static> QueryIter<'b> for RwLockReadGuard<'a, Vec<T>> {
     type Iter = std::slice::Iter<'b, T>;

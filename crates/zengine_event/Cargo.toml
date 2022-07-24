@@ -1,0 +1,13 @@
+[package]
+name = "zengine_event"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+fnv = "1.0.7"
+zengine_platform = { path = "../zengine_platform" }
+zengine_ecs = { path = "../zengine_ecs" }
+
+[dev-dependencies]
+serde_yaml = "0.8"
