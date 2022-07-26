@@ -4,7 +4,7 @@ use crate::{
     component::ComponentBundle,
     entity::{Entity, EntityGenerator},
     system_parameter::{SystemParam, SystemParamFetch},
-    world::{Resource, World},
+    world::{Resource, UnsendableResource, World},
 };
 
 pub trait Command: ApplyCommand {
@@ -30,7 +30,7 @@ struct SpawnCommand<T: ComponentBundle> {
 
 impl<T: ComponentBundle> Command for SpawnCommand<T> {
     fn apply(self, world: &mut World) {
-        world.add_component(self.entity, self.components);
+        world.spawn_reserved(self.entity, self.components);
     }
 }
 
@@ -64,6 +64,26 @@ impl Command for DestroyResourceCommand {
     }
 }
 
+struct CreateUnsendableResourceCommand<T: UnsendableResource> {
+    resource: T,
+}
+
+impl<T: UnsendableResource> Command for CreateUnsendableResourceCommand<T> {
+    fn apply(self, world: &mut World) {
+        world.create_unsendable_resource(self.resource);
+    }
+}
+
+struct DestroyUnsendableResourceCommand {
+    resource_type: TypeId,
+}
+
+impl Command for DestroyUnsendableResourceCommand {
+    fn apply(self, world: &mut World) {
+        world.destroy_unsendable_resource_with_type_id(self.resource_type);
+    }
+}
+
 pub struct Commands<'a> {
     queue: &'a mut CommandState,
     entities: &'a EntityGenerator,
@@ -91,6 +111,17 @@ impl<'a> Commands<'a> {
 
     pub fn destroy_resource<T: Resource>(&mut self) {
         self.queue.push(Box::new(DestroyResourceCommand {
+            resource_type: TypeId::of::<T>(),
+        }))
+    }
+
+    pub fn create_unsendable_resource<T: UnsendableResource>(&mut self, resource: T) {
+        self.queue
+            .push(Box::new(CreateUnsendableResourceCommand { resource }))
+    }
+
+    pub fn destroy_unsendable_resource<T: UnsendableResource>(&mut self) {
+        self.queue.push(Box::new(DestroyUnsendableResourceCommand {
             resource_type: TypeId::of::<T>(),
         }))
     }

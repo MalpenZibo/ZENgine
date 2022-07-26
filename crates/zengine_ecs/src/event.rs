@@ -1,5 +1,4 @@
-use fnv::FnvHashMap;
-use zengine_ecs::world::Resource;
+use rustc_hash::FxHashMap;
 use std::any::{Any, TypeId};
 use std::cmp::Ordering;
 use std::fmt::Debug;
@@ -8,28 +7,40 @@ use std::sync::{RwLock, RwLockWriteGuard};
 
 const STREAM_SIZE_BLOCK: usize = 10;
 
+pub trait EventCell: Debug {
+    fn to_any(&self) -> &dyn Any;
+    fn to_any_mut(&mut self) -> &mut dyn Any;
+}
+
+impl<T: Any + Debug> EventCell for RwLock<EventHandler<T>> {
+    fn to_any(&self) -> &dyn Any {
+        self
+    }
+    fn to_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
 #[derive(Debug)]
-pub struct EventStream<E: Any> {
+pub struct EventHandler<E: Any + Debug> {
     buffer: Vec<E>,
     head: Option<usize>,
-    subscriptions: FnvHashMap<SubscriptionToken, RwLock<Subscription>>,
+    subscriptions: FxHashMap<SubscriptionToken, RwLock<Subscription>>,
     token_serial: u64,
 }
 
-impl<E: Any> Default for EventStream<E> {
+impl<E: Any + Debug> Default for EventHandler<E> {
     fn default() -> Self {
-        EventStream {
+        EventHandler {
             buffer: Vec::with_capacity(STREAM_SIZE_BLOCK),
             head: None,
-            subscriptions: FnvHashMap::default(),
+            subscriptions: FxHashMap::default(),
             token_serial: 0,
         }
     }
 }
 
-impl<E: Any + Send + Sync + Debug> Resource for EventStream<E> {}
-
-impl<E: Any> EventStream<E> {
+impl<E: Any + Debug> EventHandler<E> {
     pub fn subscribe(&mut self) -> SubscriptionToken {
         let token = self.generate_token();
         self.subscriptions.insert(
@@ -109,7 +120,8 @@ impl<E: Any> EventStream<E> {
         self.subscriptions
             .get(token)
             .expect("Invalid token suplied")
-            .write().unwrap()
+            .write()
+            .unwrap()
     }
 
     fn generate_token(&mut self) -> SubscriptionToken {
@@ -121,7 +133,8 @@ impl<E: Any> EventStream<E> {
 
     fn tail(&self) -> Option<usize> {
         self.subscriptions
-            .values().map(|v| v.read().unwrap())
+            .values()
+            .map(|v| v.read().unwrap())
             .min_by(|a, b| a.cmp(b))
             .map(|sub| sub.position.unwrap_or(0))
     }
@@ -186,7 +199,7 @@ impl PartialOrd for Subscription {
 mod tests {
     use super::*;
 
-    fn publish(stream: &mut EventStream<u32>, events: &[u32]) {
+    fn publish(stream: &mut EventHandler<u32>, events: &[u32]) {
         for e in events {
             stream.publish(e.clone());
         }
@@ -194,7 +207,7 @@ mod tests {
 
     #[test]
     fn produce() {
-        let mut stream = EventStream::<u32>::default();
+        let mut stream = EventHandler::<u32>::default();
 
         publish(&mut stream, &[4; 4]);
 
@@ -204,7 +217,7 @@ mod tests {
 
     #[test]
     fn produce_and_read() {
-        let mut stream = EventStream::<u32>::default();
+        let mut stream = EventHandler::<u32>::default();
 
         let token1 = stream.subscribe();
 
@@ -215,7 +228,7 @@ mod tests {
 
     #[test]
     fn produce_and_read_no_new_content() {
-        let mut stream = EventStream::<u32>::default();
+        let mut stream = EventHandler::<u32>::default();
 
         let token1 = stream.subscribe();
 
@@ -227,7 +240,7 @@ mod tests {
 
     #[test]
     fn produce_buffer_full_and_read_no_new_content() {
-        let mut stream = EventStream::<u32>::default();
+        let mut stream = EventHandler::<u32>::default();
 
         let token1 = stream.subscribe();
 
@@ -239,7 +252,13 @@ mod tests {
 
         assert_eq!(stream.head, Some(9));
         assert_eq!(
-            stream.subscriptions.get(&token1).unwrap().read().unwrap().position,
+            stream
+                .subscriptions
+                .get(&token1)
+                .unwrap()
+                .read()
+                .unwrap()
+                .position,
             Some(9)
         );
         assert_eq!(stream.buffer.len(), STREAM_SIZE_BLOCK);
@@ -248,7 +267,13 @@ mod tests {
         publish(&mut stream, &[4; 1]);
         assert_eq!(stream.head, Some(0));
         assert_eq!(
-            stream.subscriptions.get(&token1).unwrap().read().unwrap().position,
+            stream
+                .subscriptions
+                .get(&token1)
+                .unwrap()
+                .read()
+                .unwrap()
+                .position,
             Some(9)
         );
         assert_eq!(stream.buffer.len(), STREAM_SIZE_BLOCK);
@@ -257,7 +282,13 @@ mod tests {
 
         assert_eq!(stream.head, Some(0));
         assert_eq!(
-            stream.subscriptions.get(&token1).unwrap().read().unwrap().position,
+            stream
+                .subscriptions
+                .get(&token1)
+                .unwrap()
+                .read()
+                .unwrap()
+                .position,
             Some(0)
         );
         assert_eq!(stream.buffer.len(), STREAM_SIZE_BLOCK);
@@ -268,7 +299,7 @@ mod tests {
 
     #[test]
     fn produce_cycling() {
-        let mut stream = EventStream::<u32>::default();
+        let mut stream = EventHandler::<u32>::default();
 
         publish(&mut stream, &[4; 15]);
 
@@ -279,7 +310,7 @@ mod tests {
 
     #[test]
     fn buffer_increase() {
-        let mut stream = EventStream::<u32>::default();
+        let mut stream = EventHandler::<u32>::default();
 
         stream.subscribe();
         publish(&mut stream, &[4; 15]);
@@ -292,7 +323,7 @@ mod tests {
     #[allow(unused_must_use)]
     #[test]
     fn stream_with_lazy_subscriber() {
-        let mut stream = EventStream::<u32>::default();
+        let mut stream = EventHandler::<u32>::default();
 
         let token1 = stream.subscribe();
         let token2 = stream.subscribe();
@@ -317,7 +348,7 @@ mod tests {
 
     #[test]
     fn publish_subscribe_and_read() {
-        let mut stream = EventStream::<u32>::default();
+        let mut stream = EventHandler::<u32>::default();
 
         publish(&mut stream, &[1]);
         let token1 = stream.subscribe();
@@ -331,7 +362,7 @@ mod tests {
 
     #[test]
     fn publish_and_read_one_element_after_subscribe() {
-        let mut stream = EventStream::<u32>::default();
+        let mut stream = EventHandler::<u32>::default();
 
         let token1 = stream.subscribe();
 
@@ -346,7 +377,7 @@ mod tests {
 
     #[test]
     fn sequence_correctness() {
-        let mut stream = EventStream::<u32>::default();
+        let mut stream = EventHandler::<u32>::default();
 
         let token1 = stream.subscribe();
 

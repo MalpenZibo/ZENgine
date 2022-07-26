@@ -1,0 +1,16 @@
+[package]
+name = "zengine_render"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+zengine_ecs = { path = "../zengine_ecs" }
+zengine_graphic = { path = "../zengine_graphic" }
+zengine_math = { path = "../zengine_math" }
+zengine_physics = { path = "../zengine_physics" }
+zengine_platform = { path = "../zengine_platform" }
+zengine_macro = { path = "../zengine_macro" }
+rustc-hash = "1.1.0"
+gl = "0.14.0"
+sdl2 = { version = "0.33.0", features = ["bundled", "static-link"] }
+log = "0.4"

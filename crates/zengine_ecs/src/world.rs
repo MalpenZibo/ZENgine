@@ -1,5 +1,6 @@
 use std::{
     any::{Any, TypeId},
+    cell::{Ref, RefCell, RefMut},
     collections::HashMap,
     fmt::Debug,
     hash::BuildHasherDefault,
@@ -13,6 +14,7 @@ use crate::{
     archetype::{calculate_archetype_id, Archetype, ArchetypeSpecs},
     component::{ComponentBundle, ComponentColumn, InsertType},
     entity::{Entity, EntityGenerator},
+    event::{EventCell, EventHandler},
     query::{Query, QueryCache, QueryParameters},
 };
 
@@ -38,13 +40,31 @@ impl<T: Resource> ResourceCell for RwLock<T> {
     }
 }
 
+pub trait UnsendableResource: Any + Debug {}
+
+pub trait UnsendableResourceCell: Debug {
+    fn to_any(&self) -> &dyn Any;
+    fn to_any_mut(&mut self) -> &mut dyn Any;
+}
+
+impl<T: UnsendableResource> UnsendableResourceCell for RefCell<T> {
+    fn to_any(&self) -> &dyn Any {
+        self
+    }
+    fn to_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
 #[derive(Debug)]
 pub struct World {
     pub(crate) entity_generator: EntityGenerator,
     entity_record: FxHashMap<Entity, Record>,
     archetype_map: HashMap<u64, usize, BuildHasherDefault<NoHashHasher<u64>>>,
-    pub(crate) archetypes: Vec<Archetype>,
+    pub archetypes: Vec<Archetype>,
     resources: FxHashMap<TypeId, Box<dyn ResourceCell>>,
+    unsendable_resources: FxHashMap<TypeId, Box<dyn UnsendableResourceCell>>,
+    event_handlers: FxHashMap<TypeId, Box<dyn EventCell>>,
 }
 
 impl Default for World {
@@ -55,6 +75,8 @@ impl Default for World {
             archetype_map: HashMap::default(),
             archetypes: Vec::default(),
             resources: FxHashMap::default(),
+            unsendable_resources: FxHashMap::default(),
+            event_handlers: FxHashMap::default(),
         };
 
         let root_archetype = Archetype::root();
@@ -78,6 +100,27 @@ impl World {
         self.add_component(entity, component_bundle);
 
         entity
+    }
+
+    pub(crate) fn spawn_reserved<T: ComponentBundle>(
+        &mut self,
+        entity: Entity,
+        component_bundle: T,
+    ) {
+        let root_archetype = self
+            .archetypes
+            .get_mut(0)
+            .expect("root archetype should be present");
+        root_archetype.entities.push(entity);
+        self.entity_record.insert(
+            entity,
+            Record {
+                archetype_index: 0,
+                row: root_archetype.entities.len() - 1,
+            },
+        );
+
+        self.add_component(entity, component_bundle);
     }
 
     fn internal_spawn(&mut self) -> Entity {
@@ -436,6 +479,39 @@ impl World {
             .insert(type_id, Box::new(RwLock::new(resource)));
     }
 
+    pub fn get_unsendable_resource<T: UnsendableResource + 'static>(&self) -> Option<Ref<T>> {
+        let type_id = TypeId::of::<T>();
+
+        self.unsendable_resources.get(&type_id).map(|r| {
+            r.to_any()
+                .downcast_ref::<RefCell<T>>()
+                .expect("donwcasting error")
+                .try_borrow()
+                .expect("lock error")
+        })
+    }
+
+    pub fn get_mut_unsendable_resource<T: UnsendableResource + 'static>(
+        &self,
+    ) -> Option<RefMut<T>> {
+        let type_id = TypeId::of::<T>();
+
+        self.unsendable_resources.get(&type_id).map(|r| {
+            r.to_any()
+                .downcast_ref::<RefCell<T>>()
+                .expect("donwcasting error")
+                .try_borrow_mut()
+                .expect("lock error")
+        })
+    }
+
+    pub fn create_unsendable_resource<T: UnsendableResource + 'static>(&mut self, resource: T) {
+        let type_id = TypeId::of::<T>();
+
+        self.unsendable_resources
+            .insert(type_id, Box::new(RefCell::new(resource)));
+    }
+
     pub fn destroy_resource<T: Resource>(&mut self) {
         let type_id = TypeId::of::<T>();
 
@@ -444,6 +520,49 @@ impl World {
 
     pub fn destroy_resource_with_type_id(&mut self, id: TypeId) {
         self.resources.remove(&id);
+    }
+
+    pub fn destroy_unsendable_resource<T: UnsendableResource>(&mut self) {
+        let type_id = TypeId::of::<T>();
+
+        self.unsendable_resources.remove(&type_id);
+    }
+
+    pub fn destroy_unsendable_resource_with_type_id(&mut self, id: TypeId) {
+        self.unsendable_resources.remove(&id);
+    }
+
+    pub fn get_event_handler<T: Any + Debug>(&self) -> Option<RwLockReadGuard<EventHandler<T>>> {
+        let type_id = TypeId::of::<EventHandler<T>>();
+
+        self.event_handlers.get(&type_id).map(|e| {
+            e.to_any()
+                .downcast_ref::<RwLock<EventHandler<T>>>()
+                .expect("donwcasting error")
+                .try_read()
+                .expect("lock error")
+        })
+    }
+
+    pub fn get_mut_event_handler<T: Any + Debug>(
+        &self,
+    ) -> Option<RwLockWriteGuard<EventHandler<T>>> {
+        let type_id = TypeId::of::<EventHandler<T>>();
+
+        self.event_handlers.get(&type_id).map(|e| {
+            e.to_any()
+                .downcast_ref::<RwLock<EventHandler<T>>>()
+                .expect("donwcasting error")
+                .try_write()
+                .expect("lock error")
+        })
+    }
+
+    pub fn create_event_handler<T: Any + Debug>(&mut self) {
+        let type_id = TypeId::of::<EventHandler<T>>();
+
+        self.event_handlers
+            .insert(type_id, Box::new(RwLock::new(EventHandler::<T>::default())));
     }
 }
 

@@ -1,6 +1,9 @@
-
 use serde::Deserialize;
-use zengine_platform::device::{mouse::MouseButton, keyboard::Key, controller::{Which, ControllerButton}};
+use zengine_platform::device::{
+    controller::{ControllerButton, Which},
+    keyboard::Key,
+    mouse::MouseButton,
+};
 
 #[derive(Debug, Deserialize, Eq, PartialEq, Clone)]
 pub enum Axis {

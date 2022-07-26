@@ -12,11 +12,25 @@ pub mod graphic {
     pub use zengine_graphic::*;
 }
 
-pub mod event {
-    pub use zengine_event::*;
+pub mod input {
+    pub use zengine_input::*;
 }
 
+pub mod time {
+    pub use zengine_time::*;
+}
 
-#[macro_use]
+pub mod physics {
+    pub use zengine_physics::*;
+}
+
+pub mod render {
+    pub use zengine_render::*;
+}
+
+pub mod platform {
+    pub use zengine_platform::*;
+}
+
 extern crate zengine_macro;
 pub use zengine_macro::*;

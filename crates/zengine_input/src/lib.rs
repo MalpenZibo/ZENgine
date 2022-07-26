@@ -1,8 +1,3 @@
-mod stream;
-
-pub use self::stream::EventStream;
-pub use self::stream::SubscriptionToken;
-
 use fnv::FnvHashMap;
 use input::Input;
 use serde::Deserialize;
@@ -10,9 +5,11 @@ use std::any::Any;
 use std::hash::Hash;
 use zengine_ecs::world::Resource;
 
+pub mod event_system;
 pub mod input;
 mod input_system;
 
+pub use event_system::*;
 pub use input_system::*;
 
 pub trait InputType: Any + Eq + PartialEq + Hash + Clone + Default + std::fmt::Debug {}

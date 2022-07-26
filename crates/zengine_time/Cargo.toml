@@ -1,10 +1,9 @@
 [package]
-name = "zengine_engine"
+name = "zengine_time"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 zengine_ecs = { path = "../zengine_ecs" }
+zengine_macro = { path = "../zengine_macro" }
 log = "0.4"
-simplelog = "^0.7.6"
-log-panics = "2.0.0"

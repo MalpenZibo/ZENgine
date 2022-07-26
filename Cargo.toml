@@ -12,7 +12,7 @@ readme = "README.md"
 repository = "https://github.com/malpenzibo/zengine"
 
 [workspace]
-exclude = ["benches"]
+exclude = ["benches", "zengine_old"]
 members = ["crates/*", "examples/*"]
 
 [dependencies]
@@ -20,7 +20,11 @@ zengine_engine = { path = "crates/zengine_engine" }
 zengine_ecs = { path = "crates/zengine_ecs" }
 zengine_math = { path = "crates/zengine_math" }
 zengine_graphic = { path = "crates/zengine_graphic" }
-zengine_event = { path = "crates/zengine_event" }
+zengine_input = { path = "crates/zengine_input" }
+zengine_time = { path = "crates/zengine_time" }
+zengine_physics = { path = "crates/zengine_physics" }
+zengine_render = { path = "crates/zengine_render" }
+zengine_platform = { path = "crates/zengine_platform" }
 zengine_macro = { path = "crates/zengine_macro" }
 
 [[example]]

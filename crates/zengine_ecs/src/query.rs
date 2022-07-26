@@ -4,7 +4,7 @@ use std::{
     sync::{RwLockReadGuard, RwLockWriteGuard},
 };
 
-use zengine_macro::{all_tuples, query_iter_for_tuple};
+use zengine_macro::{all_tuples, query_iter_for_tuple, query_iter_mut_for_tuple};
 
 use crate::{
     archetype::Archetype, component::Component, entity::Entity, iterators::*, world::World,
@@ -48,7 +48,12 @@ pub trait QueryParameterFetchFromArchetype<'a> {
 
 pub trait QueryIter<'a> {
     type Iter: Iterator;
-    fn iter(&'a mut self) -> Self::Iter;
+    fn iter(&'a self) -> Self::Iter;
+}
+
+pub trait QueryIterMut<'a> {
+    type Iter: Iterator;
+    fn iter_mut(&'a mut self) -> Self::Iter;
 }
 
 #[doc(hidden)]
@@ -346,33 +351,56 @@ all_tuples!(impl_query_parameters, 0, 14, P);
 
 impl<'a, 'b> QueryIter<'b> for &'a Vec<Entity> {
     type Iter = std::slice::Iter<'b, Entity>;
-    fn iter(&'b mut self) -> Self::Iter {
+    fn iter(&'b self) -> Self::Iter {
         <[Entity]>::iter(self)
     }
 }
 
 impl<'a, 'b, T: 'static> QueryIter<'b> for RwLockReadGuard<'a, Vec<T>> {
     type Iter = std::slice::Iter<'b, T>;
-    fn iter(&'b mut self) -> Self::Iter {
+    fn iter(&'b self) -> Self::Iter {
         <[T]>::iter(self)
     }
 }
 
 impl<'a, 'b, T: 'static> QueryIter<'b> for RwLockWriteGuard<'a, Vec<T>> {
-    type Iter = std::slice::IterMut<'b, T>;
-    fn iter(&'b mut self) -> Self::Iter {
-        <[T]>::iter_mut(self)
+    type Iter = std::slice::Iter<'b, T>;
+    fn iter(&'b self) -> Self::Iter {
+        <[T]>::iter(self)
     }
 }
 
 query_iter_for_tuple!(14);
+
+impl<'a, 'b> QueryIterMut<'b> for &'a Vec<Entity> {
+    type Iter = std::slice::Iter<'b, Entity>;
+    fn iter_mut(&'b mut self) -> Self::Iter {
+        <[Entity]>::iter(self)
+    }
+}
+
+impl<'a, 'b, T: 'static> QueryIterMut<'b> for RwLockReadGuard<'a, Vec<T>> {
+    type Iter = std::slice::Iter<'b, T>;
+    fn iter_mut(&'b mut self) -> Self::Iter {
+        <[T]>::iter(self)
+    }
+}
+
+impl<'a, 'b, T: 'static> QueryIterMut<'b> for RwLockWriteGuard<'a, Vec<T>> {
+    type Iter = std::slice::IterMut<'b, T>;
+    fn iter_mut(&'b mut self) -> Self::Iter {
+        <[T]>::iter_mut(self)
+    }
+}
+
+query_iter_mut_for_tuple!(14);
 
 #[cfg(test)]
 mod tests {
 
     use crate::{component::Component, query::Query, world::World};
 
-    use super::QueryIter;
+    use super::QueryIterMut;
 
     #[derive(Debug, PartialEq)]
     struct Test1 {
@@ -401,7 +429,7 @@ mod tests {
 
         let mut query: Query<(&Test1,)> = world.query::<(&Test1,)>(None);
 
-        assert_eq!(query.iter().count(), 2);
+        assert_eq!(query.iter_mut().count(), 2);
     }
 
     #[test]
@@ -413,7 +441,7 @@ mod tests {
 
         let mut query = world.query::<(&Test1, &Test2)>(None);
 
-        assert_eq!(query.iter().count(), 1);
+        assert_eq!(query.iter_mut().count(), 1);
     }
 
     #[test]
@@ -426,13 +454,13 @@ mod tests {
 
         let mut query = world.query::<(&mut Test1, &Test2)>(None);
 
-        assert_eq!(query.iter().count(), 2);
+        assert_eq!(query.iter_mut().count(), 2);
 
-        for (a, _b) in query.iter() {
+        for (a, _b) in query.iter_mut() {
             a.data = 5;
         }
 
-        for (a, _b) in query.iter() {
+        for (a, _b) in query.iter_mut() {
             assert_eq!(a.data, 5);
         }
     }
@@ -447,14 +475,14 @@ mod tests {
         world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }, Test3 { data: 3 }));
 
         let mut query = world.query::<(&mut Test1, &Test2, &mut Test3)>(None);
-        assert_eq!(query.iter().count(), 2);
+        assert_eq!(query.iter_mut().count(), 2);
 
-        for (a, _b, c) in query.iter() {
+        for (a, _b, c) in query.iter_mut() {
             a.data = 5;
             c.data = 7;
         }
 
-        for (a, _b, c) in query.iter() {
+        for (a, _b, c) in query.iter_mut() {
             assert_eq!(a.data, 5);
             assert_eq!(c.data, 7);
         }

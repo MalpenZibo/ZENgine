@@ -2,6 +2,7 @@ mod archetype;
 pub mod command;
 pub mod component;
 pub mod entity;
+pub mod event;
 mod iterators;
 pub mod query;
 pub mod system;

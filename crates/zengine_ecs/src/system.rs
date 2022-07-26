@@ -92,6 +92,12 @@ macro_rules! impl_system_function {
         impl<'a, $($param: SystemParamFetch<'a>),*> SystemParamFetch<'a> for ($($param,)*) {
             type Item = ($($param::Item,)*);
 
+            fn init(&mut self, world: &mut World) {
+                let ($($param,)*) = self;
+
+                ($($param::init($param, world),)*);
+            }
+
             fn fetch(&'a mut self, world: &'a World) -> Self::Item {
                 let ($($param,)*) = self;
 

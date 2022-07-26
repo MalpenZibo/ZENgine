@@ -50,13 +50,13 @@ pub fn resource_macro_derive(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(InputType)]
 pub fn input_type_macro_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    let zengine_event_path = ZENgineManifest::default().get_path("zengine_event");
+    let zengine_input_path = ZENgineManifest::default().get_path("zengine_input");
 
     let name = input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     let expanded = quote! {
-        impl #impl_generics #zengine_event_path::InputType for #name #ty_generics #where_clause {}
+        impl #impl_generics #zengine_input_path::InputType for #name #ty_generics #where_clause {}
     };
 
     TokenStream::from(expanded)
@@ -329,8 +329,8 @@ pub fn query_iter_for_tuple(input: TokenStream) -> TokenStream {
             'b,
         >>::Iter
             >;
-            fn iter(&'b mut self) -> Self::Iter {
-                QueryIterator::new(self.data.iter_mut().map(|a| a.iter()).collect())
+            fn iter(&'b self) -> Self::Iter {
+                QueryIterator::new(self.data.iter().map(|a| a.iter()).collect())
             }
         }
     });
@@ -351,10 +351,10 @@ pub fn query_iter_for_tuple(input: TokenStream) -> TokenStream {
                         >>::Iter,
                     >,
                 >;
-                fn iter(&'b mut self) -> Self::Iter {
+                fn iter(&'b self) -> Self::Iter {
                     QueryIterator::new(
                         self.data
-                            .iter_mut()
+                            .iter()
                             .map(|(z0, z1)| zip(z0.iter(), z1.iter()))
                             .collect(),
                     )
@@ -391,7 +391,99 @@ pub fn query_iter_for_tuple(input: TokenStream) -> TokenStream {
             type Iter = QueryIterator<
                 #zip_type<#zip_args>,
             >;
-            fn iter(&'b mut self) -> Self::Iter {
+            fn iter(&'b self) -> Self::Iter {
+                QueryIterator::new(
+                    self.data
+                        .iter()
+                        .map(|( #tuple_args )| #zip_type::new( #tuple_iter ))
+                        .collect(),
+                )
+            }
+        }
+        })
+    }
+
+    TokenStream::from(expanded)
+}
+
+#[proc_macro]
+pub fn query_iter_mut_for_tuple(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as QueryIterInput);
+    let mut expanded = quote! {};
+
+    expanded.extend(quote!{
+        impl<'a, 'b, Z: QueryParameter> QueryIterMut<'b> for Query<'a, (Z,)>
+        where
+            <<Z as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem: QueryIterMut<'b>,
+        {
+            type Iter = QueryIterator<
+            <<<Z as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem as QueryIterMut<
+            'b,
+        >>::Iter
+            >;
+            fn iter_mut(&'b mut self) -> Self::Iter {
+                QueryIterator::new(self.data.iter_mut().map(|a| a.iter_mut()).collect())
+            }
+        }
+    });
+
+    expanded.extend(quote!{
+        impl<'a, 'b, Z0: QueryParameter, Z1: QueryParameter> QueryIterMut<'b> for Query<'a, (Z0, Z1)>
+            where
+                <<Z0 as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem: QueryIterMut<'b>,
+                <<Z1 as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem: QueryIterMut<'b>,
+            {
+                type Iter = QueryIterator<
+                    Zip<
+                        <<<Z0 as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem as QueryIterMut<
+                            'b,
+                        >>::Iter,
+                        <<<Z1 as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem as QueryIterMut<
+                            'b,
+                        >>::Iter,
+                    >,
+                >;
+                fn iter_mut(&'b mut self) -> Self::Iter {
+                    QueryIterator::new(
+                        self.data
+                            .iter_mut()
+                            .map(|(z0, z1)| zip(z0.iter_mut(), z1.iter_mut()))
+                            .collect(),
+                    )
+                }
+            }
+    });
+
+    for zip_number in 3..input.end {
+        let zip_type = format_ident!("Zip{}", zip_number);
+
+        let identity = format_ident!("Z{}", 0_usize);
+        let identity_lowercase = format_ident!("z{}", 0_usize);
+        let mut generics = quote! { #identity: QueryParameter };
+        let mut tuple = quote! { #identity };
+        let mut where_clause = quote! { <<#identity as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem: QueryIterMut<'b> };
+        let mut zip_args = quote! { <<<#identity as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem as QueryIterMut<'b,>>::Iter };
+        let mut tuple_args = quote! { #identity_lowercase };
+        let mut tuple_iter = quote! { #identity_lowercase.iter_mut() };
+        for i in 1..zip_number {
+            let identity = format_ident!("Z{}", i);
+            let identity_lowercase = format_ident!("z{}", i);
+            generics.extend(quote! { , #identity: QueryParameter });
+            tuple.extend(quote! { , #identity });
+            where_clause.extend(quote! { , <<#identity as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem: QueryIterMut<'b> });
+            zip_args.extend(quote! { , <<<#identity as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem as QueryIterMut<'b,>>::Iter });
+            tuple_args.extend(quote! { , #identity_lowercase });
+            tuple_iter.extend(quote! { , #identity_lowercase.iter_mut() });
+        }
+
+        expanded.extend(quote! {
+            impl<'a, 'b, #generics> QueryIterMut<'b> for Query<'a, ( #tuple )>
+        where #where_clause
+        {
+            type Iter = QueryIterator<
+                #zip_type<#zip_args>,
+            >;
+            fn iter_mut(&'b mut self) -> Self::Iter {
                 QueryIterator::new(
                     self.data
                         .iter_mut()
