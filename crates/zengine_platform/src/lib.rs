@@ -11,7 +11,7 @@ pub use self::platform_system::*;
 
 pub struct VideoSubsystemWrapper(pub VideoSubsystem);
 impl Debug for VideoSubsystemWrapper {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Ok(())
     }
 }

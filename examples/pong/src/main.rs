@@ -4,7 +4,7 @@ use zengine::{
         command::Commands,
         entity::Entity,
         query::{Query, QueryIter, QueryIterMut},
-        system_parameter::{Event, EventPublisher, EventStream, Local, OptionalRes, Res, ResMut},
+        system_parameter::{EventPublisher, EventStream, Local, OptionalRes, Res, ResMut},
     },
     graphic::{ActiveCamera, Camera, CameraMode, Color, SpriteDescriptor, TextureManager},
     input::{event_system, input_system, Bindings, InputHandler},

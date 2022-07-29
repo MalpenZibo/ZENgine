@@ -201,7 +201,7 @@ mod tests {
 
     fn publish(stream: &mut EventHandler<u32>, events: &[u32]) {
         for e in events {
-            stream.publish(e.clone());
+            stream.publish(*e);
         }
     }
 
@@ -354,7 +354,7 @@ mod tests {
         let token1 = stream.subscribe();
         let mut result: Vec<u32> = Vec::new();
         for u in stream.read(&token1) {
-            result.push(u.clone())
+            result.push(*u)
         }
         assert_eq!(stream.head, Some(0));
         assert_eq!(result, Vec::<u32>::new());
@@ -369,7 +369,7 @@ mod tests {
         publish(&mut stream, &[1]);
         let mut result: Vec<u32> = Vec::new();
         for u in stream.read(&token1) {
-            result.push(u.clone())
+            result.push(*u)
         }
         assert_eq!(stream.head, Some(0));
         assert_eq!(result, [1]);
@@ -385,7 +385,7 @@ mod tests {
         assert_eq!(stream.tail(), Some(0));
         let mut result: Vec<u32> = Vec::new();
         for u in stream.read(&token1) {
-            result.push(u.clone())
+            result.push(*u)
         }
         assert_eq!(stream.head, Some(3));
         assert_eq!(result, [1, 2, 3, 4]);
@@ -394,7 +394,7 @@ mod tests {
         let mut result: Vec<u32> = Vec::new();
         assert_eq!(stream.tail(), Some(3));
         for u in stream.read(&token1) {
-            result.push(u.clone())
+            result.push(*u)
         }
         assert_eq!(stream.head, Some(0));
         assert_eq!(result, [5, 6, 7, 8, 9, 10, 11]);
@@ -409,7 +409,7 @@ mod tests {
         assert_eq!(stream.tail(), Some(0));
         let mut result: Vec<u32> = Vec::new();
         for u in stream.read(&token1) {
-            result.push(u.clone())
+            result.push(*u)
         }
         assert_eq!(stream.head, Some(19));
         assert_eq!(stream.tail(), Some(19));

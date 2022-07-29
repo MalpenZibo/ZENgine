@@ -81,7 +81,7 @@ impl<'a> QueryParameterFetch<'a> for ReadQueryParameterFetch<Entity> {
 
         let mut result: Self::FetchItem = Vec::default();
         if let Some(cache) = cache {
-            for (archetype, columns_vector) in cache
+            for (archetype, _) in cache
                 .matched_archetypes
                 .iter()
                 .map(|(i, column_indexes)| (world.archetypes.get(*i).unwrap(), column_indexes))

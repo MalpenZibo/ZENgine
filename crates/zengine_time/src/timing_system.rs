@@ -1,6 +1,6 @@
 use log::trace;
+use std::thread::sleep;
 use std::time::Instant;
-use std::{ops::Deref, thread::sleep};
 use zengine_ecs::system_parameter::{Local, ResMut};
 
 use crate::{FrameLimiter, Time};

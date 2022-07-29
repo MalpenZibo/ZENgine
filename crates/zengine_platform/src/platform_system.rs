@@ -6,21 +6,19 @@ use log::{info, trace};
 use rustc_hash::FxHashMap;
 use sdl2::controller::GameController;
 use sdl2::EventPump;
-use sdl2::Sdl;
 use zengine_ecs::command::Commands;
 use zengine_ecs::world::UnsendableResource;
 
 use crate::VideoSubsystemWrapper;
 
 pub struct PlatformContext {
-    sdl_context: Sdl,
     pub event_pump: EventPump,
 }
 
 pub struct Controllers(pub FxHashMap<u32, (u32, GameController)>);
 
 impl Debug for Controllers {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Ok(())
     }
 }
@@ -28,7 +26,7 @@ impl Debug for Controllers {
 impl UnsendableResource for Controllers {}
 
 impl Debug for PlatformContext {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Ok(())
     }
 }
@@ -75,10 +73,7 @@ pub fn platform_startup(mut commands: Commands) {
         .collect();
     let video_subsystem = sdl_context.video().unwrap();
 
-    commands.create_unsendable_resource(PlatformContext {
-        sdl_context,
-        event_pump,
-    });
+    commands.create_unsendable_resource(PlatformContext { event_pump });
     commands.create_unsendable_resource(Controllers(controllers));
     commands.create_unsendable_resource(VideoSubsystemWrapper(video_subsystem))
 }
