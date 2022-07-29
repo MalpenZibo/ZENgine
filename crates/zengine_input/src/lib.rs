@@ -3,7 +3,7 @@ use input::Input;
 use serde::Deserialize;
 use std::any::Any;
 use std::hash::Hash;
-use zengine_ecs::world::Resource;
+use zengine_ecs::Resource;
 
 pub mod event_system;
 pub mod input;

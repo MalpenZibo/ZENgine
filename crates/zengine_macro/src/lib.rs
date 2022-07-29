@@ -26,7 +26,7 @@ pub fn component_macro_derive(input: TokenStream) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     let expanded = quote! {
-        impl #impl_generics #zengine_ecs_path::component::Component for #name #ty_generics #where_clause {}
+        impl #impl_generics #zengine_ecs_path::Component for #name #ty_generics #where_clause {}
     };
 
     TokenStream::from(expanded)
@@ -41,7 +41,7 @@ pub fn resource_macro_derive(input: TokenStream) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     let expanded = quote! {
-        impl #impl_generics #zengine_ecs_path::world::Resource for #name #ty_generics #where_clause {}
+        impl #impl_generics #zengine_ecs_path::Resource for #name #ty_generics #where_clause {}
     };
 
     TokenStream::from(expanded)

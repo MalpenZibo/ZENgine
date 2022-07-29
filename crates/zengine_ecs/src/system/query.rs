@@ -6,9 +6,9 @@ use std::{
 
 use zengine_macro::{all_tuples, query_iter_for_tuple, query_iter_mut_for_tuple};
 
-use crate::{
-    archetype::Archetype, component::Component, entity::Entity, iterators::*, world::World,
-};
+use crate::{archetype::Archetype, component::Component, entity::Entity, world::World};
+
+use super::query_iterators::*;
 
 pub trait FetchableQuery<T: QueryParameters> {
     fn fetch(world: &World) -> Self;
@@ -61,7 +61,7 @@ pub struct ReadQueryParameterFetch<T> {
     phantom: std::marker::PhantomData<T>,
 }
 
-impl QueryParameter for &Entity {
+impl QueryParameter for Entity {
     type Item = ReadQueryParameterFetch<Entity>;
 
     fn matches_archetype(_archetype: &Archetype) -> bool {
@@ -398,7 +398,7 @@ query_iter_mut_for_tuple!(14);
 #[cfg(test)]
 mod tests {
 
-    use crate::{component::Component, query::Query, world::World};
+    use crate::{component::Component, system::query::Query, world::World};
 
     use super::QueryIterMut;
 

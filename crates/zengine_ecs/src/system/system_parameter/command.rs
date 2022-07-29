@@ -3,9 +3,10 @@ use std::any::TypeId;
 use crate::{
     component::ComponentBundle,
     entity::{Entity, EntityGenerator},
-    system_parameter::{SystemParam, SystemParamFetch},
-    world::{Resource, UnsendableResource, World},
+    Resource, UnsendableResource, World,
 };
+
+use super::{SystemParam, SystemParamFetch};
 
 pub trait Command: ApplyCommand {
     fn apply(self, world: &mut World);

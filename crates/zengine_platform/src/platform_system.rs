@@ -6,8 +6,8 @@ use log::{info, trace};
 use rustc_hash::FxHashMap;
 use sdl2::controller::GameController;
 use sdl2::EventPump;
-use zengine_ecs::command::Commands;
-use zengine_ecs::world::UnsendableResource;
+use zengine_ecs::system::Commands;
+use zengine_ecs::UnsendableResource;
 
 use crate::VideoSubsystemWrapper;
 

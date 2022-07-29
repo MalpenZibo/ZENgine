@@ -1,9 +1,8 @@
 #![allow(clippy::blocks_in_if_conditions)]
 use rustc_hash::FxHashSet;
 use zengine_ecs::{
-    entity::Entity,
-    query::{Query, QueryIter},
-    system_parameter::{EventPublisher, Local},
+    system::{EventPublisher, Local, Query, QueryIter},
+    Entity,
 };
 use zengine_macro::Component;
 use zengine_math::{Transform, Vector3};
@@ -52,7 +51,7 @@ fn check_rectangle_and_circle(
 }
 
 pub fn collision_system(
-    query: Query<(&Entity, &Shape2D, &Transform)>,
+    query: Query<(Entity, &Shape2D, &Transform)>,
     mut collision_event: EventPublisher<Collision>,
     already_collided: Local<FxHashSet<(Entity, Entity)>>,
 ) {

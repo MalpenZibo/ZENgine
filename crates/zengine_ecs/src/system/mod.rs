@@ -1,9 +1,13 @@
 use zengine_macro::all_tuples;
 
-use crate::{
-    system_parameter::{SystemParam, SystemParamFetch, SystemParamItem},
-    world::World,
-};
+use crate::world::World;
+
+mod system_parameter;
+pub use system_parameter::*;
+
+mod query;
+mod query_iterators;
+pub use query::*;
 
 pub trait SystemFunction<P: SystemParam> {
     fn run_function(&self, parameter: SystemParamItem<P>);
@@ -140,14 +144,12 @@ all_tuples!(impl_system_function, 0, 12, F);
 #[cfg(test)]
 mod tests {
 
-    use crate::{
-        component::Component,
-        query::Query,
-        system_parameter::{Local, Res},
-        world::{Resource, World},
-    };
+    use crate::{world::World, Component, Resource};
 
-    use super::{IntoSystem, System, SystemParam};
+    use super::{
+        system_parameter::{Local, Res},
+        IntoSystem, Query, System, SystemParam,
+    };
 
     #[derive(Default)]
     struct Executor {

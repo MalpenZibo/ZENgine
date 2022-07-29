@@ -1,5 +1,5 @@
-use zengine_ecs::entity::Entity;
-use zengine_macro::{Resource, Component};
+use zengine_ecs::Entity;
+use zengine_macro::{Component, Resource};
 use zengine_math::Matrix4x4;
 
 #[derive(Resource, Debug)]

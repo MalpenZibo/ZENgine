@@ -1,8 +1,6 @@
 use log::info;
 use sdl2::event::Event;
-use zengine_ecs::system_parameter::{
-    EventPublisher, OptionalUnsendableRes, OptionalUnsendableResMut,
-};
+use zengine_ecs::system::{EventPublisher, OptionalUnsendableRes, OptionalUnsendableResMut};
 use zengine_engine::EngineEvent;
 use zengine_platform::{
     device::{

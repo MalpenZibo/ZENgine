@@ -1,10 +1,9 @@
-use std::collections::HashMap;
+use std::{any::Any, collections::HashMap};
 
 use simplelog::{Config, LevelFilter, SimpleLogger, TermLogger, TerminalMode};
 use zengine_ecs::{
-    system::{IntoSystem, System},
-    system_parameter::SystemParam,
-    world::World,
+    system::{IntoSystem, System, SystemParam},
+    World,
 };
 
 pub use log;
@@ -90,21 +89,21 @@ impl Engine {
         log_panics::init();
     }
 
-    pub fn add_system<Params: SystemParam + 'static, I: IntoSystem<Params> + 'static>(
+    pub fn add_system<Params: SystemParam + Any, I: IntoSystem<Params> + Any>(
         self,
         system: I,
     ) -> Self {
         self.add_system_into_stage(system, StageLabel::Update)
     }
 
-    pub fn add_startup_system<Params: SystemParam + 'static, I: IntoSystem<Params> + 'static>(
+    pub fn add_startup_system<Params: SystemParam + Any, I: IntoSystem<Params> + Any>(
         self,
         system: I,
     ) -> Self {
         self.add_system_into_stage(system, StageLabel::Startup)
     }
 
-    pub fn add_system_into_stage<Params: SystemParam + 'static, I: IntoSystem<Params> + 'static>(
+    pub fn add_system_into_stage<Params: SystemParam + Any, I: IntoSystem<Params> + Any>(
         mut self,
         system: I,
         stage: StageLabel,

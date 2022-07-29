@@ -3,7 +3,7 @@ extern crate sdl2;
 use std::fmt::Debug;
 
 use sdl2::VideoSubsystem;
-use zengine_ecs::world::UnsendableResource;
+use zengine_ecs::UnsendableResource;
 
 pub mod device;
 mod platform_system;

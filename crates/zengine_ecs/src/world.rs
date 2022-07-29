@@ -15,45 +15,14 @@ use crate::{
     component::{ComponentBundle, ComponentColumn, InsertType},
     entity::{Entity, EntityGenerator},
     event::{EventCell, EventHandler},
-    query::{Query, QueryCache, QueryParameters},
+    resource::{Resource, ResourceCell, UnsendableResource, UnsendableResourceCell},
+    system::{Query, QueryCache, QueryParameters},
 };
 
 #[derive(PartialEq, Debug)]
 struct Record {
     archetype_index: usize,
     row: usize,
-}
-
-pub trait Resource: Any + Sync + Send + Debug {}
-
-pub trait ResourceCell: Debug {
-    fn to_any(&self) -> &dyn Any;
-    fn to_any_mut(&mut self) -> &mut dyn Any;
-}
-
-impl<T: Resource> ResourceCell for RwLock<T> {
-    fn to_any(&self) -> &dyn Any {
-        self
-    }
-    fn to_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-}
-
-pub trait UnsendableResource: Any + Debug {}
-
-pub trait UnsendableResourceCell: Debug {
-    fn to_any(&self) -> &dyn Any;
-    fn to_any_mut(&mut self) -> &mut dyn Any;
-}
-
-impl<T: UnsendableResource> UnsendableResourceCell for RefCell<T> {
-    fn to_any(&self) -> &dyn Any {
-        self
-    }
-    fn to_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
 }
 
 #[derive(Debug)]

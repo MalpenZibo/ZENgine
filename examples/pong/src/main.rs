@@ -1,10 +1,11 @@
 use serde::Deserialize;
 use zengine::{
     ecs::{
-        command::Commands,
-        entity::Entity,
-        query::{Query, QueryIter, QueryIterMut},
-        system_parameter::{EventPublisher, EventStream, Local, OptionalRes, Res, ResMut},
+        system::{
+            Commands, EventPublisher, EventStream, Local, OptionalRes, Query, QueryIter,
+            QueryIterMut, Res, ResMut,
+        },
+        Entity,
     },
     graphic::{ActiveCamera, Camera, CameraMode, Color, SpriteDescriptor, TextureManager},
     input::{event_system, input_system, Bindings, InputHandler},
@@ -345,7 +346,7 @@ fn setup(mut commands: Commands, mut textures: ResMut<TextureManager<Sprites>>) 
 }
 
 fn player_pad_control(
-    mut pads: Query<(&Entity, &mut Pad)>,
+    mut pads: Query<(Entity, &mut Pad)>,
     player1: OptionalRes<Player1>,
     input: Res<InputHandler<UserInput>>,
 ) {
@@ -451,16 +452,16 @@ fn initial_ball_movement() -> Vector2 {
 }
 
 fn collision_response(
-    mut query_pad: Query<(&Entity, &mut Transform, &mut Pad)>,
-    mut query_ball: Query<(&Entity, &mut Transform, &mut Ball)>,
+    mut query_pad: Query<(Entity, &mut Transform, &mut Pad)>,
+    mut query_ball: Query<(Entity, &mut Transform, &mut Ball)>,
     collision_event: EventStream<Collision>,
     field_border: OptionalRes<FieldBorder>,
     mut game_event: EventPublisher<GameEvent>,
 ) {
     fn get_collision_type(
         collision: &Collision,
-        query_pad: &Query<(&Entity, &mut Transform, &mut Pad)>,
-        query_ball: &Query<(&Entity, &mut Transform, &mut Ball)>,
+        query_pad: &Query<(Entity, &mut Transform, &mut Pad)>,
+        query_ball: &Query<(Entity, &mut Transform, &mut Ball)>,
         field_border: &FieldBorder,
     ) -> Option<CollisionType> {
         let get_field_border = |entity: Entity| -> Option<Side> {

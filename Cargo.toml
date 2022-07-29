@@ -12,7 +12,7 @@ readme = "README.md"
 repository = "https://github.com/malpenzibo/zengine"
 
 [workspace]
-exclude = ["benches", "zengine_old"]
+exclude = ["benches"]
 members = ["crates/*", "examples/*"]
 
 [dependencies]
@@ -26,6 +26,14 @@ zengine_physics = { path = "crates/zengine_physics" }
 zengine_render = { path = "crates/zengine_render" }
 zengine_platform = { path = "crates/zengine_platform" }
 zengine_macro = { path = "crates/zengine_macro" }
+
+[dev-dependencies]
+bencher = "0.1.5"
+
+[[bench]]
+name = "archetype_vs_old_system"
+path = "benches/archetype_vs_old_system.rs"
+harness = false
 
 [[example]]
 name = "Pong"

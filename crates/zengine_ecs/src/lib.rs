@@ -1,10 +1,12 @@
 mod archetype;
-pub mod command;
-pub mod component;
-pub mod entity;
+mod component;
+mod entity;
 pub mod event;
-mod iterators;
-pub mod query;
+mod resource;
 pub mod system;
-pub mod system_parameter;
-pub mod world;
+mod world;
+
+pub use component::*;
+pub use entity::*;
+pub use resource::*;
+pub use world::*;

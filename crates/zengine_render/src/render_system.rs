@@ -7,32 +7,21 @@ use crate::CollisionTrace;
 use crate::Sprite;
 use crate::WindowSpecs;
 use log::info;
-use sdl2::video::GLContext;
-use sdl2::video::{DisplayMode, FullscreenType, GLProfile, Window};
+use sdl2::video::{DisplayMode, FullscreenType, GLContext, GLProfile, Window};
 use sdl2::VideoSubsystem;
 use std::cell::RefMut;
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use zengine_ecs::command::Commands;
-use zengine_ecs::entity::Entity;
-use zengine_ecs::query::Query;
-use zengine_ecs::query::QueryIter;
-use zengine_ecs::system_parameter::OptionalRes;
-use zengine_ecs::system_parameter::OptionalUnsendableRes;
-use zengine_ecs::system_parameter::OptionalUnsendableResMut;
-use zengine_ecs::system_parameter::Res;
-use zengine_ecs::world::UnsendableResource;
-use zengine_graphic::ActiveCamera;
-use zengine_graphic::Camera;
-use zengine_graphic::SpriteType;
-use zengine_graphic::TextureManager;
-use zengine_graphic::Vertex;
-use zengine_math::Matrix4x4;
-use zengine_math::Transform;
-use zengine_math::Vector2;
-use zengine_math::Vector3;
-use zengine_physics::Shape2D;
-use zengine_physics::ShapeType;
+use zengine_ecs::{
+    system::{
+        Commands, OptionalRes, OptionalUnsendableRes, OptionalUnsendableResMut, Query, QueryIter,
+        Res,
+    },
+    Entity, UnsendableResource,
+};
+use zengine_graphic::{ActiveCamera, Camera, SpriteType, TextureManager, Vertex};
+use zengine_math::{Matrix4x4, Transform, Vector2, Vector3};
+use zengine_physics::{Shape2D, ShapeType};
 use zengine_platform::VideoSubsystemWrapper;
 
 extern "system" fn dbg_callback(
@@ -278,7 +267,7 @@ fn create_window_and_opengl_context<ST: SpriteType>(
 }
 
 fn get_camera_data(
-    camera_query: Query<(&Entity, &Transform, &Camera)>,
+    camera_query: Query<(Entity, &Transform, &Camera)>,
     active_camera: OptionalRes<ActiveCamera>,
 ) -> (Matrix4x4, u32, u32) {
     match active_camera
@@ -425,7 +414,7 @@ pub fn render_system<ST: SpriteType>(
     background: Res<Background>,
     active_camera: OptionalRes<ActiveCamera>,
     sprite_query: Query<(&Transform, &Sprite<ST>)>,
-    camera_query: Query<(&Entity, &Transform, &Camera)>,
+    camera_query: Query<(Entity, &Transform, &Camera)>,
     shape_query: Query<(&Transform, &Shape2D)>,
 ) {
     let mut context = context.unwrap();
