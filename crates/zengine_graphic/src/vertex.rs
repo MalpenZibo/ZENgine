@@ -1,4 +1,4 @@
-use zengine_math::{Vector3, Vector2};
+use zengine_math::{Vector2, Vector3};
 
 #[derive(Default, Copy, Clone)]
 pub struct Vertex {

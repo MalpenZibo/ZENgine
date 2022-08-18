@@ -1,7 +1,6 @@
-
-use zengine_macro::Component;
 use crate::matrix4x4::Matrix4x4;
 use crate::vector3::Vector3;
+use zengine_macro::Component;
 
 #[derive(Component, Debug, Clone)]
 pub struct Transform {
@@ -9,7 +8,6 @@ pub struct Transform {
     pub rotation: Vector3,
     pub scale: f32,
 }
-
 
 impl Default for Transform {
     fn default() -> Self {

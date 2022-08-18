@@ -1,11 +1,10 @@
-
 use fnv::FnvHashMap;
-use zengine_asset::image_loader;
-use zengine_macro::Resource;
-use zengine_math::Vector2;
 use std::any::Any;
 use std::fmt::Debug;
 use std::hash::Hash;
+use zengine_asset::image_loader;
+use zengine_macro::Resource;
+use zengine_math::Vector2;
 
 const LEVEL: i32 = 0;
 const BORDER: i32 = 0;

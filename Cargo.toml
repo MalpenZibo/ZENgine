@@ -34,7 +34,3 @@ bencher = "0.1.5"
 name = "archetype_vs_old_system"
 path = "benches/archetype_vs_old_system.rs"
 harness = false
-
-[[example]]
-name = "Pong"
-path = "pong/main.rs"
