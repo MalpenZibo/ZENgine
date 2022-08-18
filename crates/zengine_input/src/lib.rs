@@ -22,7 +22,7 @@ pub struct AxisBind {
     scale: f32,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct ActionBind {
     source: Input,
 }
