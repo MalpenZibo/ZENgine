@@ -1,5 +1,6 @@
 use std::ops::Deref;
 
+use gilrs::Gilrs;
 use glutin::{
     dpi::LogicalSize,
     event::{ElementState, Event, MouseScrollDelta, WindowEvent},
@@ -10,7 +11,10 @@ use glutin::{
 use glutin::{ContextBuilder, ContextWrapper, PossiblyCurrent};
 use zengine_ecs::UnsendableResource;
 use zengine_engine::{Engine, Module};
-use zengine_input::{Axis, Input, InputEvent};
+use zengine_input::{
+    device::{ControllerButton, Which},
+    Axis, Input, InputEvent,
+};
 
 #[derive(Debug, Clone)]
 pub struct WindowSpecs {
@@ -94,6 +98,8 @@ fn runner(mut engine: Engine) {
         .world
         .remove_unsendable_resource::<EventLoop>()
         .unwrap();
+
+    let mut gilrs = Gilrs::new().unwrap();
 
     let event_handler = move |event: Event<()>,
                               _event_loop: &EventLoopWindowTarget<()>,
@@ -183,80 +189,109 @@ fn runner(mut engine: Engine) {
                 })
             }
             Event::MainEventsCleared => {
+                {
+                    let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
+                    while let Some(gilrs::Event { id, event, .. }) = gilrs.next_event() {
+                        match event {
+                            gilrs::EventType::ButtonPressed(button, ..) => {
+                                input.publish(InputEvent {
+                                    input: Input::ControllerButton {
+                                        device_id: id,
+                                        button,
+                                    },
+                                    value: 1.0,
+                                })
+                            }
+                            gilrs::EventType::ButtonReleased(button, ..) => {
+                                input.publish(InputEvent {
+                                    input: Input::ControllerButton {
+                                        device_id: id,
+                                        button,
+                                    },
+                                    value: 0.0,
+                                })
+                            }
+                            gilrs::EventType::AxisChanged(axis, value, ..) => match axis {
+                                gilrs::Axis::LeftStickX => input.publish(InputEvent {
+                                    input: Input::ControllerStick {
+                                        device_id: id,
+                                        which: Which::Left,
+                                        axis: Axis::X,
+                                    },
+                                    value,
+                                }),
+                                gilrs::Axis::LeftStickY => input.publish(InputEvent {
+                                    input: Input::ControllerStick {
+                                        device_id: id,
+                                        which: Which::Left,
+                                        axis: Axis::Y,
+                                    },
+                                    value,
+                                }),
+                                gilrs::Axis::RightStickX => input.publish(InputEvent {
+                                    input: Input::ControllerStick {
+                                        device_id: id,
+                                        which: Which::Right,
+                                        axis: Axis::X,
+                                    },
+                                    value,
+                                }),
+                                gilrs::Axis::RightStickY => input.publish(InputEvent {
+                                    input: Input::ControllerStick {
+                                        device_id: id,
+                                        which: Which::Right,
+                                        axis: Axis::Y,
+                                    },
+                                    value,
+                                }),
+                                gilrs::Axis::LeftZ => input.publish(InputEvent {
+                                    input: Input::ControllerTrigger {
+                                        device_id: id,
+                                        which: Which::Left,
+                                    },
+                                    value,
+                                }),
+                                gilrs::Axis::RightZ => input.publish(InputEvent {
+                                    input: Input::ControllerTrigger {
+                                        device_id: id,
+                                        which: Which::Right,
+                                    },
+                                    value,
+                                }),
+                                gilrs::Axis::DPadX => input.publish(InputEvent {
+                                    input: Input::ControllerButton {
+                                        device_id: id,
+                                        button: if value < 0.0 {
+                                            ControllerButton::DPadLeft
+                                        } else {
+                                            ControllerButton::DPadRight
+                                        },
+                                    },
+                                    value,
+                                }),
+                                gilrs::Axis::DPadY => input.publish(InputEvent {
+                                    input: Input::ControllerButton {
+                                        device_id: id,
+                                        button: if value < 0.0 {
+                                            ControllerButton::DPadDown
+                                        } else {
+                                            ControllerButton::DPadUp
+                                        },
+                                    },
+                                    value,
+                                }),
+                                _ => {}
+                            },
+
+                            _ => {}
+                        }
+                    }
+                }
+
                 if engine.update() {
                     *control_flow = ControlFlow::Exit;
                 }
             }
-
-            // Event::ControllerButtonDown { which, button, .. } => {
-            //     if let Some(c) = controllers.get(&which) {
-            //         input.publish(InputEvent {
-            //             input: Input::ControllerButton {
-            //                 device_id: c.0,
-            //                 button: ControllerButton::from_sdl_button(button),
-            //             },
-            //             value: 1.0,
-            //         })
-            //     }
-            // }
-            // Event::ControllerButtonUp { which, button, .. } => {
-            //     if let Some(c) = controllers.get(&which) {
-            //         input.publish(InputEvent {
-            //             input: Input::ControllerButton {
-            //                 device_id: c.0,
-            //                 button: ControllerButton::from_sdl_button(button),
-            //             },
-            //             value: 0.0,
-            //         })
-            //     }
-            // }
-            // Event::ControllerAxisMotion {
-            //     which, axis, value, ..
-            // } => {
-            //     if let Some(c) = controllers.get(&which) {
-            //         input.publish(InputEvent {
-            //             input: match axis {
-            //                 sdl2::controller::Axis::LeftX => Input::ControllerStick {
-            //                     device_id: c.0,
-            //                     which: Which::Left,
-            //                     axis: Axis::X,
-            //                 },
-            //                 sdl2::controller::Axis::LeftY => Input::ControllerStick {
-            //                     device_id: c.0,
-            //                     which: Which::Left,
-            //                     axis: Axis::Y,
-            //                 },
-            //                 sdl2::controller::Axis::RightX => Input::ControllerStick {
-            //                     device_id: c.0,
-            //                     which: Which::Right,
-            //                     axis: Axis::X,
-            //                 },
-            //                 sdl2::controller::Axis::RightY => Input::ControllerStick {
-            //                     device_id: c.0,
-            //                     which: Which::Right,
-            //                     axis: Axis::Y,
-            //                 },
-            //                 sdl2::controller::Axis::TriggerLeft => Input::ControllerTrigger {
-            //                     device_id: c.0,
-            //                     which: Which::Left,
-            //                 },
-            //                 sdl2::controller::Axis::TriggerRight => Input::ControllerTrigger {
-            //                     device_id: c.0,
-            //                     which: Which::Right,
-            //                 },
-            //             },
-            //             value: {
-            //                 if value > -8000i16 && value < 8000i16 {
-            //                     0.0
-            //                 } else if (value).is_positive() {
-            //                     (value) as f32 / std::i16::MAX as f32
-            //                 } else {
-            //                     ((value) as f32).abs() / std::i16::MIN as f32
-            //                 }
-            //             },
-            //         })
-            //     }
-            // }
             _ => (),
         }
     };

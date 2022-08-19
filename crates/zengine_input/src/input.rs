@@ -1,6 +1,7 @@
 use crate::device::{
     Key, MouseButton, {ControllerButton, Which},
 };
+use gilrs::GamepadId;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Eq, PartialEq, Clone)]
@@ -24,16 +25,16 @@ pub enum Input {
         button: MouseButton,
     },
     ControllerStick {
-        device_id: u32,
+        device_id: GamepadId,
         which: Which,
         axis: Axis,
     },
     ControllerTrigger {
-        device_id: u32,
+        device_id: GamepadId,
         which: Which,
     },
     ControllerButton {
-        device_id: u32,
+        device_id: GamepadId,
         button: ControllerButton,
     },
 }
