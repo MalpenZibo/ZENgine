@@ -417,6 +417,16 @@ impl World {
         }
     }
 
+    pub fn extract_resource<T: Resource + 'static>(&mut self) -> Option<T> {
+        let type_id = TypeId::of::<T>();
+
+        let t = self.resources.remove(&type_id).unwrap();
+        let t = Box::into_raw(t);
+        let t = unsafe { Box::from_raw(t.cast::<RwLock<T>>()) };
+
+        Some(t.into_inner().expect("lock error"))
+    }
+
     pub fn get_resource<T: Resource + 'static>(&self) -> Option<RwLockReadGuard<T>> {
         let type_id = TypeId::of::<T>();
 
@@ -446,6 +456,15 @@ impl World {
 
         self.resources
             .insert(type_id, Box::new(RwLock::new(resource)));
+    }
+
+    pub fn extract_unsendable_resource<T: UnsendableResource + 'static>(&mut self) -> Option<T> {
+        let type_id = TypeId::of::<T>();
+
+        let t = self.unsendable_resources.remove(&type_id).unwrap();
+        let t = Box::into_raw(t);
+        let t = unsafe { Box::from_raw(t.cast::<RefCell<T>>()) };
+        Some(t.into_inner())
     }
 
     pub fn get_unsendable_resource<T: UnsendableResource + 'static>(&self) -> Option<Ref<T>> {

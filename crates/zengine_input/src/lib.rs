@@ -1,15 +1,14 @@
 use fnv::FnvHashMap;
-use input::Input;
 use serde::Deserialize;
 use std::any::Any;
 use std::hash::Hash;
 use zengine_ecs::Resource;
 
-pub mod event_system;
-pub mod input;
+pub mod device;
+mod input;
 mod input_system;
 
-pub use event_system::*;
+pub use input::*;
 pub use input_system::*;
 
 pub trait InputType: Any + Eq + PartialEq + Hash + Clone + Default + std::fmt::Debug {}

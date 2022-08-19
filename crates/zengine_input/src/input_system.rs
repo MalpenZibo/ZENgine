@@ -81,12 +81,12 @@ mod tests {
     use crate::{input::Input, ActionBind, AxisBind};
 
     use super::*;
+    use crate::device::Key;
     use serde::Deserialize;
     use zengine_ecs::{
         system::{IntoSystem, System},
         World,
     };
-    use zengine_platform::device::keyboard::Key;
 
     #[derive(Eq, PartialEq, Hash, Deserialize, Clone, Default, Debug)]
     enum UserInput {

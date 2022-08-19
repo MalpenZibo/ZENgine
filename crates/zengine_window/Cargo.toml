@@ -1,11 +1,14 @@
 [package]
-name = "zengine_platform"
+name = "zengine_window"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 zengine_ecs = { path = "../zengine_ecs" }
+zengine_engine = { path = "../zengine_engine" }
+zengine_input = { path = "../zengine_input" }
+zengine_macro = { path = "../zengine_macro" }
 serde = { version = "1.0", features = ["derive"] }
-sdl2 = { version = "0.33.0", features = ["bundled", "static-link"] }
+glutin = "0.29.1"
 log = "0.4"
 rustc-hash = "1.1.0"

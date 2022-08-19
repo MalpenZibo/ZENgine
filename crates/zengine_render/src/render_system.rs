@@ -5,10 +5,8 @@ use crate::gl_utilities::shader::ShaderManager;
 use crate::Background;
 use crate::CollisionTrace;
 use crate::Sprite;
-use crate::WindowSpecs;
 use log::info;
-use sdl2::video::{DisplayMode, FullscreenType, GLContext, GLProfile, Window};
-use sdl2::VideoSubsystem;
+use std::cell::Ref;
 use std::cell::RefMut;
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -22,7 +20,7 @@ use zengine_ecs::{
 use zengine_graphic::{ActiveCamera, Camera, SpriteType, TextureManager, Vertex};
 use zengine_math::{Matrix4x4, Transform, Vector2, Vector3};
 use zengine_physics::{Shape2D, ShapeType};
-use zengine_platform::VideoSubsystemWrapper;
+use zengine_window::Window;
 
 extern "system" fn dbg_callback(
     source: gl::types::GLenum,
@@ -45,9 +43,6 @@ extern "system" fn dbg_callback(
 }
 
 pub struct RenderContext<ST: SpriteType> {
-    window_specs: WindowSpecs,
-    window: Option<Window>,
-    ctx: Option<GLContext>,
     buffer: Option<GlBuffer>,
     sprite_type: PhantomData<ST>,
     collision_trace: CollisionTrace,
@@ -201,69 +196,14 @@ fn render_shapes<ST: SpriteType>(
     }
 }
 
-fn get_display_mode<ST: SpriteType>(
-    context: &mut RenderContext<ST>,
-    video_subsystem: &VideoSubsystem,
-) -> DisplayMode {
-    for i in 0..video_subsystem.num_display_modes(0).unwrap() {
-        let display_mode = video_subsystem.display_mode(0, i).unwrap();
-        if display_mode.w == context.window_specs.width as i32
-            && display_mode.h == context.window_specs.height as i32
-        {
-            return display_mode;
-        }
-    }
-
-    panic!(
-        "No DisplayMode available for width {} and height {}",
-        context.window_specs.width, context.window_specs.height
-    );
-}
-
-fn create_window_and_opengl_context<ST: SpriteType>(
-    context: &mut RenderContext<ST>,
-    video_subsystem: &VideoSubsystem,
-) {
-    let gl_attr = video_subsystem.gl_attr();
-    gl_attr.set_context_profile(GLProfile::Core);
-    if cfg!(target_os = "macos") {
-        gl_attr.set_context_version(4, 1);
-    } else {
-        gl_attr.set_context_version(4, 6);
-    }
-    gl_attr.set_double_buffer(true);
-
-    let mut window = video_subsystem
-        .window(
-            context.window_specs.title.as_ref(),
-            context.window_specs.width,
-            context.window_specs.height,
-        )
-        .opengl()
-        .allow_highdpi()
-        .build()
-        .unwrap();
-
-    if context.window_specs.fullscreen {
-        let display_mode = get_display_mode(context, video_subsystem);
-        window.set_display_mode(display_mode).unwrap();
-        window.set_fullscreen(FullscreenType::True).unwrap();
-    }
-
-    context.ctx = Some(window.gl_create_context().unwrap());
-    gl::load_with(|name| video_subsystem.gl_get_proc_address(name) as *const _);
+fn create_window_and_opengl_context(window: &Window) {
+    gl::load_with(|symbol| window.get_proc_address(symbol));
 
     info!(
         "Pixel format of the window's GL context: {:?}",
-        window.window_pixel_format()
+        window.get_pixel_format()
     );
-    println!(
-        "OpenGL Profile: {:?} - OpenGL version: {:?}",
-        gl_attr.context_profile(),
-        gl_attr.context_version()
-    );
-
-    context.window = Some(window);
+    println!("OpenGL {:?}", window.context().get_api());
 }
 
 fn get_camera_data(
@@ -292,12 +232,12 @@ fn get_camera_data(
     }
 }
 
-fn setup_scissor<ST: SpriteType>(context: &RefMut<RenderContext<ST>>, width: u32, height: u32) {
-    if let Some(window) = &context.window {
+fn setup_scissor(window: &Option<Ref<Window>>, width: u32, height: u32) {
+    if let Some(window) = &window {
         let target_aspect_ratio = width as f32 / height as f32;
-        let size = window.drawable_size();
-        let width = size.0 as i32;
-        let height = size.1 as i32;
+        let size = window.window().inner_size();
+        let width = size.width as i32;
+        let height = size.height as i32;
         let new_height = (width as f32 / target_aspect_ratio) as i32;
         let calculated_height = if new_height > height {
             height
@@ -339,23 +279,15 @@ fn clear(background: Res<Background>) {
 }
 
 pub fn setup_render<ST: SpriteType>(
-    window_specs: WindowSpecs,
     collision_trace: CollisionTrace,
-) -> impl Fn(OptionalUnsendableRes<VideoSubsystemWrapper>, Commands) {
-    move |video_subsystem: OptionalUnsendableRes<VideoSubsystemWrapper>, mut command: Commands| {
-        let window_specs = window_specs.clone();
+) -> impl Fn(OptionalUnsendableRes<Window>, Commands) {
+    move |window: OptionalUnsendableRes<Window>, mut command: Commands| {
         let mut context = RenderContext::<ST> {
-            window_specs,
-            window: None,
-            ctx: None,
             buffer: None,
             sprite_type: PhantomData::default(),
             collision_trace,
         };
-        create_window_and_opengl_context(
-            &mut context,
-            &video_subsystem.expect("video_subsistem not present").0,
-        );
+        create_window_and_opengl_context(&window.expect("window not present"));
 
         unsafe {
             if !cfg!(target_os = "macos") {
@@ -408,6 +340,7 @@ pub fn setup_render<ST: SpriteType>(
 
 #[allow(clippy::too_many_arguments)]
 pub fn render_system<ST: SpriteType>(
+    window: OptionalUnsendableRes<Window>,
     context: OptionalUnsendableResMut<RenderContext<ST>>,
     texture_manager: Res<TextureManager<ST>>,
     shaders: Res<ShaderManager>,
@@ -420,7 +353,7 @@ pub fn render_system<ST: SpriteType>(
     let mut context = context.unwrap();
 
     let camera_data = get_camera_data(camera_query, active_camera);
-    setup_scissor(&context, camera_data.1, camera_data.2);
+    setup_scissor(&window, camera_data.1, camera_data.2);
     clear(background);
 
     let shader = shaders.get("basic");
@@ -456,7 +389,7 @@ pub fn render_system<ST: SpriteType>(
             gl::Enable(gl::DEPTH_TEST);
         }
     }
-    if let Some(window) = &context.window {
-        window.gl_swap_window();
+    if let Some(current_window) = &window {
+        current_window.swap_buffers().unwrap();
     }
 }

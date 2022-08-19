@@ -28,8 +28,8 @@ pub mod render {
     pub use zengine_render::*;
 }
 
-pub mod platform {
-    pub use zengine_platform::*;
+pub mod window {
+    pub use zengine_window::*;
 }
 
 extern crate zengine_macro;
