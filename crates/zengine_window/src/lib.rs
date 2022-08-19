@@ -92,7 +92,7 @@ impl Module for WindowModule {
 fn runner(mut engine: Engine) {
     let event_loop = engine
         .world
-        .extract_unsendable_resource::<EventLoop>()
+        .remove_unsendable_resource::<EventLoop>()
         .unwrap();
 
     let event_handler = move |event: Event<()>,
