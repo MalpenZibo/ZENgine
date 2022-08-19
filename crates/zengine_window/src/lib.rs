@@ -10,7 +10,7 @@ use glutin::{
 use glutin::{ContextBuilder, ContextWrapper, PossiblyCurrent};
 use zengine_ecs::UnsendableResource;
 use zengine_engine::{Engine, Module};
-use zengine_input::{device::MouseButton, Axis, Input, InputEvent};
+use zengine_input::{Axis, Input, InputEvent};
 
 #[derive(Debug, Clone)]
 pub struct WindowSpecs {
@@ -79,7 +79,7 @@ impl Module for WindowModule {
 
         let gl_window = gl_window.build_windowed(window, &event_loop).unwrap();
         let gl_window = unsafe { gl_window.make_current() }.unwrap();
-        //let current_window_id = gl_window.window().id();
+
         engine.world.create_unsendable_resource(Window(gl_window));
         engine
             .world
@@ -103,8 +103,8 @@ fn runner(mut engine: Engine) {
         match event {
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
-                window_id,
-            } /*if window_id == current_window_id */ => {
+                ..
+            } => {
                 *control_flow = ControlFlow::Exit;
             }
             Event::WindowEvent {
@@ -113,9 +113,7 @@ fn runner(mut engine: Engine) {
             } => {
                 let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
                 input.publish(InputEvent {
-                    input: Input::MouseButton {
-                        button: MouseButton(button),
-                    },
+                    input: Input::MouseButton { button },
                     value: if state == ElementState::Pressed {
                         1.0
                     } else {

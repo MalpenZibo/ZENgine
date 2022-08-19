@@ -4,12 +4,27 @@ use std::any::Any;
 use std::hash::Hash;
 use zengine_ecs::Resource;
 
-pub mod device;
 mod input;
 mod input_system;
 
 pub use input::*;
 pub use input_system::*;
+
+pub mod device {
+    use serde::Deserialize;
+
+    pub type Key = winit::event::VirtualKeyCode;
+
+    pub type MouseButton = winit::event::MouseButton;
+
+    pub type ControllerButton = gilrs::Button;
+
+    #[derive(Eq, PartialEq, Hash, Debug, Deserialize, Clone)]
+    pub enum Which {
+        Left,
+        Right,
+    }
+}
 
 pub trait InputType: Any + Eq + PartialEq + Hash + Clone + Default + std::fmt::Debug {}
 
