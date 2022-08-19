@@ -1,8 +1,36 @@
+[package]
+name = "zengine"
+version = "0.1.0"
+edition = "2021"
+categories = ["game-engines", "graphics", "rendering"]
+description = "A simple 2D ECS game engine"
+exclude = [".github/", "crates/", "assets/", "benches/"]
+homepage = ""
+keywords = ["game", "engine", "gamedev", "graphics", "zengine"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/malpenzibo/zengine"
+
 [workspace]
 exclude = ["benches"]
-members = [
-    "zengine",
-    "zengine_ecs",
-    "zengine_macro",
-    "examples/pong"
-]
+members = ["crates/*", "examples/*"]
+
+[dependencies]
+zengine_engine = { path = "crates/zengine_engine" }
+zengine_ecs = { path = "crates/zengine_ecs" }
+zengine_math = { path = "crates/zengine_math" }
+zengine_graphic = { path = "crates/zengine_graphic" }
+zengine_input = { path = "crates/zengine_input" }
+zengine_time = { path = "crates/zengine_time" }
+zengine_physics = { path = "crates/zengine_physics" }
+zengine_render = { path = "crates/zengine_render" }
+zengine_platform = { path = "crates/zengine_platform" }
+zengine_macro = { path = "crates/zengine_macro" }
+
+[dev-dependencies]
+bencher = "0.1.5"
+
+[[bench]]
+name = "archetype_vs_old_system"
+path = "benches/archetype_vs_old_system.rs"
+harness = false

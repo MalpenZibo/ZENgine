@@ -1,0 +1,12 @@
+[package]
+name = "zengine_graphic"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gl = "0.14.0"
+fnv = "1.0.7"
+zengine_asset = { path = "../zengine_asset" }
+zengine_ecs = { path = "../zengine_ecs" }
+zengine_math = { path = "../zengine_math" }
+zengine_macro = { path = "../zengine_macro" }
