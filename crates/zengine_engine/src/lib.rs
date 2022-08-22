@@ -8,6 +8,10 @@ use zengine_ecs::{
 
 pub use log;
 
+pub trait Module {
+    fn init(self, engine: &mut Engine);
+}
+
 #[derive(Hash, Eq, PartialEq)]
 pub enum StageLabel {
     Startup,
@@ -56,7 +60,9 @@ pub enum EngineEvent {
 pub struct Engine {
     stages: HashMap<StageLabel, Stage>,
     stage_order: Vec<StageLabel>,
-    world: World,
+    running_stages: Vec<Stage>,
+    pub world: World,
+    runner: Box<dyn Fn(Engine)>,
 }
 
 impl Default for Engine {
@@ -74,7 +80,17 @@ impl Default for Engine {
                 StageLabel::Render,
                 StageLabel::PostRender,
             ],
+            running_stages: Vec::default(),
             world: World::default(),
+            runner: Box::new(default_runner),
+        }
+    }
+}
+
+fn default_runner(mut engine: Engine) {
+    loop {
+        if engine.update() {
+            break;
         }
     }
 }
@@ -90,24 +106,24 @@ impl Engine {
     }
 
     pub fn add_system<Params: SystemParam + Any, I: IntoSystem<Params> + Any>(
-        self,
+        &mut self,
         system: I,
-    ) -> Self {
+    ) -> &mut Self {
         self.add_system_into_stage(system, StageLabel::Update)
     }
 
     pub fn add_startup_system<Params: SystemParam + Any, I: IntoSystem<Params> + Any>(
-        self,
+        &mut self,
         system: I,
-    ) -> Self {
+    ) -> &mut Self {
         self.add_system_into_stage(system, StageLabel::Startup)
     }
 
     pub fn add_system_into_stage<Params: SystemParam + Any, I: IntoSystem<Params> + Any>(
-        mut self,
+        &mut self,
         system: I,
         stage: StageLabel,
-    ) -> Self {
+    ) -> &mut Self {
         if let Some(stage) = self.stages.get_mut(&stage) {
             stage.systems.push(Box::new(system.into_system()));
         }
@@ -115,7 +131,40 @@ impl Engine {
         self
     }
 
-    pub fn run(mut self) {
+    pub fn add_module(&mut self, module: impl Module) -> &mut Self {
+        module.init(self);
+
+        self
+    }
+
+    pub fn set_runner<F: Fn(Engine) + 'static>(&mut self, runner: F) -> &mut Self {
+        self.runner = Box::new(runner);
+        self
+    }
+
+    pub fn update(&mut self) -> bool {
+        for stage in self.running_stages.iter_mut() {
+            stage.run(&self.world);
+        }
+
+        for stage in self.running_stages.iter_mut() {
+            stage.apply(&mut self.world);
+        }
+
+        {
+            let engine_event = self.world.get_event_handler::<EngineEvent>().unwrap();
+            if engine_event
+                .read_last()
+                .map_or_else(|| false, |e| e == &EngineEvent::Quit)
+            {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    pub fn run(&mut self) {
         self.world.create_event_handler::<EngineEvent>();
 
         let mut stages: Vec<Stage> = self
@@ -131,24 +180,11 @@ impl Engine {
         let mut startup_stage = stages.remove(0);
         startup_stage.run_and_apply(&mut self.world);
 
-        'main_loop: loop {
-            for stage in stages.iter_mut() {
-                stage.run(&self.world);
-            }
+        self.running_stages = stages;
 
-            for stage in stages.iter_mut() {
-                stage.apply(&mut self.world);
-            }
+        let mut app = std::mem::take(self);
+        let runner = std::mem::replace(&mut app.runner, Box::new(default_runner));
 
-            {
-                let engine_event = self.world.get_event_handler::<EngineEvent>().unwrap();
-                if engine_event
-                    .read_last()
-                    .map_or_else(|| false, |e| e == &EngineEvent::Quit)
-                {
-                    break 'main_loop;
-                }
-            }
-        }
+        (runner)(app);
     }
 }

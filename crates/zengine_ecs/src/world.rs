@@ -448,6 +448,16 @@ impl World {
             .insert(type_id, Box::new(RwLock::new(resource)));
     }
 
+    pub fn remove_resource<T: Resource + 'static>(&mut self) -> Option<T> {
+        let type_id = TypeId::of::<T>();
+
+        let t = self.resources.remove(&type_id).unwrap();
+        let t = Box::into_raw(t);
+        let t = unsafe { Box::from_raw(t.cast::<RwLock<T>>()) };
+
+        Some(t.into_inner().expect("lock error"))
+    }
+
     pub fn get_unsendable_resource<T: UnsendableResource + 'static>(&self) -> Option<Ref<T>> {
         let type_id = TypeId::of::<T>();
 
@@ -481,20 +491,17 @@ impl World {
             .insert(type_id, Box::new(RefCell::new(resource)));
     }
 
-    pub fn destroy_resource<T: Resource>(&mut self) {
+    pub fn remove_unsendable_resource<T: UnsendableResource + 'static>(&mut self) -> Option<T> {
         let type_id = TypeId::of::<T>();
 
-        self.resources.remove(&type_id);
+        let t = self.unsendable_resources.remove(&type_id).unwrap();
+        let t = Box::into_raw(t);
+        let t = unsafe { Box::from_raw(t.cast::<RefCell<T>>()) };
+        Some(t.into_inner())
     }
 
     pub fn destroy_resource_with_type_id(&mut self, id: TypeId) {
         self.resources.remove(&id);
-    }
-
-    pub fn destroy_unsendable_resource<T: UnsendableResource>(&mut self) {
-        let type_id = TypeId::of::<T>();
-
-        self.unsendable_resources.remove(&type_id);
     }
 
     pub fn destroy_unsendable_resource_with_type_id(&mut self, id: TypeId) {

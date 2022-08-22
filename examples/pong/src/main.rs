@@ -8,13 +8,13 @@ use zengine::{
         Entity,
     },
     graphic::{ActiveCamera, Camera, CameraMode, Color, SpriteDescriptor, TextureManager},
-    input::{event_system, input_system, Bindings, InputHandler},
+    input::{input_system, Bindings, InputHandler},
     log::LevelFilter,
     math::{Transform, Vector2, Vector3},
     physics::{collision_system, Collision, Shape2D, ShapeType},
-    platform::platform_startup,
-    render::{render_system, setup_render, Background, CollisionTrace, Sprite, WindowSpecs},
+    render::{render_system, setup_render, Background, CollisionTrace, Sprite},
     time::{timing_system, Time},
+    window::{WindowModule, WindowSpecs},
     Component, Engine, InputType, Resource, SpriteType, StageLabel,
 };
 
@@ -104,13 +104,15 @@ fn main() {
     let bindings: Bindings<UserInput> = serde_yaml::from_str(content).unwrap();
 
     Engine::default()
-        .add_startup_system(platform_startup)
-        .add_startup_system(setup_render::<Sprites>(
-            WindowSpecs::new("PONG".to_owned(), 600, 800, false),
-            CollisionTrace::Inactive,
-        ))
+        .add_module(WindowModule(WindowSpecs {
+            title: "PONG".to_owned(),
+            width: 600,
+            height: 800,
+            fullscreen: false,
+            vsync: false,
+        }))
+        .add_startup_system(setup_render::<Sprites>(CollisionTrace::Inactive))
         .add_startup_system(setup)
-        .add_system(event_system)
         .add_system(input_system(bindings))
         .add_system(collision_system)
         .add_system(ai_pad_control)
