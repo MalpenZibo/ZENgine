@@ -5,7 +5,7 @@ use glutin::{
     dpi::LogicalSize,
     event::{ElementState, Event, MouseScrollDelta, WindowEvent},
     event_loop::{ControlFlow, EventLoopWindowTarget},
-    window::WindowBuilder,
+    window::{Fullscreen, WindowBuilder},
     Api, GlProfile, GlRequest,
 };
 use glutin::{ContextBuilder, ContextWrapper, PossiblyCurrent};
@@ -15,24 +15,15 @@ use zengine_input::{
     device::{ControllerButton, Which},
     Axis, Input, InputEvent,
 };
+use zengine_macro::Resource;
 
-#[derive(Debug, Clone)]
+#[derive(Resource, Debug, Clone)]
 pub struct WindowSpecs {
     pub title: String,
     pub width: u32,
     pub height: u32,
     pub fullscreen: bool,
-}
-
-impl WindowSpecs {
-    pub fn new(title: String, width: u32, height: u32, fullscreen: bool) -> Self {
-        WindowSpecs {
-            title,
-            width,
-            height,
-            fullscreen,
-        }
-    }
+    pub vsync: bool,
 }
 
 impl Default for WindowSpecs {
@@ -42,6 +33,7 @@ impl Default for WindowSpecs {
             width: 800,
             height: 600,
             fullscreen: false,
+            vsync: false,
         }
     }
 }
@@ -68,13 +60,20 @@ pub struct WindowModule(pub WindowSpecs);
 impl Module for WindowModule {
     fn init(self, engine: &mut Engine) {
         let event_loop = glutin::event_loop::EventLoop::new();
-        let window = WindowBuilder::new()
-            .with_title(self.0.title)
+        let mut window = WindowBuilder::new()
+            .with_title(self.0.title.clone())
             .with_inner_size(LogicalSize::new(self.0.width, self.0.height));
+
+        if self.0.fullscreen {
+            window =
+                window.with_fullscreen(Some(Fullscreen::Borderless(event_loop.primary_monitor())));
+        }
+
         let mut gl_window = ContextBuilder::new()
             .with_double_buffer(Some(true))
             .with_gl_profile(GlProfile::Core)
-            .with_vsync(true);
+            .with_vsync(self.0.vsync);
+
         if cfg!(target_os = "macos") {
             gl_window = gl_window.with_gl(GlRequest::Specific(Api::OpenGl, (4, 1)));
         } else {
@@ -82,8 +81,12 @@ impl Module for WindowModule {
         }
 
         let gl_window = gl_window.build_windowed(window, &event_loop).unwrap();
+        let size = gl_window.window().inner_size();
+        println!("size: {:?}", size);
+
         let gl_window = unsafe { gl_window.make_current() }.unwrap();
 
+        engine.world.create_resource(self.0);
         engine.world.create_unsendable_resource(Window(gl_window));
         engine
             .world

@@ -239,6 +239,7 @@ fn setup_scissor(window: &Option<Ref<Window>>, width: u32, height: u32) {
         let width = size.width as i32;
         let height = size.height as i32;
         let new_height = (width as f32 / target_aspect_ratio) as i32;
+
         let calculated_height = if new_height > height {
             height
         } else {
@@ -252,6 +253,7 @@ fn setup_scissor(window: &Option<Ref<Window>>, width: u32, height: u32) {
 
         let vp_x = (width / 2) - (calculated_width / 2);
         let vp_y = (height / 2) - (calculated_height / 2);
+
         unsafe {
             gl::Viewport(vp_x, vp_y, calculated_width, calculated_height);
             gl::Scissor(vp_x, vp_y, calculated_width, calculated_height);

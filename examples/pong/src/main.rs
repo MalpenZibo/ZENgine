@@ -109,6 +109,7 @@ fn main() {
             width: 600,
             height: 800,
             fullscreen: false,
+            vsync: false,
         }))
         .add_startup_system(setup_render::<Sprites>(CollisionTrace::Inactive))
         .add_startup_system(setup)
