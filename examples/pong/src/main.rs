@@ -9,10 +9,10 @@ use zengine::{
     },
     graphic::{ActiveCamera, Camera, CameraMode, Color, SpriteDescriptor, TextureManager},
     input::{input_system, Bindings, InputHandler},
-    log::LevelFilter,
+    log::Level,
     math::{Transform, Vector2, Vector3},
     physics::{collision_system, Collision, Shape2D, ShapeType},
-    render::{render_system, setup_render, Background, CollisionTrace, Sprite},
+    render::{Background, CollisionTrace, Sprite},
     time::{timing_system, Time},
     window::{WindowModule, WindowSpecs},
     Component, Engine, InputType, Resource, SpriteType, StageLabel,
@@ -80,7 +80,7 @@ pub enum GameEvent {
 }
 
 fn main() {
-    Engine::init_logger(LevelFilter::Info);
+    Engine::init_logger(Level::Info);
 
     let content = "
         axis_mappings:
@@ -108,11 +108,11 @@ fn main() {
             title: "PONG".to_owned(),
             width: 600,
             height: 800,
-            fullscreen: false,
+            fullscreen: true,
             vsync: false,
         }))
-        .add_startup_system(setup_render::<Sprites>(CollisionTrace::Inactive))
-        .add_startup_system(setup)
+        //.add_startup_system(setup_render::<Sprites>(CollisionTrace::Inactive))
+        //.add_startup_system(setup)
         .add_system(input_system(bindings))
         .add_system(collision_system)
         .add_system(ai_pad_control)
@@ -120,7 +120,7 @@ fn main() {
         .add_system(pad_movement)
         .add_system(ball_movement)
         .add_system(collision_response)
-        .add_system_into_stage(render_system::<Sprites>, StageLabel::Render)
+        //.add_system_into_stage(render_system::<Sprites>, StageLabel::Render)
         .add_system_into_stage(timing_system(None), StageLabel::PostRender)
         .run();
 }

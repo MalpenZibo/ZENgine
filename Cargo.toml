@@ -11,6 +11,9 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/malpenzibo/zengine"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [workspace]
 exclude = ["benches"]
 members = ["crates/*", "examples/*"]

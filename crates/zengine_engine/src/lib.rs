@@ -1,6 +1,5 @@
 use std::{any::Any, collections::HashMap};
 
-use simplelog::{Config, LevelFilter, SimpleLogger, TermLogger, TerminalMode};
 use zengine_ecs::{
     system::{IntoSystem, System, SystemParam},
     World,
@@ -96,13 +95,24 @@ fn default_runner(mut engine: Engine) {
 }
 
 impl Engine {
-    pub fn init_logger(level_filter: LevelFilter) {
-        if TermLogger::init(level_filter, Config::default(), TerminalMode::Mixed).is_err() {
-            SimpleLogger::init(level_filter, Config::default())
-                .expect("An error occurred on logger initialization")
-        }
+    pub fn init_logger(level: log::Level) {
+        cfg_if::cfg_if! {
+        if #[cfg(target_arch = "wasm32")] {
+                std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+                console_log::init_with_level(level).expect("Couldn't initialize logger");
+            }
+          else {
 
-        log_panics::init();
+                use simplelog::{Config, SimpleLogger, TermLogger, TerminalMode};
+                let level_filter = level.to_level_filter();
+                if TermLogger::init(level_filter, Config::default(), TerminalMode::Mixed).is_err() {
+                    SimpleLogger::init(level_filter, Config::default())
+                        .expect("Couldn't initialize logger")
+                }
+
+                log_panics::init();
+            }
+        }
     }
 
     pub fn add_system<Params: SystemParam + Any, I: IntoSystem<Params> + Any>(
