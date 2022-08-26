@@ -6,10 +6,17 @@ edition = "2021"
 [dependencies]
 zengine_ecs = { path = "../zengine_ecs" }
 zengine_graphic = { path = "../zengine_graphic" }
-zengine_math = { path = "../zengine_math" }
+zengine_core = { path = "../zengine_core" }
 zengine_physics = { path = "../zengine_physics" }
 zengine_window = { path = "../zengine_window" }
 zengine_macro = { path = "../zengine_macro" }
 rustc-hash = "1.1.0"
 log = "0.4"
 winit = "0.27.2"
+pollster = "0.2"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wgpu = { version = "0.13", features = ["webgl"]}
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+wgpu = "0.13.1"

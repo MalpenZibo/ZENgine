@@ -1,9 +1,9 @@
 #[derive(Debug)]
 pub struct Color {
-    pub r: f32,
-    pub g: f32,
-    pub b: f32,
-    pub a: f32,
+    pub r: f64,
+    pub g: f64,
+    pub b: f64,
+    pub a: f64,
 }
 
 impl Default for Color {
@@ -15,10 +15,10 @@ impl Default for Color {
 impl Color {
     pub fn new(r: u8, g: u8, b: u8, a: u8) -> Color {
         Color {
-            r: r as f32 / 255.0,
-            g: g as f32 / 255.0,
-            b: b as f32 / 255.0,
-            a: a as f32 / 255.0,
+            r: r as f64 / 255.0,
+            g: g as f64 / 255.0,
+            b: b as f64 / 255.0,
+            a: a as f64 / 255.0,
         }
     }
 

@@ -18,7 +18,7 @@ use zengine_ecs::{
     Entity, UnsendableResource,
 };
 use zengine_graphic::{ActiveCamera, Camera, SpriteType, TextureManager, Vertex};
-use zengine_math::{Matrix4x4, Transform, Vector2, Vector3};
+use zengine_core::{Matrix4x4, Transform, Vector2, Vector3};
 use zengine_physics::{Shape2D, ShapeType};
 use zengine_window::Window;
 

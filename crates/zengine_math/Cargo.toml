@@ -1,9 +1,0 @@
-[package]
-name = "zengine_math"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-auto_ops = "0.1.0"
-zengine_ecs = { path = "../zengine_ecs" }
-zengine_macro = { path = "../zengine_macro" }

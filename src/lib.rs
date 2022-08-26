@@ -4,8 +4,12 @@ pub mod ecs {
     pub use zengine_ecs::*;
 }
 
+pub mod core {
+    pub use zengine_core::*;
+}
+
 pub mod math {
-    pub use zengine_math::*;
+    pub use glam::*;
 }
 
 pub mod graphic {
@@ -16,16 +20,8 @@ pub mod input {
     pub use zengine_input::*;
 }
 
-pub mod time {
-    pub use zengine_time::*;
-}
-
 pub mod physics {
     pub use zengine_physics::*;
-}
-
-pub mod render {
-    pub use zengine_render::*;
 }
 
 pub mod window {

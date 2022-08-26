@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 zengine_ecs = { path = "../zengine_ecs" }
-zengine_math = { path = "../zengine_math" }
+zengine_core = { path = "../zengine_core" }
 zengine_macro = { path = "../zengine_macro" }
 log = "0.4"
 rustc-hash = "1.1.0"

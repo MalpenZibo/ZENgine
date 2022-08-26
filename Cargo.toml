@@ -21,14 +21,13 @@ members = ["crates/*", "examples/*"]
 [dependencies]
 zengine_engine = { path = "crates/zengine_engine" }
 zengine_ecs = { path = "crates/zengine_ecs" }
-zengine_math = { path = "crates/zengine_math" }
+zengine_core = { path = "crates/zengine_core" }
 zengine_graphic = { path = "crates/zengine_graphic" }
 zengine_input = { path = "crates/zengine_input" }
-zengine_time = { path = "crates/zengine_time" }
 zengine_physics = { path = "crates/zengine_physics" }
-zengine_render = { path = "crates/zengine_render" }
 zengine_window = { path = "crates/zengine_window" }
 zengine_macro = { path = "crates/zengine_macro" }
+glam = "0.21.3"
 
 [dev-dependencies]
 bencher = "0.1.5"

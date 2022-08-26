@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use gilrs::Gilrs;
 use log::info;
 use winit::{
@@ -38,16 +36,13 @@ impl Default for WindowSpecs {
 }
 
 #[derive(Debug)]
-pub struct Window(winit::window::Window);
+pub struct Window {
+    pub internal: winit::window::Window,
+    pub width: u32,
+    pub height: u32,
+}
 
 impl UnsendableResource for Window {}
-
-impl Deref for Window {
-    type Target = winit::window::Window;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
 
 #[derive(Debug)]
 struct EventLoop(winit::event_loop::EventLoop<()>);
@@ -61,16 +56,24 @@ impl Module for WindowModule {
         let event_loop = winit::event_loop::EventLoop::new();
         let mut window_builder = WindowBuilder::new()
             .with_title(self.0.title.clone())
-            .with_inner_size(LogicalSize::new(self.0.width, self.0.height));
+            .with_inner_size(LogicalSize::new(self.0.width, self.0.height))
+            .with_resizable(false);
 
         if self.0.fullscreen {
             window_builder = window_builder
-                .with_fullscreen(Some(Fullscreen::Borderless(event_loop.primary_monitor())));
+                .with_decorations(false)
+                .with_fullscreen(Some(Fullscreen::Borderless(None)));
         }
 
         let window = window_builder.build(&event_loop).unwrap();
-        let size = window.inner_size();
-        info!("size: {:?}", size);
+        let window_size = if self.0.fullscreen {
+            let size = window.current_monitor().unwrap().size();
+
+            (size.width, size.height)
+        } else {
+            window.inner_size().into()
+        };
+        info!("size: {:?}", window_size);
 
         #[cfg(target_arch = "wasm32")]
         {
@@ -89,7 +92,11 @@ impl Module for WindowModule {
         }
 
         engine.world.create_resource(self.0);
-        engine.world.create_unsendable_resource(Window(window));
+        engine.world.create_unsendable_resource(Window {
+            internal: window,
+            width: window_size.0,
+            height: window_size.1,
+        });
         engine
             .world
             .create_unsendable_resource(EventLoop(event_loop));

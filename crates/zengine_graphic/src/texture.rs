@@ -1,10 +1,14 @@
-use fnv::FnvHashMap;
-use std::any::Any;
+use glam::Vec2;
+use rustc_hash::FxHashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
+use std::{any::Any, num::NonZeroU32};
+use wgpu::{BindGroupLayout, Device, Queue};
 use zengine_asset::image_loader;
+use zengine_ecs::system::{OptionalUnsendableRes, Res, ResMut};
 use zengine_macro::Resource;
-use zengine_math::Vector2;
+
+use crate::RenderContext;
 
 const LEVEL: i32 = 0;
 const BORDER: i32 = 0;
@@ -20,18 +24,41 @@ pub struct SpriteDescriptor {
 }
 
 #[derive(Debug)]
+pub enum TextureHandleState {
+    ToUpload(Vec<u8>),
+    Uploaded,
+    ToUnload,
+}
+
+#[derive(Debug)]
+pub struct Texture {
+    pub texture: wgpu::Texture,
+    pub view: wgpu::TextureView,
+    pub sampler: wgpu::Sampler,
+    pub diffuse_bind_group: wgpu::BindGroup,
+}
+
+#[derive(Debug)]
 pub struct SpriteHandle {
-    pub relative_min: Vector2,
-    pub relative_max: Vector2,
+    pub relative_min: Vec2,
+    pub relative_max: Vec2,
     pub width: u32,
     pub height: u32,
-    pub texture_id: u32,
+    pub texture_handle_index: usize,
+}
+
+#[derive(Debug)]
+pub struct TextureHandle {
+    pub width: u32,
+    pub height: u32,
+    pub state: TextureHandleState,
+    pub texture: Option<Texture>,
 }
 
 pub struct TextureLoader<'a, ST: SpriteType> {
     file_path: String,
     texture_manager: &'a mut TextureManager<ST>,
-    sprites: FnvHashMap<ST, SpriteDescriptor>,
+    sprites: FxHashMap<ST, SpriteDescriptor>,
 }
 
 impl<'a, ST: SpriteType> TextureLoader<'a, ST> {
@@ -48,41 +75,49 @@ impl<'a, ST: SpriteType> TextureLoader<'a, ST> {
 
 #[derive(Resource, Debug)]
 pub struct TextureManager<ST: SpriteType> {
-    sprites: FnvHashMap<ST, SpriteHandle>,
+    sprites: FxHashMap<ST, SpriteHandle>,
+    pub textures: Vec<TextureHandle>,
 }
 
 impl<ST: SpriteType> Default for TextureManager<ST> {
     fn default() -> Self {
         TextureManager {
-            sprites: FnvHashMap::default(),
+            sprites: FxHashMap::default(),
+            textures: Vec::default(),
         }
     }
 }
 
 impl<ST: SpriteType> TextureManager<ST> {
-    pub(self) fn load(&mut self, file_path: &str, sprites: FnvHashMap<ST, SpriteDescriptor>) {
+    pub(self) fn load(&mut self, file_path: &str, sprites: FxHashMap<ST, SpriteDescriptor>) {
         let img = image_loader::load(file_path);
-        let texture_id = Self::generate_texture(img.width, img.height, &img.data);
 
-        for entry in sprites {
-            if let Some(old_sprite) = self.sprites.insert(
-                entry.0,
-                SpriteHandle {
-                    relative_min: Vector2::new(
-                        entry.1.x as f32 / img.width as f32,
-                        entry.1.y as f32 / img.height as f32,
-                    ),
-                    relative_max: Vector2::new(
-                        (entry.1.x + entry.1.width) as f32 / img.width as f32,
-                        (entry.1.y + entry.1.height) as f32 / img.height as f32,
-                    ),
-                    width: entry.1.width,
-                    height: entry.1.height,
-                    texture_id,
-                },
-            ) {
-                if !self.texture_still_used(old_sprite.texture_id) {
-                    Self::destroy_texture(old_sprite.texture_id);
+        let texture_index = self.textures.len();
+        self.textures.push(TextureHandle {
+            width: img.width,
+            height: img.height,
+            state: TextureHandleState::ToUpload(img.data),
+            texture: None,
+        });
+
+        for (sprite_type, descriptor) in sprites {
+            let sprite_handle = SpriteHandle {
+                relative_min: Vec2::new(
+                    descriptor.x as f32 / img.width as f32,
+                    descriptor.y as f32 / img.height as f32,
+                ),
+                relative_max: Vec2::new(
+                    (descriptor.x + descriptor.width) as f32 / img.width as f32,
+                    (descriptor.y + descriptor.height) as f32 / img.height as f32,
+                ),
+                width: descriptor.width,
+                height: descriptor.height,
+                texture_handle_index: texture_index,
+            };
+
+            if let Some(old_sprite) = self.sprites.insert(sprite_type, sprite_handle) {
+                if !self.texture_still_used(old_sprite.texture_handle_index) {
+                    self.set_texture_to_unload(old_sprite.texture_handle_index);
                 }
             }
         }
@@ -92,14 +127,14 @@ impl<ST: SpriteType> TextureManager<ST> {
         TextureLoader {
             texture_manager: self,
             file_path: file_path.to_string(),
-            sprites: FnvHashMap::default(),
+            sprites: FxHashMap::default(),
         }
     }
 
     pub fn destroy(&mut self, sprite_type: ST) {
         if let Some(sprite) = self.sprites.remove(&sprite_type) {
-            if self.texture_still_used(sprite.texture_id) {
-                Self::destroy_texture(sprite.texture_id);
+            if self.texture_still_used(sprite.texture_handle_index) {
+                self.set_texture_to_unload(sprite.texture_handle_index);
             }
         }
     }
@@ -109,50 +144,162 @@ impl<ST: SpriteType> TextureManager<ST> {
     }
 
     pub fn activate(&self, texture_id: u32) {
-        unsafe {
-            gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, texture_id);
-        }
+        // unsafe {
+        //     gl::ActiveTexture(gl::TEXTURE0);
+        //     gl::BindTexture(gl::TEXTURE_2D, texture_id);
+        // }
     }
 
-    fn texture_still_used(&self, texture_id: u32) -> bool {
+    fn texture_still_used(&self, texture_handle_index: usize) -> bool {
         self.sprites
             .values()
-            .any(|sprite| sprite.texture_id == texture_id)
+            .any(|sprite| sprite.texture_handle_index == texture_handle_index)
     }
 
-    fn destroy_texture(texture_id: u32) {
-        unsafe {
-            gl::DeleteTextures(1, &texture_id);
+    fn set_texture_to_unload(&mut self, texture_handle_index: usize) {
+        if let Some(texture_handle) = self.textures.get_mut(texture_handle_index) {
+            texture_handle.state = TextureHandleState::ToUnload;
         }
     }
 
-    fn generate_texture(width: u32, height: u32, data: &[u8]) -> u32 {
-        let mut texture_id = 0;
-        unsafe {
-            gl::GenTextures(1, &mut texture_id);
-            gl::BindTexture(gl::TEXTURE_2D, texture_id);
+    pub fn upload(
+        &mut self,
+        device: &Device,
+        queue: &Queue,
+        texture_bind_group_layout: &BindGroupLayout,
+    ) {
+        for t in self
+            .textures
+            .iter_mut()
+            .filter(|t| matches!(t.state, TextureHandleState::ToUpload(_)))
+        {
+            if let TextureHandleState::ToUpload(image) = &t.state {
+                let size = wgpu::Extent3d {
+                    width: t.width,
+                    height: t.height,
+                    depth_or_array_layers: 1,
+                };
+                let texture = device.create_texture(&wgpu::TextureDescriptor {
+                    // All textures are stored as 3D, we represent our 2D texture
+                    // by setting depth to 1.
+                    size,
+                    mip_level_count: 1, // We'll talk about this a little later
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    // Most images are stored using sRGB so we need to reflect that here.
+                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                    // TEXTURE_BINDING tells wgpu that we want to use this texture in shaders
+                    // COPY_DST means that we want to copy data to this texture
+                    usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                    label: Some("diffuse_texture"),
+                });
 
-            gl::TexImage2D(
-                gl::TEXTURE_2D,
-                LEVEL,
-                gl::RGBA as i32,
-                width as i32,
-                height as i32,
-                BORDER,
-                gl::RGBA,
-                gl::UNSIGNED_BYTE,
-                data.as_ptr() as *const gl::types::GLvoid,
-            );
+                queue.write_texture(
+                    wgpu::ImageCopyTexture {
+                        aspect: wgpu::TextureAspect::All,
+                        texture: &texture,
+                        mip_level: 0,
+                        origin: wgpu::Origin3d::ZERO,
+                    },
+                    image,
+                    wgpu::ImageDataLayout {
+                        offset: 0,
+                        bytes_per_row: NonZeroU32::new(4 * t.width),
+                        rows_per_image: NonZeroU32::new(t.height),
+                    },
+                    size,
+                );
 
-            gl::GenerateMipmap(gl::TEXTURE_2D);
+                let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+                let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+                    address_mode_u: wgpu::AddressMode::ClampToEdge,
+                    address_mode_v: wgpu::AddressMode::ClampToEdge,
+                    address_mode_w: wgpu::AddressMode::ClampToEdge,
+                    mag_filter: wgpu::FilterMode::Linear,
+                    min_filter: wgpu::FilterMode::Nearest,
+                    mipmap_filter: wgpu::FilterMode::Nearest,
+                    ..Default::default()
+                });
 
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+                let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    layout: texture_bind_group_layout,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::TextureView(&view),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::Sampler(&sampler),
+                        },
+                    ],
+                    label: Some("diffuse_bind_group"),
+                });
 
-            gl::BindTexture(gl::TEXTURE_2D, 0);
+                t.state = TextureHandleState::Uploaded;
+                t.texture = Some(Texture {
+                    texture,
+                    view,
+                    sampler,
+                    diffuse_bind_group,
+                })
+            }
+        }
+    }
+
+    pub fn unload(&mut self) {
+        for t in self
+            .textures
+            .iter_mut()
+            .filter(|t| matches!(t.state, TextureHandleState::ToUnload))
+        {
+            t.texture
+                .as_ref()
+                .expect("Cannot find the wgpu::Texture")
+                .texture
+                .destroy();
         }
 
-        texture_id
+        for index in self
+            .textures
+            .iter()
+            .enumerate()
+            .filter_map(|(index, t)| {
+                if matches!(t.state, TextureHandleState::ToUnload) {
+                    Some(index)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<usize>>()
+        {
+            let last_index = self.textures.len() - 1;
+            self.textures.swap_remove(index);
+
+            if index != last_index {
+                for s in self
+                    .sprites
+                    .iter_mut()
+                    .filter(|(_, s)| s.texture_handle_index == last_index)
+                {
+                    s.1.texture_handle_index = index;
+                }
+            }
+        }
+    }
+}
+
+pub fn texture_loader<ST: SpriteType>(
+    render_context: OptionalUnsendableRes<RenderContext>,
+    mut texture_manager: ResMut<TextureManager<ST>>,
+) {
+    if let Some(render_context) = render_context {
+        texture_manager.upload(
+            &render_context.device,
+            &render_context.queue,
+            &render_context.texture_bind_group_layout,
+        );
+
+        texture_manager.unload();
     }
 }
