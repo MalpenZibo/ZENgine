@@ -4,8 +4,8 @@ use zengine::{
     core::{timing_system, Time, Transform},
     ecs::{
         system::{
-            Commands, EventPublisher, EventStream, Local, OptionalRes, Query, QueryIter,
-            QueryIterMut, Res, ResMut,
+            Commands, EventPublisher, EventStream, Local, OptionalRes, OptionalUnsendableResMut,
+            Query, QueryIter, QueryIterMut, Res, ResMut, UnsendableResMut,
         },
         Entity,
     },
@@ -119,8 +119,8 @@ fn main() {
             vsync: false,
         }))
         //.add_startup_system(setup_render::<Sprites>(CollisionTrace::Inactive))
-        .add_startup_system(setup)
         .add_startup_system(setup_render)
+        .add_startup_system(setup)
         .add_system(input_system(bindings))
         .add_system(texture_loader::<Sprites>)
         // .add_system(collision_system)
@@ -135,7 +135,7 @@ fn main() {
         .run();
 }
 
-fn setup(mut commands: Commands, mut textures: ResMut<TextureManager<Sprites>>) {
+fn setup(mut commands: Commands, mut textures: UnsendableResMut<TextureManager<Sprites>>) {
     // textures
     //     .create("bg.png")
     //     .with_sprite(
@@ -160,6 +160,7 @@ fn setup(mut commands: Commands, mut textures: ResMut<TextureManager<Sprites>>) 
     //         },
     //     )
     //     .load();
+
     textures
         .create("duck.png")
         .with_sprite(

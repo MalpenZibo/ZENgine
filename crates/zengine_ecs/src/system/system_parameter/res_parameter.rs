@@ -123,6 +123,66 @@ impl<'a, R: Resource> SystemParam for OptionalResMut<'a, R> {
     type Fetch = OptionalResMutState<R>;
 }
 
+pub type UnsendableRes<'a, R> = Ref<'a, R>;
+
+pub struct UnsendableResState<R: UnsendableResource + Default> {
+    _marker: std::marker::PhantomData<R>,
+}
+
+impl<T: UnsendableResource + Default> Default for UnsendableResState<T> {
+    fn default() -> Self {
+        Self {
+            _marker: std::marker::PhantomData::default(),
+        }
+    }
+}
+
+impl<'a, R: UnsendableResource + Default> SystemParamFetch<'a> for UnsendableResState<R> {
+    type Item = UnsendableRes<'a, R>;
+
+    fn init(&mut self, world: &mut World) {
+        world.create_unsendable_resource(R::default());
+    }
+
+    fn fetch(&mut self, world: &'a World) -> Self::Item {
+        world.get_unsendable_resource().unwrap()
+    }
+}
+
+impl<'a, R: UnsendableResource + Default> SystemParam for UnsendableRes<'a, R> {
+    type Fetch = UnsendableResState<R>;
+}
+
+pub type UnsendableResMut<'a, R> = RefMut<'a, R>;
+
+pub struct UnsendableResMutState<R: UnsendableResource + Default> {
+    _marker: std::marker::PhantomData<R>,
+}
+
+impl<T: UnsendableResource + Default> Default for UnsendableResMutState<T> {
+    fn default() -> Self {
+        Self {
+            _marker: std::marker::PhantomData::default(),
+        }
+    }
+}
+
+impl<'a, R: UnsendableResource + Default> SystemParamFetch<'a> for UnsendableResMutState<R> {
+    type Item = UnsendableResMut<'a, R>;
+
+    fn init(&mut self, world: &mut World) {
+        world.create_unsendable_resource(R::default())
+    }
+
+    fn fetch(&mut self, world: &'a World) -> Self::Item {
+        world.get_mut_unsendable_resource().unwrap()
+    }
+}
+
+impl<'a, R: UnsendableResource + Default> SystemParam for UnsendableResMut<'a, R> {
+    type Fetch = UnsendableResMutState<R>;
+}
+
 pub type OptionalUnsendableRes<'a, R> = Option<Ref<'a, R>>;
 
 pub struct OptionalUnsendableResState<R: UnsendableResource> {

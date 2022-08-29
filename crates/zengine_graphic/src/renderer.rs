@@ -7,15 +7,15 @@ use wgpu::{
     util::DeviceExt, Adapter, BindGroup, BindGroupLayout, Buffer, Device, Instance, Queue,
     RenderPipeline, Surface,
 };
+use zengine_core::Transform;
 use zengine_ecs::{
     system::{
         Commands, OptionalRes, OptionalUnsendableRes, OptionalUnsendableResMut, Query, QueryIter,
-        Res,
+        Res, UnsendableRes,
     },
     Entity, UnsendableResource,
 };
 use zengine_macro::{Component, Resource};
-use zengine_core::Transform;
 use zengine_window::Window;
 
 #[derive(Copy, Clone)]
@@ -312,78 +312,75 @@ fn pick_correct_camera<'a>(
 pub fn renderer<SP: SpriteType>(
     render_context: OptionalUnsendableRes<RenderContext>,
     bg_color: Res<Background>,
-    texture_manager: Res<TextureManager<SP>>,
+    texture_manager: UnsendableRes<TextureManager<SP>>,
     camera_query: Query<(Entity, &Camera, &Transform)>,
     active_camera: OptionalRes<ActiveCamera>,
 ) {
-    let render_context = render_context.unwrap();
-    let output = render_context.surface.get_current_texture().unwrap();
-    let view = output
-        .texture
-        .create_view(&wgpu::TextureViewDescriptor::default());
+    if let Some(texture) = texture_manager
+        .textures
+        .first()
+        .and_then(|t| t.texture.as_ref())
+        .map(|t| &t.diffuse_bind_group)
+    {
+        let render_context = render_context.unwrap();
+        let output = render_context.surface.get_current_texture().unwrap();
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
 
-    let mut encoder =
-        render_context
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
+        let mut encoder =
+            render_context
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Render Encoder"),
+                });
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: bg_color.color.r,
+                            g: bg_color.color.g,
+                            b: bg_color.color.b,
+                            a: bg_color.color.a,
+                        }),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: None,
             });
 
-    {
-        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Render Pass"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: bg_color.color.r,
-                        g: bg_color.color.g,
-                        b: bg_color.color.b,
-                        a: bg_color.color.a,
-                    }),
-                    store: true,
-                },
-            })],
-            depth_stencil_attachment: None,
-        });
+            render_pass.set_pipeline(&render_context.render_pipeline);
+            render_pass.set_bind_group(0, texture, &[]);
 
-        render_pass.set_pipeline(&render_context.render_pipeline);
-        //TODO Fix this
-        render_pass.set_bind_group(
-            0,
-            texture_manager
-                .textures
-                .first()
-                .and_then(|t| t.texture.as_ref())
-                .map(|t| &t.diffuse_bind_group)
-                .unwrap(),
-            &[],
-        );
-
-        let camera_data = pick_correct_camera(&camera_query, &active_camera);
-        if let Some((camera, transform)) = camera_data {
-            render_context.queue.write_buffer(
-                &render_context.camera_buffer,
-                0,
-                bytemuck::cast_slice(&[CameraUniform::new(camera, Some(&transform.position))]),
+            let camera_data = pick_correct_camera(&camera_query, &active_camera);
+            if let Some((camera, transform)) = camera_data {
+                render_context.queue.write_buffer(
+                    &render_context.camera_buffer,
+                    0,
+                    bytemuck::cast_slice(&[CameraUniform::new(camera, Some(&transform.position))]),
+                );
+            } else {
+                render_context.queue.write_buffer(
+                    &render_context.camera_buffer,
+                    0,
+                    bytemuck::cast_slice(&[CameraUniform::default()]),
+                );
+            }
+            render_pass.set_bind_group(1, &render_context.camera_bind_group, &[]);
+            render_pass.set_vertex_buffer(0, render_context.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(
+                render_context.index_buffer.slice(..),
+                wgpu::IndexFormat::Uint16,
             );
-        } else {
-            render_context.queue.write_buffer(
-                &render_context.camera_buffer,
-                0,
-                bytemuck::cast_slice(&[CameraUniform::default()]),
-            );
+            render_pass.draw_indexed(0..INDICES.len() as u32, 0, 0..1);
         }
-        render_pass.set_bind_group(1, &render_context.camera_bind_group, &[]);
-        render_pass.set_vertex_buffer(0, render_context.vertex_buffer.slice(..));
-        render_pass.set_index_buffer(
-            render_context.index_buffer.slice(..),
-            wgpu::IndexFormat::Uint16,
-        );
-        render_pass.draw_indexed(0..INDICES.len() as u32, 0, 0..1);
-    }
 
-    render_context.queue.submit(iter::once(encoder.finish()));
-    output.present();
+        render_context.queue.submit(iter::once(encoder.finish()));
+        output.present();
+    }
 }

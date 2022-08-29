@@ -4,18 +4,16 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::{any::Any, num::NonZeroU32};
 use wgpu::{BindGroupLayout, Device, Queue};
-use zengine_asset::image_loader;
-use zengine_ecs::system::{OptionalUnsendableRes, Res, ResMut};
-use zengine_macro::Resource;
+use zengine_asset::image_loader::{self, ImageAsset, ImageAssetHandler};
+use zengine_ecs::system::{OptionalUnsendableRes, UnsendableResMut};
+use zengine_ecs::UnsendableResource;
 
 use crate::RenderContext;
-
-const LEVEL: i32 = 0;
-const BORDER: i32 = 0;
 
 pub trait SpriteType: Any + Eq + PartialEq + Hash + Clone + Debug + Send + Sync {}
 impl SpriteType for String {}
 
+#[derive(Debug)]
 pub struct SpriteDescriptor {
     pub x: u32,
     pub y: u32,
@@ -73,15 +71,25 @@ impl<'a, ST: SpriteType> TextureLoader<'a, ST> {
     }
 }
 
-#[derive(Resource, Debug)]
+#[derive(Debug)]
+pub struct Image<ST: SpriteType> {
+    image_asset: ImageAssetHandler,
+    image: Option<ImageAsset>,
+    sprite_descriptor: FxHashMap<ST, SpriteDescriptor>,
+}
+
+#[derive(Debug)]
 pub struct TextureManager<ST: SpriteType> {
+    images: Vec<Image<ST>>,
     sprites: FxHashMap<ST, SpriteHandle>,
     pub textures: Vec<TextureHandle>,
 }
+impl<ST: SpriteType> UnsendableResource for TextureManager<ST> {}
 
 impl<ST: SpriteType> Default for TextureManager<ST> {
     fn default() -> Self {
         TextureManager {
+            images: Vec::default(),
             sprites: FxHashMap::default(),
             textures: Vec::default(),
         }
@@ -91,33 +99,56 @@ impl<ST: SpriteType> Default for TextureManager<ST> {
 impl<ST: SpriteType> TextureManager<ST> {
     pub(self) fn load(&mut self, file_path: &str, sprites: FxHashMap<ST, SpriteDescriptor>) {
         let img = image_loader::load(file_path);
-
-        let texture_index = self.textures.len();
-        self.textures.push(TextureHandle {
-            width: img.width,
-            height: img.height,
-            state: TextureHandleState::ToUpload(img.data),
-            texture: None,
+        self.images.push(Image {
+            sprite_descriptor: sprites,
+            image_asset: img,
+            image: None,
         });
+    }
 
-        for (sprite_type, descriptor) in sprites {
-            let sprite_handle = SpriteHandle {
-                relative_min: Vec2::new(
-                    descriptor.x as f32 / img.width as f32,
-                    descriptor.y as f32 / img.height as f32,
-                ),
-                relative_max: Vec2::new(
-                    (descriptor.x + descriptor.width) as f32 / img.width as f32,
-                    (descriptor.y + descriptor.height) as f32 / img.height as f32,
-                ),
-                width: descriptor.width,
-                height: descriptor.height,
-                texture_handle_index: texture_index,
-            };
+    pub fn handle_loaded_image(&mut self) {
+        let mut indices = Vec::<usize>::new();
 
-            if let Some(old_sprite) = self.sprites.insert(sprite_type, sprite_handle) {
-                if !self.texture_still_used(old_sprite.texture_handle_index) {
-                    self.set_texture_to_unload(old_sprite.texture_handle_index);
+        for (index, i) in self.images.iter_mut().enumerate() {
+            if let Ok(img) = i.image_asset.try_recv() {
+                i.image = Some(img);
+                indices.push(index);
+            }
+        }
+
+        for i in indices.iter().rev() {
+            let image = self.images.swap_remove(*i);
+            if let Some(img) = image.image {
+                let texture_index = self.textures.len();
+                self.textures.push(TextureHandle {
+                    width: img.width,
+                    height: img.height,
+                    state: TextureHandleState::ToUpload(img.data),
+                    texture: None,
+                });
+
+                for (sprite_type, descriptor) in image.sprite_descriptor {
+                    let sprite_handle = SpriteHandle {
+                        relative_min: Vec2::new(
+                            descriptor.x as f32 / img.width as f32,
+                            descriptor.y as f32 / img.height as f32,
+                        ),
+                        relative_max: Vec2::new(
+                            (descriptor.x + descriptor.width) as f32 / img.width as f32,
+                            (descriptor.y + descriptor.height) as f32 / img.height as f32,
+                        ),
+                        width: descriptor.width,
+                        height: descriptor.height,
+                        texture_handle_index: texture_index,
+                    };
+
+                    if let Some(old_sprite) =
+                        self.sprites.insert(sprite_type.clone(), sprite_handle)
+                    {
+                        if !self.texture_still_used(old_sprite.texture_handle_index) {
+                            self.set_texture_to_unload(old_sprite.texture_handle_index);
+                        }
+                    }
                 }
             }
         }
@@ -291,8 +322,10 @@ impl<ST: SpriteType> TextureManager<ST> {
 
 pub fn texture_loader<ST: SpriteType>(
     render_context: OptionalUnsendableRes<RenderContext>,
-    mut texture_manager: ResMut<TextureManager<ST>>,
+    mut texture_manager: UnsendableResMut<TextureManager<ST>>,
 ) {
+    texture_manager.handle_loaded_image();
+
     if let Some(render_context) = render_context {
         texture_manager.upload(
             &render_context.device,
