@@ -174,7 +174,7 @@ impl<ST: SpriteType> TextureManager<ST> {
         self.sprites.get(sprite_type)
     }
 
-    pub fn activate(&self, texture_id: u32) {
+    pub fn activate(&self, _texture_id: u32) {
         // unsafe {
         //     gl::ActiveTexture(gl::TEXTURE0);
         //     gl::BindTexture(gl::TEXTURE_2D, texture_id);

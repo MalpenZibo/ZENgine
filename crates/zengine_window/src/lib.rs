@@ -6,13 +6,12 @@ use winit::{
     event_loop::{ControlFlow, EventLoopWindowTarget},
     window::{Fullscreen, WindowBuilder},
 };
-use zengine_ecs::UnsendableResource;
 use zengine_engine::{Engine, Module};
 use zengine_input::{
     device::{ControllerButton, Which},
     Axis, Input, InputEvent,
 };
-use zengine_macro::Resource;
+use zengine_macro::{Resource, UnsendableResource};
 
 #[derive(Resource, Debug, Clone)]
 pub struct WindowSpecs {
@@ -35,19 +34,15 @@ impl Default for WindowSpecs {
     }
 }
 
-#[derive(Debug)]
+#[derive(UnsendableResource, Debug)]
 pub struct Window {
     pub internal: winit::window::Window,
     pub width: u32,
     pub height: u32,
 }
 
-impl UnsendableResource for Window {}
-
-#[derive(Debug)]
+#[derive(UnsendableResource, Debug)]
 struct EventLoop(winit::event_loop::EventLoop<()>);
-
-impl UnsendableResource for EventLoop {}
 
 #[derive(Debug)]
 pub struct WindowModule(pub WindowSpecs);

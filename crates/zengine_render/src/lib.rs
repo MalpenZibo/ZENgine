@@ -1,12 +1,9 @@
 use std::iter;
 
 use wgpu::{Adapter, Device, Instance, Queue, RenderPipeline, Surface};
-use zengine_ecs::{
-    system::{Commands, OptionalUnsendableRes},
-    UnsendableResource,
-};
+use zengine_ecs::system::{Commands, OptionalUnsendableRes};
 use zengine_graphic::{Color, SpriteType};
-use zengine_macro::{Component, Resource};
+use zengine_macro::{Component, Resource, UnsendableResource};
 //use zengine_math::Vec3;
 use zengine_window::Window;
 
@@ -35,15 +32,13 @@ pub struct Sprite<ST: SpriteType> {
     pub sprite_type: ST,
 }
 
-#[derive(Debug)]
+#[derive(UnsendableResource, Debug)]
 pub struct RenderContext {
     surface: Surface,
     device: Device,
     queue: Queue,
     render_pipeline: RenderPipeline,
 }
-
-impl UnsendableResource for RenderContext {}
 
 pub fn setup_render(window: OptionalUnsendableRes<Window>, mut commands: Commands) {
     // The instance is a handle to our GPU

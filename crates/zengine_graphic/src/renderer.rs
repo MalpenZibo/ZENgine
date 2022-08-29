@@ -1,21 +1,16 @@
 use std::iter;
 
-use crate::{
-    camera, ActiveCamera, Camera, CameraMode, CameraUniform, Color, SpriteType, TextureManager,
-};
+use crate::{ActiveCamera, Camera, CameraUniform, Color, SpriteType, TextureManager};
 use wgpu::{
     util::DeviceExt, Adapter, BindGroup, BindGroupLayout, Buffer, Device, Instance, Queue,
     RenderPipeline, Surface,
 };
 use zengine_core::Transform;
 use zengine_ecs::{
-    system::{
-        Commands, OptionalRes, OptionalUnsendableRes, OptionalUnsendableResMut, Query, QueryIter,
-        Res, UnsendableRes,
-    },
-    Entity, UnsendableResource,
+    system::{Commands, OptionalRes, OptionalUnsendableRes, Query, QueryIter, Res, UnsendableRes},
+    Entity,
 };
-use zengine_macro::{Component, Resource};
+use zengine_macro::{Component, Resource, UnsendableResource};
 use zengine_window::Window;
 
 #[derive(Copy, Clone)]
@@ -38,7 +33,7 @@ pub struct Sprite<ST: SpriteType> {
     pub sprite_type: ST,
 }
 
-#[derive(Debug)]
+#[derive(UnsendableResource, Debug)]
 pub struct RenderContext {
     surface: Surface,
     pub device: Device,
@@ -51,8 +46,6 @@ pub struct RenderContext {
     camera_buffer: Buffer,
     camera_bind_group: BindGroup,
 }
-
-impl UnsendableResource for RenderContext {}
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
