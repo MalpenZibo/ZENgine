@@ -598,7 +598,7 @@ impl<'a, 'b, T: 'static> QueryIter<'b> for Option<RwLockWriteGuard<'a, Vec<T>>> 
     }
 }
 
-query_iter_for_tuple!(4);
+query_iter_for_tuple!(14);
 
 impl<'a, 'b> QueryIterMut<'b> for &'a Vec<Entity> {
     type Iter = std::slice::Iter<'b, Entity>;
@@ -641,7 +641,7 @@ impl<'a, 'b, T: 'static> QueryIterMut<'b> for Option<RwLockWriteGuard<'a, Vec<T>
     }
 }
 
-query_iter_mut_for_tuple!(4);
+query_iter_mut_for_tuple!(14);
 
 #[cfg(test)]
 mod tests {
