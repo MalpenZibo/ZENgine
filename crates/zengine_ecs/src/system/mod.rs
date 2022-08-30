@@ -171,6 +171,10 @@ mod tests {
     impl Executor {
         pub fn run(mut self) {
             for s in self.systems.iter_mut() {
+                s.init(&mut self.world);
+            }
+
+            for s in self.systems.iter_mut() {
                 s.run(&self.world);
             }
         }

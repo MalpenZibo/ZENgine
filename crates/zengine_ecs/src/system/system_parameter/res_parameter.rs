@@ -26,7 +26,7 @@ impl<'a, R: Resource + Default> SystemParamFetch<'a> for ResState<R> {
 
     fn init(&mut self, world: &mut World) {
         if world.get_resource::<R>().is_none() {
-            world.create_resource::<R>(R::default())
+            world.create_resource(R::default())
         }
     }
 

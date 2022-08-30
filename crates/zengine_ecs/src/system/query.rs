@@ -285,7 +285,7 @@ impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
 impl<T: Component + 'static> QueryParameter for Option<&T> {
     type Item = Option<ReadQueryParameterFetch<T>>;
 
-    fn matches_archetype(archetype: &Archetype) -> bool {
+    fn matches_archetype(_archetype: &Archetype) -> bool {
         true
     }
 }
@@ -360,7 +360,7 @@ impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
                     Some(archetype.get(column).try_read().unwrap()),
                     Some(column),
                 ),
-                none => (None, None),
+                None => (None, None),
             }
         } else {
             let type_id = TypeId::of::<T>();
@@ -378,7 +378,7 @@ impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
 impl<T: Component + 'static> QueryParameter for Option<&mut T> {
     type Item = Option<ReadQueryParameterFetch<T>>;
 
-    fn matches_archetype(archetype: &Archetype) -> bool {
+    fn matches_archetype(_archetype: &Archetype) -> bool {
         true
     }
 }
@@ -578,6 +578,26 @@ impl<'a, 'b, T: 'static> QueryIter<'b> for RwLockWriteGuard<'a, Vec<T>> {
     }
 }
 
+impl<'a, 'b, T: 'static> QueryIter<'b> for Option<RwLockReadGuard<'a, Vec<T>>> {
+    type Iter = OptionalIterator<std::slice::Iter<'b, T>>;
+    fn iter(&'b self) -> Self::Iter {
+        self.as_ref().map_or_else(
+            || OptionalIterator::NoneIterator,
+            |value| OptionalIterator::SomeIterator(<[T]>::iter(value)),
+        )
+    }
+}
+
+impl<'a, 'b, T: 'static> QueryIter<'b> for Option<RwLockWriteGuard<'a, Vec<T>>> {
+    type Iter = OptionalIterator<std::slice::Iter<'b, T>>;
+    fn iter(&'b self) -> Self::Iter {
+        self.as_ref().map_or_else(
+            || OptionalIterator::NoneIterator,
+            |value| OptionalIterator::SomeIterator(<[T]>::iter(value)),
+        )
+    }
+}
+
 query_iter_for_tuple!(4);
 
 impl<'a, 'b> QueryIterMut<'b> for &'a Vec<Entity> {
@@ -601,6 +621,26 @@ impl<'a, 'b, T: 'static> QueryIterMut<'b> for RwLockWriteGuard<'a, Vec<T>> {
     }
 }
 
+impl<'a, 'b, T: 'static> QueryIterMut<'b> for Option<RwLockReadGuard<'a, Vec<T>>> {
+    type Iter = OptionalIterator<std::slice::Iter<'b, T>>;
+    fn iter_mut(&'b mut self) -> Self::Iter {
+        self.as_ref().map_or_else(
+            || OptionalIterator::NoneIterator,
+            |value| OptionalIterator::SomeIterator(<[T]>::iter(value)),
+        )
+    }
+}
+
+impl<'a, 'b, T: 'static> QueryIterMut<'b> for Option<RwLockWriteGuard<'a, Vec<T>>> {
+    type Iter = OptionalIterator<std::slice::IterMut<'b, T>>;
+    fn iter_mut(&'b mut self) -> Self::Iter {
+        self.as_mut().map_or_else(
+            || OptionalIterator::NoneIterator,
+            |value| OptionalIterator::SomeIterator(<[T]>::iter_mut(value)),
+        )
+    }
+}
+
 query_iter_mut_for_tuple!(4);
 
 #[cfg(test)]
@@ -616,13 +656,13 @@ mod tests {
     }
     impl Component for Test1 {}
 
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq)]
     struct Test2 {
         _data: u32,
     }
     impl Component for Test2 {}
 
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq)]
     struct Test3 {
         data: u32,
     }
@@ -701,21 +741,21 @@ mod tests {
         let mut world = World::default();
 
         world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }, Test3 { data: 3 }));
-        world.spawn(Test1 { data: 3 });
+        world.spawn(Test1 { data: 4 });
         world.spawn(Test3 { data: 3 });
-        world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }, Test3 { data: 3 }));
+        world.spawn((Test1 { data: 5 }, Test2 { _data: 4 }, Test3 { data: 3 }));
 
         let mut query = world.query::<(&Test1, Option<&Test2>)>(None);
-        assert_eq!(query.iter_mut().count(), 2);
+        assert_eq!(query.iter_mut().count(), 3);
 
-        for (a, b) in query.iter_mut() {
-            a.data = 5;
-            c.data = 7;
-        }
+        let mut iter = query.iter_mut();
+        let data1 = iter.next();
+        assert_eq!(data1, Some((&Test1 { data: 4 }, None)));
 
-        for (a, b) in query.iter_mut() {
-            assert_eq!(a.data, 5);
-            assert_eq!(c.data, 7);
-        }
+        let data2 = iter.next();
+        assert_eq!(data2, Some((&Test1 { data: 3 }, Some(&Test2 { _data: 3 }))));
+
+        let data3 = iter.next();
+        assert_eq!(data3, Some((&Test1 { data: 5 }, Some(&Test2 { _data: 4 }))));
     }
 }
