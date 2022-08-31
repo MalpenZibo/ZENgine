@@ -2,6 +2,23 @@ use zengine_macro::generate_zip;
 
 generate_zip!(26);
 
+pub enum OptionalIterator<I: Iterator> {
+    NoneIterator,
+    SomeIterator(I),
+}
+
+impl<I: Iterator> Iterator for OptionalIterator<I> {
+    type Item = Option<I::Item>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::NoneIterator => Some(None),
+            Self::SomeIterator(iterator) => Some(iterator.next()),
+        }
+    }
+}
+
 #[doc(hidden)]
 /// A series of iterators of the same type that are traversed in a row.
 pub struct QueryIterator<I: Iterator> {

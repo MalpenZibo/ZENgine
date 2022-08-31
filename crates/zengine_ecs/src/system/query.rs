@@ -20,7 +20,7 @@ pub struct Query<'a, T: QueryParameters> {
 
 pub struct QueryCache {
     pub last_archetypes_count: usize,
-    matched_archetypes: Vec<(usize, Vec<usize>)>,
+    matched_archetypes: Vec<(usize, Vec<Option<usize>>)>,
 }
 
 pub trait QueryParameters: for<'a> QueryParameterFetch<'a> {}
@@ -42,8 +42,8 @@ pub trait QueryParameterFetchFromArchetype<'a> {
 
     fn fetch_from_archetype(
         archetype: &'a Archetype,
-        column_cache: Option<usize>,
-    ) -> (Self::ArchetypeFetchItem, usize);
+        column_cache: Option<Option<usize>>,
+    ) -> (Self::ArchetypeFetchItem, Option<usize>);
 }
 
 pub trait QueryIter<'a> {
@@ -109,9 +109,9 @@ impl<'a> QueryParameterFetchFromArchetype<'a> for ReadQueryParameterFetch<Entity
 
     fn fetch_from_archetype(
         archetype: &'a Archetype,
-        _column_cache: Option<usize>,
-    ) -> (Self::ArchetypeFetchItem, usize) {
-        (&archetype.entities, 0)
+        _column_cache: Option<Option<usize>>,
+    ) -> (Self::ArchetypeFetchItem, Option<usize>) {
+        (&archetype.entities, Some(0))
     }
 }
 
@@ -141,7 +141,16 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for ReadQueryParameterF
                 .iter()
                 .map(|(i, column_indexes)| (world.archetypes.get(*i).unwrap(), column_indexes))
             {
-                result.push(archetype.get(columns_vector[0]).try_read().unwrap());
+                result.push(
+                    archetype
+                        .get(
+                            columns_vector[0].expect(
+                                "Cache column for non Optional Parameter should not be None",
+                            ),
+                        )
+                        .try_read()
+                        .unwrap(),
+                );
             }
         } else {
             let mut new_cache = QueryCache {
@@ -153,7 +162,7 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for ReadQueryParameterF
                 if let Some(index) = a.archetype_specs.iter().position(|c| *c == type_id) {
                     new_cache
                         .matched_archetypes
-                        .push((archetype_index, vec![index]));
+                        .push((archetype_index, vec![Some(index)]));
                     result.push(a.get(index).try_read().unwrap());
                 }
             }
@@ -171,10 +180,12 @@ impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
 
     fn fetch_from_archetype(
         archetype: &'a Archetype,
-        column_cache: Option<usize>,
-    ) -> (Self::ArchetypeFetchItem, usize) {
+        column_cache: Option<Option<usize>>,
+    ) -> (Self::ArchetypeFetchItem, Option<usize>) {
         if let Some(column) = column_cache {
-            (archetype.get(column).try_read().unwrap(), column)
+            let column =
+                column.expect("Cache column for non Optional Parameter should not be None");
+            (archetype.get(column).try_read().unwrap(), Some(column))
         } else {
             let type_id = TypeId::of::<T>();
             let index = archetype
@@ -183,7 +194,7 @@ impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
                 .position(|c| *c == type_id)
                 .unwrap();
 
-            (archetype.get(index).try_read().unwrap(), index)
+            (archetype.get(index).try_read().unwrap(), Some(index))
         }
     }
 }
@@ -213,7 +224,16 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for WriteQueryParameter
                 .iter()
                 .map(|(i, column_indexes)| (world.archetypes.get(*i).unwrap(), column_indexes))
             {
-                result.push(archetype.get(columns_vector[0]).try_write().unwrap());
+                result.push(
+                    archetype
+                        .get(
+                            columns_vector[0].expect(
+                                "Cache column for non Optional Parameter should not be None",
+                            ),
+                        )
+                        .try_write()
+                        .unwrap(),
+                );
             }
         } else {
             let mut new_cache = QueryCache {
@@ -225,7 +245,7 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for WriteQueryParameter
                 if let Some(index) = a.archetype_specs.iter().position(|c| *c == type_id) {
                     new_cache
                         .matched_archetypes
-                        .push((archetype_index, vec![index]));
+                        .push((archetype_index, vec![Some(index)]));
                     result.push(a.get(index).try_write().unwrap());
                 }
             }
@@ -243,10 +263,12 @@ impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
 
     fn fetch_from_archetype(
         archetype: &'a Archetype,
-        column_cache: Option<usize>,
-    ) -> (Self::ArchetypeFetchItem, usize) {
+        column_cache: Option<Option<usize>>,
+    ) -> (Self::ArchetypeFetchItem, Option<usize>) {
         if let Some(column) = column_cache {
-            (archetype.get(column).try_write().unwrap(), column)
+            let column =
+                column.expect("Cache column for non Optional Parameter should not be None");
+            (archetype.get(column).try_write().unwrap(), Some(column))
         } else {
             let type_id = TypeId::of::<T>();
             let index = archetype
@@ -255,7 +277,193 @@ impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
                 .position(|c| *c == type_id)
                 .unwrap();
 
-            (archetype.get(index).try_write().unwrap(), index)
+            (archetype.get(index).try_write().unwrap(), Some(index))
+        }
+    }
+}
+
+impl<T: Component + 'static> QueryParameter for Option<&T> {
+    type Item = Option<ReadQueryParameterFetch<T>>;
+
+    fn matches_archetype(_archetype: &Archetype) -> bool {
+        true
+    }
+}
+
+impl<'a, T: Component + 'static> QueryParameterFetch<'a> for Option<ReadQueryParameterFetch<T>> {
+    type FetchItem = Vec<Option<RwLockReadGuard<'a, Vec<T>>>>;
+
+    fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem {
+        if let Some(some_cache) = cache {
+            if some_cache.last_archetypes_count != world.archetypes.len() {
+                cache.take();
+            }
+        }
+
+        let mut result: Self::FetchItem = Vec::default();
+        if let Some(cache) = cache {
+            for (archetype, columns_vector) in cache
+                .matched_archetypes
+                .iter()
+                .map(|(i, column_indexes)| (world.archetypes.get(*i).unwrap(), column_indexes))
+            {
+                match columns_vector[0] {
+                    Some(column) => {
+                        result.push(Some(archetype.get(column).try_read().unwrap()));
+                    }
+                    None => {
+                        result.push(None);
+                    }
+                }
+            }
+        } else {
+            let mut new_cache = QueryCache {
+                last_archetypes_count: world.archetypes.len(),
+                matched_archetypes: Vec::default(),
+            };
+            let type_id = TypeId::of::<T>();
+            for (archetype_index, a) in world.archetypes.iter().enumerate() {
+                match a.archetype_specs.iter().position(|c| *c == type_id) {
+                    Some(column) => {
+                        new_cache
+                            .matched_archetypes
+                            .push((archetype_index, vec![Some(column)]));
+                        result.push(Some(a.get(column).try_read().unwrap()));
+                    }
+                    None => {
+                        new_cache
+                            .matched_archetypes
+                            .push((archetype_index, vec![None]));
+                        result.push(None);
+                    }
+                }
+            }
+            cache.replace(new_cache);
+        }
+
+        result
+    }
+}
+
+impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
+    for Option<ReadQueryParameterFetch<T>>
+{
+    type ArchetypeFetchItem = Option<RwLockReadGuard<'a, Vec<T>>>;
+
+    fn fetch_from_archetype(
+        archetype: &'a Archetype,
+        column_cache: Option<Option<usize>>,
+    ) -> (Self::ArchetypeFetchItem, Option<usize>) {
+        if let Some(column) = column_cache {
+            match column {
+                Some(column) => (
+                    Some(archetype.get(column).try_read().unwrap()),
+                    Some(column),
+                ),
+                None => (None, None),
+            }
+        } else {
+            let type_id = TypeId::of::<T>();
+            match archetype.archetype_specs.iter().position(|c| *c == type_id) {
+                Some(column) => (
+                    Some(archetype.get(column).try_read().unwrap()),
+                    Some(column),
+                ),
+                None => (None, None),
+            }
+        }
+    }
+}
+
+impl<T: Component + 'static> QueryParameter for Option<&mut T> {
+    type Item = Option<ReadQueryParameterFetch<T>>;
+
+    fn matches_archetype(_archetype: &Archetype) -> bool {
+        true
+    }
+}
+
+impl<'a, T: Component + 'static> QueryParameterFetch<'a> for Option<WriteQueryParameterFetch<T>> {
+    type FetchItem = Vec<Option<RwLockWriteGuard<'a, Vec<T>>>>;
+
+    fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem {
+        if let Some(some_cache) = cache {
+            if some_cache.last_archetypes_count != world.archetypes.len() {
+                cache.take();
+            }
+        }
+
+        let mut result: Self::FetchItem = Vec::default();
+        if let Some(cache) = cache {
+            for (archetype, columns_vector) in cache
+                .matched_archetypes
+                .iter()
+                .map(|(i, column_indexes)| (world.archetypes.get(*i).unwrap(), column_indexes))
+            {
+                match columns_vector[0] {
+                    Some(column) => {
+                        result.push(Some(archetype.get(column).try_write().unwrap()));
+                    }
+                    None => {
+                        result.push(None);
+                    }
+                }
+            }
+        } else {
+            let mut new_cache = QueryCache {
+                last_archetypes_count: world.archetypes.len(),
+                matched_archetypes: Vec::default(),
+            };
+            let type_id = TypeId::of::<T>();
+            for (archetype_index, a) in world.archetypes.iter().enumerate() {
+                match a.archetype_specs.iter().position(|c| *c == type_id) {
+                    Some(column) => {
+                        new_cache
+                            .matched_archetypes
+                            .push((archetype_index, vec![Some(column)]));
+                        result.push(Some(a.get(column).try_write().unwrap()));
+                    }
+                    None => {
+                        new_cache
+                            .matched_archetypes
+                            .push((archetype_index, vec![None]));
+                        result.push(None);
+                    }
+                }
+            }
+            cache.replace(new_cache);
+        }
+
+        result
+    }
+}
+
+impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
+    for Option<WriteQueryParameterFetch<T>>
+{
+    type ArchetypeFetchItem = Option<RwLockWriteGuard<'a, Vec<T>>>;
+
+    fn fetch_from_archetype(
+        archetype: &'a Archetype,
+        column_cache: Option<Option<usize>>,
+    ) -> (Self::ArchetypeFetchItem, Option<usize>) {
+        if let Some(column) = column_cache {
+            match column {
+                Some(column) => (
+                    Some(archetype.get(column).try_write().unwrap()),
+                    Some(column),
+                ),
+                None => (None, None),
+            }
+        } else {
+            let type_id = TypeId::of::<T>();
+            match archetype.archetype_specs.iter().position(|c| *c == type_id) {
+                Some(column) => (
+                    Some(archetype.get(column).try_write().unwrap()),
+                    Some(column),
+                ),
+                None => (None, None),
+            }
         }
     }
 }
@@ -370,6 +578,26 @@ impl<'a, 'b, T: 'static> QueryIter<'b> for RwLockWriteGuard<'a, Vec<T>> {
     }
 }
 
+impl<'a, 'b, T: 'static> QueryIter<'b> for Option<RwLockReadGuard<'a, Vec<T>>> {
+    type Iter = OptionalIterator<std::slice::Iter<'b, T>>;
+    fn iter(&'b self) -> Self::Iter {
+        self.as_ref().map_or_else(
+            || OptionalIterator::NoneIterator,
+            |value| OptionalIterator::SomeIterator(<[T]>::iter(value)),
+        )
+    }
+}
+
+impl<'a, 'b, T: 'static> QueryIter<'b> for Option<RwLockWriteGuard<'a, Vec<T>>> {
+    type Iter = OptionalIterator<std::slice::Iter<'b, T>>;
+    fn iter(&'b self) -> Self::Iter {
+        self.as_ref().map_or_else(
+            || OptionalIterator::NoneIterator,
+            |value| OptionalIterator::SomeIterator(<[T]>::iter(value)),
+        )
+    }
+}
+
 query_iter_for_tuple!(14);
 
 impl<'a, 'b> QueryIterMut<'b> for &'a Vec<Entity> {
@@ -393,6 +621,26 @@ impl<'a, 'b, T: 'static> QueryIterMut<'b> for RwLockWriteGuard<'a, Vec<T>> {
     }
 }
 
+impl<'a, 'b, T: 'static> QueryIterMut<'b> for Option<RwLockReadGuard<'a, Vec<T>>> {
+    type Iter = OptionalIterator<std::slice::Iter<'b, T>>;
+    fn iter_mut(&'b mut self) -> Self::Iter {
+        self.as_ref().map_or_else(
+            || OptionalIterator::NoneIterator,
+            |value| OptionalIterator::SomeIterator(<[T]>::iter(value)),
+        )
+    }
+}
+
+impl<'a, 'b, T: 'static> QueryIterMut<'b> for Option<RwLockWriteGuard<'a, Vec<T>>> {
+    type Iter = OptionalIterator<std::slice::IterMut<'b, T>>;
+    fn iter_mut(&'b mut self) -> Self::Iter {
+        self.as_mut().map_or_else(
+            || OptionalIterator::NoneIterator,
+            |value| OptionalIterator::SomeIterator(<[T]>::iter_mut(value)),
+        )
+    }
+}
+
 query_iter_mut_for_tuple!(14);
 
 #[cfg(test)]
@@ -408,13 +656,13 @@ mod tests {
     }
     impl Component for Test1 {}
 
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq)]
     struct Test2 {
         _data: u32,
     }
     impl Component for Test2 {}
 
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq)]
     struct Test3 {
         data: u32,
     }
@@ -486,5 +734,28 @@ mod tests {
             assert_eq!(a.data, 5);
             assert_eq!(c.data, 7);
         }
+    }
+
+    #[test]
+    fn optional_component_query() {
+        let mut world = World::default();
+
+        world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }, Test3 { data: 3 }));
+        world.spawn(Test1 { data: 4 });
+        world.spawn(Test3 { data: 3 });
+        world.spawn((Test1 { data: 5 }, Test2 { _data: 4 }, Test3 { data: 3 }));
+
+        let mut query = world.query::<(&Test1, Option<&Test2>)>(None);
+        assert_eq!(query.iter_mut().count(), 3);
+
+        let mut iter = query.iter_mut();
+        let data1 = iter.next();
+        assert_eq!(data1, Some((&Test1 { data: 4 }, None)));
+
+        let data2 = iter.next();
+        assert_eq!(data2, Some((&Test1 { data: 3 }, Some(&Test2 { _data: 3 }))));
+
+        let data3 = iter.next();
+        assert_eq!(data3, Some((&Test1 { data: 5 }, Some(&Test2 { _data: 4 }))));
     }
 }
