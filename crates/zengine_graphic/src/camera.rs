@@ -1,3 +1,4 @@
+use zengine_core::Transform;
 use zengine_ecs::Entity;
 use zengine_macro::{Component, Resource};
 
@@ -16,9 +17,9 @@ impl Default for CameraUniform {
 }
 
 impl CameraUniform {
-    pub fn new(camera: &Camera, position: Option<&glam::Vec3>) -> CameraUniform {
+    pub fn new(camera: &Camera, transform: Option<&Transform>) -> CameraUniform {
         Self {
-            view_proj: camera.get_projection(position).to_cols_array_2d(),
+            view_proj: camera.get_projection(transform).to_cols_array_2d(),
         }
     }
 }
@@ -49,7 +50,7 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn get_projection(&self, position: Option<&glam::Vec3>) -> glam::Mat4 {
+    pub fn get_projection(&self, transform: Option<&Transform>) -> glam::Mat4 {
         let proj = match self.mode {
             CameraMode::Mode2D((width, height)) => glam::Mat4::orthographic_lh(
                 -width / 2.0,
@@ -61,8 +62,8 @@ impl Camera {
             ),
         };
 
-        if let Some(position) = position {
-            proj * glam::Mat4::look_at_lh(*position, glam::Vec3::ZERO, glam::Vec3::Y)
+        if let Some(transform) = transform {
+            proj * transform.get_transformation_matrix().inverse() // * glam::Mat4::look_at_lh(*position, glam::Vec3::ZERO, glam::Vec3::Y)
         } else {
             proj
         }

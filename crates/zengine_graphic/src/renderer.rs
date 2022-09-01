@@ -1,13 +1,21 @@
 use std::iter;
 
-use crate::{ActiveCamera, Camera, CameraUniform, Color, SpriteType, TextureManager};
+use crate::{
+    ActiveCamera, Camera, CameraUniform, Color, SpriteType, TextureHandleState, TextureManager,
+};
+use glam::{Mat4, Vec2, Vec3, Vec4};
+use itertools::Itertools;
+use rustc_hash::FxHashMap;
 use wgpu::{
-    util::DeviceExt, Adapter, BindGroup, BindGroupLayout, Buffer, Device, Instance, Queue,
-    RenderPipeline, Surface,
+    util::DeviceExt, Adapter, BindGroup, BindGroupLayout, Buffer, Device, Queue, RenderPipeline,
+    Surface,
 };
 use zengine_core::Transform;
 use zengine_ecs::{
-    system::{Commands, OptionalRes, OptionalUnsendableRes, Query, QueryIter, Res, UnsendableRes},
+    system::{
+        Commands, OptionalRes, OptionalUnsendableRes, OptionalUnsendableResMut, Query, QueryIter,
+        Res, UnsendableRes,
+    },
     Entity,
 };
 use zengine_macro::{Component, Resource, UnsendableResource};
@@ -39,18 +47,21 @@ pub struct RenderContext {
     pub device: Device,
     pub queue: Queue,
     render_pipeline: RenderPipeline,
-    vertex_buffer: Buffer,
-    index_buffer: Buffer,
+    // vertex_buffer: Buffer,
+    // index_buffer: Buffer,
     pub texture_bind_group_layout: BindGroupLayout,
     //camera_uniform: CameraUniform,
     camera_buffer: Buffer,
     camera_bind_group: BindGroup,
 }
 
+#[derive(UnsendableResource, Debug)]
+pub struct VertexBuffers(FxHashMap<usize, (Buffer, usize, Buffer, usize)>);
+
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct Vertex {
-    position: [f32; 3],
+    position: [f32; 4],
     tex_coords: [f32; 2],
 }
 
@@ -64,10 +75,10 @@ impl Vertex {
                 wgpu::VertexAttribute {
                     offset: 0,
                     shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
+                    format: wgpu::VertexFormat::Float32x4,
                 },
                 wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
                     shader_location: 1,
                     format: wgpu::VertexFormat::Float32x2,
                 },
@@ -76,21 +87,21 @@ impl Vertex {
     }
 }
 
-const VERTICES: &[Vertex] = &[
+const VERTICES: [Vertex; 4] = [
     Vertex {
-        position: [-0.5, 0.5, 0.0],
+        position: [-0.5, 0.5, 0.0, 1.],
         tex_coords: [0.0, 0.0],
     },
     Vertex {
-        position: [-0.5, -0.5, 0.0],
+        position: [-0.5, -0.5, 0.0, 1.],
         tex_coords: [0.0, 1.0],
     },
     Vertex {
-        position: [0.5, -0.5, 0.0],
+        position: [0.5, -0.5, 0.0, 1.],
         tex_coords: [1.0, 1.0],
     },
     Vertex {
-        position: [0.5, 0.5, 0.0],
+        position: [0.5, 0.5, 0.0, 1.],
         tex_coords: [1.0, 0.0],
     },
 ];
@@ -103,10 +114,10 @@ pub fn setup_render(window: OptionalUnsendableRes<Window>, mut commands: Command
     let window = window.expect("Cannot find a Window");
     let internal_window = &window.internal;
 
-    let instance = Instance::new(wgpu::Backends::all());
+    let instance = wgpu::Instance::new(wgpu::Backends::all());
     let surface = unsafe { instance.create_surface(internal_window) };
     async fn create_adapter_device_queue(
-        instance: &Instance,
+        instance: &wgpu::Instance,
         surface: &Surface,
     ) -> (Adapter, Device, Queue) {
         let adapter = instance
@@ -175,12 +186,6 @@ pub fn setup_render(window: OptionalUnsendableRes<Window>, mut commands: Command
         });
 
     let camera_uniform = CameraUniform::default();
-    // let camera_uniform = CameraUniform::new(
-    //     &Camera {
-    //         mode: CameraMode::Mode2D((3.0, 4.0)),
-    //     },
-    //     Some(&cgmath::Point3::new(0.0, 0.0, 50.0)),
-    // );
     let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Camera Buffer"),
         contents: bytemuck::cast_slice(&[camera_uniform]),
@@ -263,36 +268,37 @@ pub fn setup_render(window: OptionalUnsendableRes<Window>, mut commands: Command
         multiview: None,
     });
 
-    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Vertex Buffer"),
-        contents: bytemuck::cast_slice(VERTICES),
-        usage: wgpu::BufferUsages::VERTEX,
-    });
+    // let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+    //     label: Some("Vertex Buffer"),
+    //     contents: bytemuck::cast_slice(&VERTICES),
+    //     usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+    // });
 
-    let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Index Buffer"),
-        contents: bytemuck::cast_slice(INDICES),
-        usage: wgpu::BufferUsages::INDEX,
-    });
+    // let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+    //     label: Some("Index Buffer"),
+    //     contents: bytemuck::cast_slice(INDICES),
+    //     usage: wgpu::BufferUsages::INDEX,
+    // });
 
     commands.create_unsendable_resource(RenderContext {
         surface,
         device,
         queue,
         render_pipeline,
-        vertex_buffer,
-        index_buffer,
+        // vertex_buffer,
+        // index_buffer,
         texture_bind_group_layout,
         // camera_uniform,
         camera_buffer,
         camera_bind_group,
     });
+    commands.create_unsendable_resource(VertexBuffers(FxHashMap::default()));
 }
 
 fn pick_correct_camera<'a>(
-    camera_query: &'a Query<(Entity, &Camera, &Transform)>,
+    camera_query: &'a Query<(Entity, &Camera, Option<&Transform>)>,
     active_camera: &'a OptionalRes<ActiveCamera>,
-) -> Option<(&'a Camera, &'a Transform)> {
+) -> Option<(&'a Camera, Option<&'a Transform>)> {
     active_camera
         .as_ref()
         .map_or_else(
@@ -302,78 +308,235 @@ fn pick_correct_camera<'a>(
         .map(|(_, c, t)| (c, t))
 }
 
-pub fn renderer<SP: SpriteType>(
+fn calculate_vertices(
+    width: f32,
+    height: f32,
+    origin: Vec3,
+    relative_min: Vec2,
+    relative_max: Vec2,
+    transform: Mat4,
+) -> [Vertex; 4] {
+    let min_x = -(width * origin.x);
+    let max_x = width * (1.0 - origin.x);
+
+    let min_y = -(height * origin.y);
+    let max_y = height * (1.0 - origin.y);
+
+    let min_u = relative_min.x;
+    let max_u = relative_max.x;
+
+    let min_v = relative_min.y;
+    let max_v = relative_max.y;
+
+    [
+        Vertex {
+            position: transform
+                .mul_vec4(Vec4::new(min_x, max_y, 0.0, 1.0))
+                .to_array(),
+            tex_coords: [min_u, min_v],
+        },
+        Vertex {
+            position: transform
+                .mul_vec4(Vec4::new(min_x, min_y, 0.0, 1.0))
+                .to_array(),
+            tex_coords: [min_u, max_v],
+        },
+        Vertex {
+            position: transform
+                .mul_vec4(Vec4::new(max_x, min_y, 0.0, 1.0))
+                .to_array(),
+            tex_coords: [max_u, max_v],
+        },
+        Vertex {
+            position: transform
+                .mul_vec4(Vec4::new(max_x, max_y, 0.0, 1.0))
+                .to_array(),
+            tex_coords: [max_u, min_v],
+        },
+    ]
+}
+
+fn generate_vertex_and_indexes_buffer(
+    device: &Device,
+    vertex: &Vec<Vertex>,
+) -> (Buffer, usize, Buffer, usize) {
+    let mut indices = Vec::default();
+    for index in 0..vertex.iter().len() / 4 {
+        indices.extend(INDICES.iter().map(|i| i + (4 * index as u16)))
+    }
+
+    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Vertex Buffer"),
+        contents: bytemuck::cast_slice(vertex),
+        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+    });
+
+    let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Index Buffer"),
+        contents: bytemuck::cast_slice(&indices),
+        usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+    });
+
+    (vertex_buffer, vertex.len(), index_buffer, indices.len())
+}
+
+pub fn renderer<ST: SpriteType>(
     render_context: OptionalUnsendableRes<RenderContext>,
+    mut vertex_buffers: OptionalUnsendableResMut<VertexBuffers>,
     bg_color: Res<Background>,
-    texture_manager: UnsendableRes<TextureManager<SP>>,
-    camera_query: Query<(Entity, &Camera, &Transform)>,
+    texture_manager: UnsendableRes<TextureManager<ST>>,
+    camera_query: Query<(Entity, &Camera, Option<&Transform>)>,
     active_camera: OptionalRes<ActiveCamera>,
+    sprite_query: Query<(&Sprite<ST>, &Transform)>,
 ) {
-    if let Some(texture) = texture_manager
-        .textures
-        .first()
-        .and_then(|t| t.texture.as_ref())
-        .map(|t| &t.diffuse_bind_group)
-    {
-        let render_context = render_context.unwrap();
-        let output = render_context.surface.get_current_texture().unwrap();
-        let view = output
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
+    let render_context = render_context.unwrap();
+    let output = render_context.surface.get_current_texture().unwrap();
+    let view = output
+        .texture
+        .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let mut encoder =
-            render_context
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Render Encoder"),
-                });
-
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: bg_color.color.r,
-                            g: bg_color.color.g,
-                            b: bg_color.color.b,
-                            a: bg_color.color.a,
-                        }),
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: None,
+    let mut encoder =
+        render_context
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
             });
 
-            render_pass.set_pipeline(&render_context.render_pipeline);
-            render_pass.set_bind_group(0, texture, &[]);
+    {
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Render Pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r: bg_color.color.r,
+                        g: bg_color.color.g,
+                        b: bg_color.color.b,
+                        a: bg_color.color.a,
+                    }),
+                    store: true,
+                },
+            })],
+            depth_stencil_attachment: None,
+        });
 
-            let camera_data = pick_correct_camera(&camera_query, &active_camera);
-            if let Some((camera, transform)) = camera_data {
-                render_context.queue.write_buffer(
-                    &render_context.camera_buffer,
-                    0,
-                    bytemuck::cast_slice(&[CameraUniform::new(camera, Some(&transform.position))]),
-                );
-            } else {
-                render_context.queue.write_buffer(
-                    &render_context.camera_buffer,
-                    0,
-                    bytemuck::cast_slice(&[CameraUniform::default()]),
-                );
-            }
-            render_pass.set_bind_group(1, &render_context.camera_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, render_context.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(
-                render_context.index_buffer.slice(..),
-                wgpu::IndexFormat::Uint16,
+        render_pass.set_pipeline(&render_context.render_pipeline);
+
+        let camera_data = pick_correct_camera(&camera_query, &active_camera);
+        if let Some((camera, transform)) = camera_data {
+            render_context.queue.write_buffer(
+                &render_context.camera_buffer,
+                0,
+                bytemuck::cast_slice(&[CameraUniform::new(camera, transform)]),
             );
-            render_pass.draw_indexed(0..INDICES.len() as u32, 0, 0..1);
+        } else {
+            render_context.queue.write_buffer(
+                &render_context.camera_buffer,
+                0,
+                bytemuck::cast_slice(&[CameraUniform::default()]),
+            );
         }
 
-        render_context.queue.submit(iter::once(encoder.finish()));
-        output.present();
+        let mut batched: FxHashMap<usize, Vec<Vertex>> = FxHashMap::default();
+        for (s, t) in sprite_query.iter() {
+            if let Some(sprite_handle) = texture_manager.get_sprite_handle(&s.sprite_type) {
+                if texture_manager
+                    .textures
+                    .get(sprite_handle.texture_handle_index)
+                    .unwrap()
+                    .state
+                    == TextureHandleState::Uploaded
+                {
+                    let batch = batched
+                        .entry(sprite_handle.texture_handle_index)
+                        .or_insert_with(Vec::default);
+
+                    batch.extend(calculate_vertices(
+                        s.width,
+                        s.height,
+                        s.origin,
+                        sprite_handle.relative_min,
+                        sprite_handle.relative_max,
+                        t.get_transformation_matrix(),
+                    ));
+                }
+            }
+        }
+
+        let vertex_buffers = &mut vertex_buffers.as_mut().unwrap().0;
+
+        for (k, batch) in batched.iter() {
+            let vertex_buffer = vertex_buffers.entry(*k).or_insert_with(|| {
+                generate_vertex_and_indexes_buffer(&render_context.device, batch)
+            });
+
+            if vertex_buffer.1 < batch.len() {
+                let new_buffer = generate_vertex_and_indexes_buffer(&render_context.device, batch);
+                vertex_buffer.0.destroy();
+                vertex_buffer.2.destroy();
+
+                vertex_buffer.0 = new_buffer.0;
+                vertex_buffer.1 = new_buffer.1;
+                vertex_buffer.2 = new_buffer.2;
+                vertex_buffer.3 = new_buffer.3;
+            } else {
+                render_context
+                    .queue
+                    .write_buffer(&vertex_buffer.0, 0, bytemuck::cast_slice(batch));
+                let mut indices = Vec::default();
+                for index in 0..batch.len() / 4 {
+                    indices.extend(INDICES.iter().map(|i| i + (4 * index as u16)))
+                }
+
+                //println!("batch {:?}", batch);
+
+                render_context.queue.write_buffer(
+                    &vertex_buffer.2,
+                    0,
+                    bytemuck::cast_slice(&indices),
+                );
+            }
+        }
+
+        render_pass.set_bind_group(1, &render_context.camera_bind_group, &[]);
+        for (k, (vertex, v_size, indices, i_size)) in vertex_buffers
+            .iter()
+            .filter(|(k, v)| batched.iter().any(|(b_k, _)| b_k == *k))
+        {
+            let texture = texture_manager
+                .textures
+                .get(*k)
+                .and_then(|t| t.texture.as_ref())
+                .unwrap();
+
+            render_pass.set_bind_group(0, &texture.diffuse_bind_group, &[]);
+            render_pass.set_vertex_buffer(0, vertex.slice(..));
+            render_pass.set_index_buffer(indices.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..(*i_size) as u32, 0, 0..1);
+        }
+
+        // let (sprite, transform) = sprite_query.iter().next().unwrap();
+        // let s = texture_manager
+        //     .get_sprite_handle(&sprite.sprite_type)
+        //     .unwrap();
+
+        // let t = calculate_vertices(
+        //     sprite.width,
+        //     sprite.height,
+        //     sprite.origin,
+        //     s.relative_min,
+        //     s.relative_max,
+        //     transform.get_transformation_matrix(),
+        // );
+        // println!("coord {:?}", t);
+        // render_context.queue.write_buffer(
+        //     &render_context.vertex_buffer,
+        //     0,
+        //     bytemuck::cast_slice(&t),
+        // );
     }
+
+    render_context.queue.submit(iter::once(encoder.finish()));
+    output.present();
 }

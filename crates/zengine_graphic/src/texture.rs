@@ -21,7 +21,7 @@ pub struct SpriteDescriptor {
     pub height: u32,
 }
 
-#[derive(Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum TextureHandleState {
     ToUpload(Vec<u8>),
     Uploaded,
@@ -81,7 +81,7 @@ pub struct Image<ST: SpriteType> {
 #[derive(Debug)]
 pub struct TextureManager<ST: SpriteType> {
     images: Vec<Image<ST>>,
-    sprites: FxHashMap<ST, SpriteHandle>,
+    pub sprites: FxHashMap<ST, SpriteHandle>,
     pub textures: Vec<TextureHandle>,
 }
 impl<ST: SpriteType> UnsendableResource for TextureManager<ST> {}

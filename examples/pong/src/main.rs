@@ -136,43 +136,56 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, mut textures: UnsendableResMut<TextureManager<Sprites>>) {
-    // textures
-    //     .create("bg.png")
-    //     .with_sprite(
-    //         Sprites::Background,
-    //         SpriteDescriptor {
-    //             width: 600,
-    //             height: 800,
-    //             x: 0,
-    //             y: 0,
-    //         },
-    //     )
-    //     .load();
-    // textures
-    //     .create("pad.png")
-    //     .with_sprite(
-    //         Sprites::Pad,
-    //         SpriteDescriptor {
-    //             width: 150,
-    //             height: 30,
-    //             x: 0,
-    //             y: 0,
-    //         },
-    //     )
-    //     .load();
-
     textures
-        .create("duck.png")
+        .create("bg.png")
         .with_sprite(
-            Sprites::Ball,
+            Sprites::Background,
             SpriteDescriptor {
-                width: 900,
-                height: 1160,
+                width: 600,
+                height: 800,
                 x: 0,
                 y: 0,
             },
         )
         .load();
+    textures
+        .create("pad.png")
+        .with_sprite(
+            Sprites::Pad,
+            SpriteDescriptor {
+                width: 150,
+                height: 30,
+                x: 0,
+                y: 0,
+            },
+        )
+        .load();
+
+    textures
+        .create("ball.png")
+        .with_sprite(
+            Sprites::Ball,
+            SpriteDescriptor {
+                width: 25,
+                height: 25,
+                x: 0,
+                y: 0,
+            },
+        )
+        .load();
+
+    // textures
+    //     .create("duck.png")
+    //     .with_sprite(
+    //         Sprites::Ball,
+    //         SpriteDescriptor {
+    //             width: 900,
+    //             height: 1160,
+    //             x: 0,
+    //             y: 0,
+    //         },
+    //     )
+    //     .load();
 
     commands.create_resource(GameSettings {
         drag_constant: 10.0,
@@ -182,174 +195,187 @@ fn setup(mut commands: Commands, mut textures: UnsendableResMut<TextureManager<S
         color: Color::black(),
     });
 
-    // let pad = Pad {
-    //     force: PAD_FORCE,
-    //     mass: PAD_MASS,
-    //     cur_acc: 0.0,
-    //     velocity: 0.0,
-    // };
+    let pad = Pad {
+        force: PAD_FORCE,
+        mass: PAD_MASS,
+        cur_acc: 0.0,
+        velocity: 0.0,
+    };
 
     let camera = commands.spawn((
         Camera {
-            mode: CameraMode::Mode2D((3.0, 4.0)),
+            mode: CameraMode::Mode2D((WIDTH, HEIGHT)),
         },
-        Transform::new(Vec3::new(0.0, 0.0, -50.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
+        Transform::new(
+            Vec3::new(WIDTH / 2.0, HEIGHT / 2.0, -50.0),
+            Vec3::new(0.0, 0.0, 0.0),
+            1.0,
+        ),
     ));
 
-    //commands.create_resource(ActiveCamera { entity: camera });
+    commands.create_resource(ActiveCamera { entity: camera });
 
     // commands.spawn((
     //     Sprite::<Sprites> {
-    //         width: WIDTH,
-    //         height: HEIGHT,
-    //         origin: Vector3::new(0.0, 0.0, 0.0),
-    //         color: Color::white(),
-    //         sprite_type: Sprites::Background,
-    //     },
-    //     Transform::new(
-    //         Vector3::new(0.0, 0.0, 0.0),
-    //         Vector3::new(0.0, 0.0, 0.0),
-    //         1.0,
-    //     ),
-    // ));
-
-    // let sx = commands.spawn((
-    //     Transform::new(
-    //         Vector3::new(0.0, 0.0, 0.0),
-    //         Vector3::new(0.0, 0.0, 0.0),
-    //         1.0,
-    //     ),
-    //     Shape2D {
-    //         origin: Vector3::new(1.0, 0.0, 0.0),
-    //         shape_type: ShapeType::Rectangle {
-    //             width: 300.0,
-    //             height: HEIGHT,
-    //         },
-    //     },
-    // ));
-    // let dx = commands.spawn((
-    //     Transform::new(
-    //         Vector3::new(WIDTH, 0.0, 0.0),
-    //         Vector3::new(0.0, 0.0, 0.0),
-    //         1.0,
-    //     ),
-    //     Shape2D {
-    //         origin: Vector3::new(0.0, 0.0, 0.0),
-    //         shape_type: ShapeType::Rectangle {
-    //             width: 300.0,
-    //             height: HEIGHT,
-    //         },
-    //     },
-    // ));
-
-    // let top = commands.spawn((
-    //     Transform::new(
-    //         Vector3::new(0.0, HEIGHT, 0.0),
-    //         Vector3::new(0.0, 0.0, 0.0),
-    //         1.0,
-    //     ),
-    //     Shape2D {
-    //         origin: Vector3::new(0.0, 0.0, 0.0),
-    //         shape_type: ShapeType::Rectangle {
-    //             width: WIDTH,
-    //             height: 300.0,
-    //         },
-    //     },
-    // ));
-
-    // let bottom = commands.spawn((
-    //     Transform::new(
-    //         Vector3::new(0.0, 0.0, 0.0),
-    //         Vector3::new(0.0, 0.0, 0.0),
-    //         1.0,
-    //     ),
-    //     Shape2D {
-    //         origin: Vector3::new(0.0, 1.0, 0.0),
-    //         shape_type: ShapeType::Rectangle {
-    //             width: WIDTH,
-    //             height: 300.0,
-    //         },
-    //     },
-    // ));
-
-    // commands.create_resource(FieldBorder {
-    //     sx,
-    //     dx,
-    //     top,
-    //     bottom,
-    // });
-
-    // let pad1 = commands.spawn((
-    //     Sprite::<Sprites> {
-    //         width: PAD_HALF_WIDTH * 2.0,
-    //         height: PAD_HALF_HEIGHT * 2.0,
-    //         origin: Vector3::new(0.5, 0.5, 0.0),
-    //         color: Color::white(),
-    //         sprite_type: Sprites::Pad,
-    //     },
-    //     Transform::new(
-    //         Vector3::new(WIDTH / 2.0, 0.0 + 20.0 + PAD_HALF_HEIGHT, 1.0),
-    //         Vector3::zero(),
-    //         1.0,
-    //     ),
-    //     Shape2D {
-    //         origin: Vector3::new(0.5, 0.5, 0.0),
-    //         shape_type: ShapeType::Rectangle {
-    //             width: PAD_HALF_WIDTH * 2.0,
-    //             height: PAD_HALF_HEIGHT * 2.0,
-    //         },
-    //     },
-    //     pad.clone(),
-    // ));
-    // commands.create_resource(Player1 { entity: pad1 });
-
-    // commands.spawn((
-    //     Sprite::<Sprites> {
-    //         width: PAD_HALF_WIDTH * 2.0,
-    //         height: PAD_HALF_HEIGHT * 2.0,
-    //         origin: Vector3::new(0.5, 0.5, 0.0),
-    //         color: Color::white(),
-    //         sprite_type: Sprites::Pad,
-    //     },
-    //     Transform::new(
-    //         Vector3::new(WIDTH / 2.0, HEIGHT - 20.0 - PAD_HALF_HEIGHT, 1.0),
-    //         Vector3::zero(),
-    //         1.0,
-    //     ),
-    //     Shape2D {
-    //         origin: Vector3::new(0.5, 0.5, 0.0),
-    //         shape_type: ShapeType::Rectangle {
-    //             width: PAD_HALF_WIDTH * 2.0,
-    //             height: PAD_HALF_HEIGHT * 2.0,
-    //         },
-    //     },
-    //     pad,
-    //     AI {},
-    // ));
-
-    // commands.spawn((
-    //     Sprite::<Sprites> {
-    //         width: BALL_RADIUS * 2.0,
-    //         height: BALL_RADIUS * 2.0,
-    //         origin: Vector3::new(0.5, 0.5, 0.0),
+    //         width: 0.78,
+    //         height: 1.,
+    //         origin: Vec3::new(0.5, 0.5, 0.0),
     //         color: Color::white(),
     //         sprite_type: Sprites::Ball,
     //     },
-    //     Transform::new(
-    //         Vector3::new(WIDTH / 2.0, HEIGHT / 2.0, 2.0),
-    //         Vector3::zero(),
-    //         1.0,
-    //     ),
-    //     Shape2D {
-    //         origin: Vector3::new(0.5, 0.5, 0.0),
-    //         shape_type: ShapeType::Circle {
-    //             radius: BALL_RADIUS,
-    //         },
-    //     },
-    //     Ball {
-    //         vel: initial_ball_movement(),
-    //     },
+    //     Transform::new(Vec3::new(0.0, -0.5, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
     // ));
+
+    // commands.spawn((
+    //     Sprite::<Sprites> {
+    //         width: 0.78,
+    //         height: 1.,
+    //         origin: Vec3::new(0.5, 0.5, 0.0),
+    //         color: Color::white(),
+    //         sprite_type: Sprites::Ball,
+    //     },
+    //     Transform::new(Vec3::new(0.5, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
+    // ));
+
+    // commands.spawn((
+    //     Sprite::<Sprites> {
+    //         width: 0.78,
+    //         height: 1.,
+    //         origin: Vec3::new(0.5, 0.5, 0.0),
+    //         color: Color::white(),
+    //         sprite_type: Sprites::Ball,
+    //     },
+    //     Transform::new(Vec3::new(-0.7, -0.5, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
+    // ));
+
+    commands.spawn((
+        Sprite::<Sprites> {
+            width: WIDTH,
+            height: HEIGHT,
+            origin: Vec3::new(0.0, 0.0, 0.0),
+            color: Color::white(),
+            sprite_type: Sprites::Background,
+        },
+        Transform::new(Vec3::new(0.0, 0.0, -1.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
+    ));
+
+    let sx = commands.spawn((
+        Transform::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
+        // Shape2D {
+        //     origin: Vec3::new(1.0, 0.0, 0.0),
+        //     shape_type: ShapeType::Rectangle {
+        //         width: 300.0,
+        //         height: HEIGHT,
+        //     },
+        // },
+    ));
+    let dx = commands.spawn((
+        Transform::new(Vec3::new(WIDTH, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
+        // Shape2D {
+        //     origin: Vec3::new(0.0, 0.0, 0.0),
+        //     shape_type: ShapeType::Rectangle {
+        //         width: 300.0,
+        //         height: HEIGHT,
+        //     },
+        // },
+    ));
+
+    let top = commands.spawn((
+        Transform::new(Vec3::new(0.0, HEIGHT, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
+        // Shape2D {
+        //     origin: Vec3::new(0.0, 0.0, 0.0),
+        //     shape_type: ShapeType::Rectangle {
+        //         width: WIDTH,
+        //         height: 300.0,
+        //     },
+        // },
+    ));
+
+    let bottom = commands.spawn((
+        Transform::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
+        // Shape2D {
+        //     origin: Vec3::new(0.0, 1.0, 0.0),
+        //     shape_type: ShapeType::Rectangle {
+        //         width: WIDTH,
+        //         height: 300.0,
+        //     },
+        // },
+    ));
+
+    commands.create_resource(FieldBorder {
+        sx,
+        dx,
+        top,
+        bottom,
+    });
+
+    let pad1 = commands.spawn((
+        Sprite::<Sprites> {
+            width: PAD_HALF_WIDTH * 2.0,
+            height: PAD_HALF_HEIGHT * 2.0,
+            origin: Vec3::new(0.5, 0.5, 0.0),
+            color: Color::white(),
+            sprite_type: Sprites::Pad,
+        },
+        Transform::new(
+            Vec3::new(WIDTH / 2.0, 0.0 + 20.0 + PAD_HALF_HEIGHT, 1.0),
+            Vec3::ZERO,
+            1.0,
+        ),
+        // Shape2D {
+        //     origin: Vec3::new(0.5, 0.5, 0.0),
+        //     shape_type: ShapeType::Rectangle {
+        //         width: PAD_HALF_WIDTH * 2.0,
+        //         height: PAD_HALF_HEIGHT * 2.0,
+        //     },
+        // },
+        pad.clone(),
+    ));
+    commands.create_resource(Player1 { entity: pad1 });
+
+    commands.spawn((
+        Sprite::<Sprites> {
+            width: PAD_HALF_WIDTH * 2.0,
+            height: PAD_HALF_HEIGHT * 2.0,
+            origin: Vec3::new(0.5, 0.5, 0.0),
+            color: Color::white(),
+            sprite_type: Sprites::Pad,
+        },
+        Transform::new(
+            Vec3::new(WIDTH / 2.0, HEIGHT - 20.0 - PAD_HALF_HEIGHT, 1.0),
+            Vec3::ZERO,
+            1.0,
+        ),
+        // Shape2D {
+        //     origin: Vec3::new(0.5, 0.5, 0.0),
+        //     shape_type: ShapeType::Rectangle {
+        //         width: PAD_HALF_WIDTH * 2.0,
+        //         height: PAD_HALF_HEIGHT * 2.0,
+        //     },
+        // },
+        pad,
+        AI {},
+    ));
+
+    commands.spawn((
+        Sprite::<Sprites> {
+            width: BALL_RADIUS * 2.0,
+            height: BALL_RADIUS * 2.0,
+            origin: Vec3::new(0.5, 0.5, 0.0),
+            color: Color::white(),
+            sprite_type: Sprites::Ball,
+        },
+        Transform::new(Vec3::new(WIDTH / 2.0, HEIGHT / 2.0, 2.0), Vec3::ZERO, 1.0),
+        // Shape2D {
+        //     origin: Vec3::new(0.5, 0.5, 0.0),
+        //     shape_type: ShapeType::Circle {
+        //         radius: BALL_RADIUS,
+        //     },
+        // },
+        Ball {
+            vel: initial_ball_movement(),
+        },
+    ));
 }
 
 fn player_pad_control(
