@@ -4,7 +4,6 @@ use crate::{
     ActiveCamera, Camera, CameraUniform, Color, SpriteType, TextureHandleState, TextureManager,
 };
 use glam::{Mat4, Vec2, Vec3, Vec4};
-use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use wgpu::{
     util::DeviceExt, Adapter, BindGroup, BindGroupLayout, Buffer, Device, Queue, RenderPipeline,
@@ -47,12 +46,17 @@ pub struct RenderContext {
     pub device: Device,
     pub queue: Queue,
     render_pipeline: RenderPipeline,
-    // vertex_buffer: Buffer,
-    // index_buffer: Buffer,
     pub texture_bind_group_layout: BindGroupLayout,
-    //camera_uniform: CameraUniform,
     camera_buffer: Buffer,
     camera_bind_group: BindGroup,
+    depth_pass: DepthPass,
+}
+
+#[derive(Debug)]
+struct DepthPass {
+    _texture: wgpu::Texture,
+    view: wgpu::TextureView,
+    _sampler: wgpu::Sampler,
 }
 
 #[derive(UnsendableResource, Debug)]
@@ -87,26 +91,50 @@ impl Vertex {
     }
 }
 
-const VERTICES: [Vertex; 4] = [
-    Vertex {
-        position: [-0.5, 0.5, 0.0, 1.],
-        tex_coords: [0.0, 0.0],
-    },
-    Vertex {
-        position: [-0.5, -0.5, 0.0, 1.],
-        tex_coords: [0.0, 1.0],
-    },
-    Vertex {
-        position: [0.5, -0.5, 0.0, 1.],
-        tex_coords: [1.0, 1.0],
-    },
-    Vertex {
-        position: [0.5, 0.5, 0.0, 1.],
-        tex_coords: [1.0, 0.0],
-    },
-];
-
 const INDICES: &[u16] = &[0, 1, 2, 2, 3, 0];
+
+pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+
+fn create_depth_texture(
+    device: &wgpu::Device,
+    config: &wgpu::SurfaceConfiguration,
+    label: &str,
+) -> DepthPass {
+    let size = wgpu::Extent3d {
+        width: config.width,
+        height: config.height,
+        depth_or_array_layers: 1,
+    };
+    let desc = wgpu::TextureDescriptor {
+        label: Some(label),
+        size,
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: DEPTH_FORMAT,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+    };
+    let texture = device.create_texture(&desc);
+    let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+    let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+        address_mode_u: wgpu::AddressMode::ClampToEdge,
+        address_mode_v: wgpu::AddressMode::ClampToEdge,
+        address_mode_w: wgpu::AddressMode::ClampToEdge,
+        mag_filter: wgpu::FilterMode::Linear,
+        min_filter: wgpu::FilterMode::Linear,
+        mipmap_filter: wgpu::FilterMode::Nearest,
+        compare: Some(wgpu::CompareFunction::LessEqual),
+        lod_min_clamp: -100.0,
+        lod_max_clamp: 100.0,
+        ..Default::default()
+    });
+
+    DepthPass {
+        _texture: texture,
+        view,
+        _sampler: sampler,
+    }
+}
 
 pub fn setup_render(window: OptionalUnsendableRes<Window>, mut commands: Commands) {
     // The instance is a handle to our GPU
@@ -141,7 +169,6 @@ pub fn setup_render(window: OptionalUnsendableRes<Window>, mut commands: Command
                         wgpu::Limits::default()
                     },
                 },
-                // Some(&std::path::Path::new("trace")), // Trace path
                 None,
             )
             .await
@@ -257,7 +284,13 @@ pub fn setup_render(window: OptionalUnsendableRes<Window>, mut commands: Command
             // Requires Features::CONSERVATIVE_RASTERIZATION
             conservative: false,
         },
-        depth_stencil: None,
+        depth_stencil: Some(wgpu::DepthStencilState {
+            format: DEPTH_FORMAT,
+            depth_write_enabled: true,
+            depth_compare: wgpu::CompareFunction::Less,
+            stencil: wgpu::StencilState::default(),
+            bias: wgpu::DepthBiasState::default(),
+        }),
         multisample: wgpu::MultisampleState {
             count: 1,
             mask: !0,
@@ -268,29 +301,17 @@ pub fn setup_render(window: OptionalUnsendableRes<Window>, mut commands: Command
         multiview: None,
     });
 
-    // let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-    //     label: Some("Vertex Buffer"),
-    //     contents: bytemuck::cast_slice(&VERTICES),
-    //     usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-    // });
-
-    // let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-    //     label: Some("Index Buffer"),
-    //     contents: bytemuck::cast_slice(INDICES),
-    //     usage: wgpu::BufferUsages::INDEX,
-    // });
+    let depth_pass = create_depth_texture(&device, &config, "depth_texture");
 
     commands.create_unsendable_resource(RenderContext {
         surface,
         device,
         queue,
         render_pipeline,
-        // vertex_buffer,
-        // index_buffer,
         texture_bind_group_layout,
-        // camera_uniform,
         camera_buffer,
         camera_bind_group,
+        depth_pass,
     });
     commands.create_unsendable_resource(VertexBuffers(FxHashMap::default()));
 }
@@ -418,7 +439,14 @@ pub fn renderer<ST: SpriteType>(
                     store: true,
                 },
             })],
-            depth_stencil_attachment: None,
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &render_context.depth_pass.view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: true,
+                }),
+                stencil_ops: None,
+            }),
         });
 
         render_pass.set_pipeline(&render_context.render_pipeline);
@@ -489,8 +517,6 @@ pub fn renderer<ST: SpriteType>(
                     indices.extend(INDICES.iter().map(|i| i + (4 * index as u16)))
                 }
 
-                //println!("batch {:?}", batch);
-
                 render_context.queue.write_buffer(
                     &vertex_buffer.2,
                     0,
@@ -500,9 +526,9 @@ pub fn renderer<ST: SpriteType>(
         }
 
         render_pass.set_bind_group(1, &render_context.camera_bind_group, &[]);
-        for (k, (vertex, v_size, indices, i_size)) in vertex_buffers
+        for (k, (vertex, _, indices, i_size)) in vertex_buffers
             .iter()
-            .filter(|(k, v)| batched.iter().any(|(b_k, _)| b_k == *k))
+            .filter(|(k, _)| batched.iter().any(|(b_k, _)| b_k == *k))
         {
             let texture = texture_manager
                 .textures
@@ -515,26 +541,6 @@ pub fn renderer<ST: SpriteType>(
             render_pass.set_index_buffer(indices.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..(*i_size) as u32, 0, 0..1);
         }
-
-        // let (sprite, transform) = sprite_query.iter().next().unwrap();
-        // let s = texture_manager
-        //     .get_sprite_handle(&sprite.sprite_type)
-        //     .unwrap();
-
-        // let t = calculate_vertices(
-        //     sprite.width,
-        //     sprite.height,
-        //     sprite.origin,
-        //     s.relative_min,
-        //     s.relative_max,
-        //     transform.get_transformation_matrix(),
-        // );
-        // println!("coord {:?}", t);
-        // render_context.queue.write_buffer(
-        //     &render_context.vertex_buffer,
-        //     0,
-        //     bytemuck::cast_slice(&t),
-        // );
     }
 
     render_context.queue.submit(iter::once(encoder.finish()));

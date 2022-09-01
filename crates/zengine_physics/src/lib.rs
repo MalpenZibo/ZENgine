@@ -1,3 +1,3 @@
-// mod collision;
+mod collision;
 
-// pub use collision::*;
+pub use collision::*;

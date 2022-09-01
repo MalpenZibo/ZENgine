@@ -1,28 +1,23 @@
 use serde::Deserialize;
 use zengine::{
-    // physics::{collision_system, Collision, Shape2D, ShapeType},
     core::{timing_system, Time, Transform},
     ecs::{
         system::{
-            Commands, EventPublisher, EventStream, Local, OptionalRes, OptionalUnsendableResMut,
-            Query, QueryIter, QueryIterMut, Res, ResMut, UnsendableResMut,
+            Commands, EventPublisher, EventStream, Local, OptionalRes, Query, QueryIter,
+            QueryIterMut, Res, UnsendableResMut,
         },
         Entity,
     },
     graphic::{
         renderer, setup_render, texture_loader, ActiveCamera, Background, Camera, CameraMode,
-        CollisionTrace, Color, Sprite, SpriteDescriptor, TextureManager,
+        Color, Sprite, SpriteDescriptor, TextureManager,
     },
     input::{input_system, Bindings, InputHandler},
     log::Level,
     math::{Vec2, Vec3},
+    physics::{collision_system, Collision, Shape2D, ShapeType},
     window::{WindowModule, WindowSpecs},
-    Component,
-    Engine,
-    InputType,
-    Resource,
-    SpriteType,
-    StageLabel,
+    Component, Engine, InputType, Resource, SpriteType, StageLabel,
 };
 
 static WIDTH: f32 = 600.0;
@@ -118,17 +113,16 @@ fn main() {
             fullscreen: false,
             vsync: false,
         }))
-        //.add_startup_system(setup_render::<Sprites>(CollisionTrace::Inactive))
         .add_startup_system(setup_render)
         .add_startup_system(setup)
         .add_system(input_system(bindings))
         .add_system(texture_loader::<Sprites>)
-        // .add_system(collision_system)
+        .add_system(collision_system)
         .add_system(ai_pad_control)
         .add_system(player_pad_control)
         .add_system(pad_movement)
         .add_system(ball_movement)
-        // .add_system(collision_response)
+        .add_system(collision_response)
         .add_system_into_stage(renderer::<Sprites>, StageLabel::Render)
         //.add_system_into_stage(render_system::<Sprites>, StageLabel::Render)
         .add_system_into_stage(timing_system(None), StageLabel::PostRender)
@@ -256,50 +250,50 @@ fn setup(mut commands: Commands, mut textures: UnsendableResMut<TextureManager<S
             color: Color::white(),
             sprite_type: Sprites::Background,
         },
-        Transform::new(Vec3::new(0.0, 0.0, -1.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
+        Transform::new(Vec3::new(0.0, 0.0, 2.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
     ));
 
     let sx = commands.spawn((
         Transform::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
-        // Shape2D {
-        //     origin: Vec3::new(1.0, 0.0, 0.0),
-        //     shape_type: ShapeType::Rectangle {
-        //         width: 300.0,
-        //         height: HEIGHT,
-        //     },
-        // },
+        Shape2D {
+            origin: Vec3::new(1.0, 0.0, 0.0),
+            shape_type: ShapeType::Rectangle {
+                width: 300.0,
+                height: HEIGHT,
+            },
+        },
     ));
     let dx = commands.spawn((
         Transform::new(Vec3::new(WIDTH, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
-        // Shape2D {
-        //     origin: Vec3::new(0.0, 0.0, 0.0),
-        //     shape_type: ShapeType::Rectangle {
-        //         width: 300.0,
-        //         height: HEIGHT,
-        //     },
-        // },
+        Shape2D {
+            origin: Vec3::new(0.0, 0.0, 0.0),
+            shape_type: ShapeType::Rectangle {
+                width: 300.0,
+                height: HEIGHT,
+            },
+        },
     ));
 
     let top = commands.spawn((
         Transform::new(Vec3::new(0.0, HEIGHT, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
-        // Shape2D {
-        //     origin: Vec3::new(0.0, 0.0, 0.0),
-        //     shape_type: ShapeType::Rectangle {
-        //         width: WIDTH,
-        //         height: 300.0,
-        //     },
-        // },
+        Shape2D {
+            origin: Vec3::new(0.0, 0.0, 0.0),
+            shape_type: ShapeType::Rectangle {
+                width: WIDTH,
+                height: 300.0,
+            },
+        },
     ));
 
     let bottom = commands.spawn((
         Transform::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
-        // Shape2D {
-        //     origin: Vec3::new(0.0, 1.0, 0.0),
-        //     shape_type: ShapeType::Rectangle {
-        //         width: WIDTH,
-        //         height: 300.0,
-        //     },
-        // },
+        Shape2D {
+            origin: Vec3::new(0.0, 1.0, 0.0),
+            shape_type: ShapeType::Rectangle {
+                width: WIDTH,
+                height: 300.0,
+            },
+        },
     ));
 
     commands.create_resource(FieldBorder {
@@ -322,13 +316,13 @@ fn setup(mut commands: Commands, mut textures: UnsendableResMut<TextureManager<S
             Vec3::ZERO,
             1.0,
         ),
-        // Shape2D {
-        //     origin: Vec3::new(0.5, 0.5, 0.0),
-        //     shape_type: ShapeType::Rectangle {
-        //         width: PAD_HALF_WIDTH * 2.0,
-        //         height: PAD_HALF_HEIGHT * 2.0,
-        //     },
-        // },
+        Shape2D {
+            origin: Vec3::new(0.5, 0.5, 0.0),
+            shape_type: ShapeType::Rectangle {
+                width: PAD_HALF_WIDTH * 2.0,
+                height: PAD_HALF_HEIGHT * 2.0,
+            },
+        },
         pad.clone(),
     ));
     commands.create_resource(Player1 { entity: pad1 });
@@ -346,13 +340,13 @@ fn setup(mut commands: Commands, mut textures: UnsendableResMut<TextureManager<S
             Vec3::ZERO,
             1.0,
         ),
-        // Shape2D {
-        //     origin: Vec3::new(0.5, 0.5, 0.0),
-        //     shape_type: ShapeType::Rectangle {
-        //         width: PAD_HALF_WIDTH * 2.0,
-        //         height: PAD_HALF_HEIGHT * 2.0,
-        //     },
-        // },
+        Shape2D {
+            origin: Vec3::new(0.5, 0.5, 0.0),
+            shape_type: ShapeType::Rectangle {
+                width: PAD_HALF_WIDTH * 2.0,
+                height: PAD_HALF_HEIGHT * 2.0,
+            },
+        },
         pad,
         AI {},
     ));
@@ -365,13 +359,13 @@ fn setup(mut commands: Commands, mut textures: UnsendableResMut<TextureManager<S
             color: Color::white(),
             sprite_type: Sprites::Ball,
         },
-        Transform::new(Vec3::new(WIDTH / 2.0, HEIGHT / 2.0, 2.0), Vec3::ZERO, 1.0),
-        // Shape2D {
-        //     origin: Vec3::new(0.5, 0.5, 0.0),
-        //     shape_type: ShapeType::Circle {
-        //         radius: BALL_RADIUS,
-        //     },
-        // },
+        Transform::new(Vec3::new(WIDTH / 2.0, HEIGHT / 2.0, 1.0), Vec3::ZERO, 1.0),
+        Shape2D {
+            origin: Vec3::new(0.5, 0.5, 0.0),
+            shape_type: ShapeType::Circle {
+                radius: BALL_RADIUS,
+            },
+        },
         Ball {
             vel: initial_ball_movement(),
         },
@@ -484,235 +478,235 @@ fn initial_ball_movement() -> Vec2 {
     Vec2::new(BALL_VEL * angle.cos(), BALL_VEL * angle.sin())
 }
 
-// fn collision_response(
-//     mut query_pad: Query<(Entity, &mut Transform, &mut Pad)>,
-//     mut query_ball: Query<(Entity, &mut Transform, &mut Ball)>,
-//     collision_event: EventStream<Collision>,
-//     field_border: OptionalRes<FieldBorder>,
-//     mut game_event: EventPublisher<GameEvent>,
-// ) {
-//     fn get_collision_type(
-//         collision: &Collision,
-//         query_pad: &Query<(Entity, &mut Transform, &mut Pad)>,
-//         query_ball: &Query<(Entity, &mut Transform, &mut Ball)>,
-//         field_border: &FieldBorder,
-//     ) -> Option<CollisionType> {
-//         let get_field_border = |entity: Entity| -> Option<Side> {
-//             if field_border.sx == entity {
-//                 return Some(Side::Sx(entity));
-//             } else if field_border.dx == entity {
-//                 return Some(Side::Dx(entity));
-//             } else if field_border.bottom == entity {
-//                 return Some(Side::Bottom(entity));
-//             } else if field_border.top == entity {
-//                 return Some(Side::Top(entity));
-//             }
+fn collision_response(
+    mut query_pad: Query<(Entity, &mut Transform, &mut Pad)>,
+    mut query_ball: Query<(Entity, &mut Transform, &mut Ball)>,
+    collision_event: EventStream<Collision>,
+    field_border: OptionalRes<FieldBorder>,
+    mut game_event: EventPublisher<GameEvent>,
+) {
+    fn get_collision_type(
+        collision: &Collision,
+        query_pad: &Query<(Entity, &mut Transform, &mut Pad)>,
+        query_ball: &Query<(Entity, &mut Transform, &mut Ball)>,
+        field_border: &FieldBorder,
+    ) -> Option<CollisionType> {
+        let get_field_border = |entity: Entity| -> Option<Side> {
+            if field_border.sx == entity {
+                return Some(Side::Sx(entity));
+            } else if field_border.dx == entity {
+                return Some(Side::Dx(entity));
+            } else if field_border.bottom == entity {
+                return Some(Side::Bottom(entity));
+            } else if field_border.top == entity {
+                return Some(Side::Top(entity));
+            }
 
-//             None
-//         };
+            None
+        };
 
-//         if query_pad
-//             .iter()
-//             .any(|(entity, _, _)| entity == &collision.entity_a)
-//         {
-//             if let Some(border) = get_field_border(collision.entity_b) {
-//                 return Some(CollisionType::PadBorder {
-//                     pad: collision.entity_a,
-//                     border,
-//                 });
-//             } else if query_ball
-//                 .iter()
-//                 .any(|(entity, _, _)| entity == &collision.entity_b)
-//             {
-//                 return Some(CollisionType::BallPad {
-//                     pad: collision.entity_a,
-//                     ball: collision.entity_b,
-//                 });
-//             }
-//         } else if query_pad
-//             .iter()
-//             .any(|(entity, _, _)| entity == &collision.entity_b)
-//         {
-//             if let Some(border) = get_field_border(collision.entity_a) {
-//                 return Some(CollisionType::PadBorder {
-//                     pad: collision.entity_b,
-//                     border,
-//                 });
-//             } else if query_ball
-//                 .iter()
-//                 .any(|(entity, _, _)| entity == &collision.entity_a)
-//             {
-//                 return Some(CollisionType::BallPad {
-//                     pad: collision.entity_b,
-//                     ball: collision.entity_a,
-//                 });
-//             }
-//         } else if query_ball
-//             .iter()
-//             .any(|(entity, _, _)| entity == &collision.entity_a)
-//         {
-//             if let Some(border) = get_field_border(collision.entity_b) {
-//                 return Some(CollisionType::BallBorder {
-//                     ball: collision.entity_a,
-//                     border,
-//                 });
-//             } else if query_pad
-//                 .iter()
-//                 .any(|(entity, _, _)| entity == &collision.entity_b)
-//             {
-//                 return Some(CollisionType::BallPad {
-//                     pad: collision.entity_b,
-//                     ball: collision.entity_a,
-//                 });
-//             }
-//         } else if query_ball
-//             .iter()
-//             .any(|(entity, _, _)| entity == &collision.entity_b)
-//         {
-//             if let Some(border) = get_field_border(collision.entity_a) {
-//                 return Some(CollisionType::BallBorder {
-//                     ball: collision.entity_b,
-//                     border,
-//                 });
-//             } else if query_pad
-//                 .iter()
-//                 .any(|(entity, _, _)| entity == &collision.entity_a)
-//             {
-//                 return Some(CollisionType::BallPad {
-//                     pad: collision.entity_a,
-//                     ball: collision.entity_b,
-//                 });
-//             }
-//         }
+        if query_pad
+            .iter()
+            .any(|(entity, _, _)| entity == &collision.entity_a)
+        {
+            if let Some(border) = get_field_border(collision.entity_b) {
+                return Some(CollisionType::PadBorder {
+                    pad: collision.entity_a,
+                    border,
+                });
+            } else if query_ball
+                .iter()
+                .any(|(entity, _, _)| entity == &collision.entity_b)
+            {
+                return Some(CollisionType::BallPad {
+                    pad: collision.entity_a,
+                    ball: collision.entity_b,
+                });
+            }
+        } else if query_pad
+            .iter()
+            .any(|(entity, _, _)| entity == &collision.entity_b)
+        {
+            if let Some(border) = get_field_border(collision.entity_a) {
+                return Some(CollisionType::PadBorder {
+                    pad: collision.entity_b,
+                    border,
+                });
+            } else if query_ball
+                .iter()
+                .any(|(entity, _, _)| entity == &collision.entity_a)
+            {
+                return Some(CollisionType::BallPad {
+                    pad: collision.entity_b,
+                    ball: collision.entity_a,
+                });
+            }
+        } else if query_ball
+            .iter()
+            .any(|(entity, _, _)| entity == &collision.entity_a)
+        {
+            if let Some(border) = get_field_border(collision.entity_b) {
+                return Some(CollisionType::BallBorder {
+                    ball: collision.entity_a,
+                    border,
+                });
+            } else if query_pad
+                .iter()
+                .any(|(entity, _, _)| entity == &collision.entity_b)
+            {
+                return Some(CollisionType::BallPad {
+                    pad: collision.entity_b,
+                    ball: collision.entity_a,
+                });
+            }
+        } else if query_ball
+            .iter()
+            .any(|(entity, _, _)| entity == &collision.entity_b)
+        {
+            if let Some(border) = get_field_border(collision.entity_a) {
+                return Some(CollisionType::BallBorder {
+                    ball: collision.entity_b,
+                    border,
+                });
+            } else if query_pad
+                .iter()
+                .any(|(entity, _, _)| entity == &collision.entity_a)
+            {
+                return Some(CollisionType::BallPad {
+                    pad: collision.entity_a,
+                    ball: collision.entity_b,
+                });
+            }
+        }
 
-//         None
-//     }
+        None
+    }
 
-//     if let Some(field_border) = field_border {
-//         for c in collision_event.read() {
-//             match get_collision_type(c, &query_pad, &query_ball, &field_border) {
-//                 Some(CollisionType::PadBorder {
-//                     pad: pad_entity,
-//                     border: Side::Sx(_),
-//                 }) => {
-//                     if let Some((pad, transform)) = query_pad.iter_mut().find_map(|(e, t, p)| {
-//                         if e == &pad_entity {
-//                             Some((p, t))
-//                         } else {
-//                             None
-//                         }
-//                     }) {
-//                         pad.velocity = 0.0;
-//                         transform.position.x = 0.0 + PAD_HALF_WIDTH;
-//                     }
-//                 }
-//                 Some(CollisionType::PadBorder {
-//                     pad: pad_entity,
-//                     border: Side::Dx(_),
-//                 }) => {
-//                     if let Some((pad, transform)) = query_pad.iter_mut().find_map(|(e, t, p)| {
-//                         if e == &pad_entity {
-//                             Some((p, t))
-//                         } else {
-//                             None
-//                         }
-//                     }) {
-//                         pad.velocity = 0.0;
-//                         transform.position.x = WIDTH - PAD_HALF_WIDTH;
-//                     };
-//                 }
-//                 Some(CollisionType::BallBorder {
-//                     ball: ball_entity,
-//                     border: Side::Sx(border_entity),
-//                 })
-//                 | Some(CollisionType::BallBorder {
-//                     ball: ball_entity,
-//                     border: Side::Dx(border_entity),
-//                 }) => {
-//                     if let Some((ball, transform)) = query_ball.iter_mut().find_map(|(e, t, b)| {
-//                         if e == &ball_entity {
-//                             Some((b, t))
-//                         } else {
-//                             None
-//                         }
-//                     }) {
-//                         ball.vel = Vector2::new(-ball.vel.x, ball.vel.y);
-//                         transform.position.x = if border_entity == field_border.sx {
-//                             0.0 + BALL_RADIUS
-//                         } else {
-//                             WIDTH - BALL_RADIUS
-//                         }
-//                     }
-//                 }
-//                 Some(CollisionType::BallBorder {
-//                     ball: ball_entity,
-//                     border: Side::Bottom(_),
-//                 })
-//                 | Some(CollisionType::BallBorder {
-//                     ball: ball_entity,
-//                     border: Side::Top(_),
-//                 }) => {
-//                     if let Some((ball, transform)) = query_ball.iter_mut().find_map(|(e, t, b)| {
-//                         if e == &ball_entity {
-//                             Some((b, t))
-//                         } else {
-//                             None
-//                         }
-//                     }) {
-//                         transform.position.x = WIDTH / 2.0;
-//                         transform.position.y = HEIGHT / 2.0;
+    if let Some(field_border) = field_border {
+        for c in collision_event.read() {
+            match get_collision_type(c, &query_pad, &query_ball, &field_border) {
+                Some(CollisionType::PadBorder {
+                    pad: pad_entity,
+                    border: Side::Sx(_),
+                }) => {
+                    if let Some((pad, transform)) = query_pad.iter_mut().find_map(|(e, t, p)| {
+                        if e == &pad_entity {
+                            Some((p, t))
+                        } else {
+                            None
+                        }
+                    }) {
+                        pad.velocity = 0.0;
+                        transform.position.x = 0.0 + PAD_HALF_WIDTH;
+                    }
+                }
+                Some(CollisionType::PadBorder {
+                    pad: pad_entity,
+                    border: Side::Dx(_),
+                }) => {
+                    if let Some((pad, transform)) = query_pad.iter_mut().find_map(|(e, t, p)| {
+                        if e == &pad_entity {
+                            Some((p, t))
+                        } else {
+                            None
+                        }
+                    }) {
+                        pad.velocity = 0.0;
+                        transform.position.x = WIDTH - PAD_HALF_WIDTH;
+                    };
+                }
+                Some(CollisionType::BallBorder {
+                    ball: ball_entity,
+                    border: Side::Sx(border_entity),
+                })
+                | Some(CollisionType::BallBorder {
+                    ball: ball_entity,
+                    border: Side::Dx(border_entity),
+                }) => {
+                    if let Some((ball, transform)) = query_ball.iter_mut().find_map(|(e, t, b)| {
+                        if e == &ball_entity {
+                            Some((b, t))
+                        } else {
+                            None
+                        }
+                    }) {
+                        ball.vel = Vec2::new(-ball.vel.x, ball.vel.y);
+                        transform.position.x = if border_entity == field_border.sx {
+                            0.0 + BALL_RADIUS
+                        } else {
+                            WIDTH - BALL_RADIUS
+                        }
+                    }
+                }
+                Some(CollisionType::BallBorder {
+                    ball: ball_entity,
+                    border: Side::Bottom(_),
+                })
+                | Some(CollisionType::BallBorder {
+                    ball: ball_entity,
+                    border: Side::Top(_),
+                }) => {
+                    if let Some((ball, transform)) = query_ball.iter_mut().find_map(|(e, t, b)| {
+                        if e == &ball_entity {
+                            Some((b, t))
+                        } else {
+                            None
+                        }
+                    }) {
+                        transform.position.x = WIDTH / 2.0;
+                        transform.position.y = HEIGHT / 2.0;
 
-//                         ball.vel = initial_ball_movement();
-//                     }
+                        ball.vel = initial_ball_movement();
+                    }
 
-//                     game_event.publish(GameEvent::Score);
+                    game_event.publish(GameEvent::Score);
 
-//                     return;
-//                 }
-//                 Some(CollisionType::BallPad {
-//                     pad: pad_entity,
-//                     ball: ball_entity,
-//                 }) => {
-//                     if let Some(pad_transform) = query_pad.iter().find_map(|(e, t, _)| {
-//                         if e == &pad_entity {
-//                             Some(t.clone())
-//                         } else {
-//                             None
-//                         }
-//                     }) {
-//                         if let Some((ball_transform, ball)) =
-//                             query_ball.iter_mut().find_map(|(e, t, b)| {
-//                                 if e == &ball_entity {
-//                                     Some((t, b))
-//                                 } else {
-//                                     None
-//                                 }
-//                             })
-//                         {
-//                             ball.vel = Vector2::new(
-//                                 ball.vel.x
-//                                     + (if ball_transform.position.x < pad_transform.position.x {
-//                                         -1.0
-//                                     } else {
-//                                         1.0
-//                                     } * ((ball_transform.position.x
-//                                         - pad_transform.position.x)
-//                                         .abs()
-//                                         / PAD_HALF_WIDTH
-//                                         * 100.0)),
-//                                 -ball.vel.y,
-//                             );
-//                             ball_transform.position.y = pad_transform.position.y
-//                                 + if ball_transform.position.y > pad_transform.position.y {
-//                                     PAD_HALF_HEIGHT + BALL_RADIUS
-//                                 } else {
-//                                     -(PAD_HALF_HEIGHT + BALL_RADIUS)
-//                                 };
-//                         }
-//                     }
-//                 }
-//                 _ => {}
-//             };
-//         }
-//     }
-// }
+                    return;
+                }
+                Some(CollisionType::BallPad {
+                    pad: pad_entity,
+                    ball: ball_entity,
+                }) => {
+                    if let Some(pad_transform) = query_pad.iter().find_map(|(e, t, _)| {
+                        if e == &pad_entity {
+                            Some(t.clone())
+                        } else {
+                            None
+                        }
+                    }) {
+                        if let Some((ball_transform, ball)) =
+                            query_ball.iter_mut().find_map(|(e, t, b)| {
+                                if e == &ball_entity {
+                                    Some((t, b))
+                                } else {
+                                    None
+                                }
+                            })
+                        {
+                            ball.vel = Vec2::new(
+                                ball.vel.x
+                                    + (if ball_transform.position.x < pad_transform.position.x {
+                                        -1.0
+                                    } else {
+                                        1.0
+                                    } * ((ball_transform.position.x
+                                        - pad_transform.position.x)
+                                        .abs()
+                                        / PAD_HALF_WIDTH
+                                        * 100.0)),
+                                -ball.vel.y,
+                            );
+                            ball_transform.position.y = pad_transform.position.y
+                                + if ball_transform.position.y > pad_transform.position.y {
+                                    PAD_HALF_HEIGHT + BALL_RADIUS
+                                } else {
+                                    -(PAD_HALF_HEIGHT + BALL_RADIUS)
+                                };
+                        }
+                    }
+                }
+                _ => {}
+            };
+        }
+    }
+}
