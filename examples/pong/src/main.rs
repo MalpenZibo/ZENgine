@@ -124,7 +124,6 @@ fn main() {
         .add_system(ball_movement)
         .add_system(collision_response)
         .add_system_into_stage(renderer::<Sprites>, StageLabel::Render)
-        //.add_system_into_stage(render_system::<Sprites>, StageLabel::Render)
         .add_system_into_stage(timing_system(None), StageLabel::PostRender)
         .run();
 }
