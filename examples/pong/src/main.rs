@@ -142,6 +142,7 @@ fn setup(mut commands: Commands, mut textures: UnsendableResMut<TextureManager<S
             },
         )
         .load();
+
     textures
         .create("pad.png")
         .with_sprite(
@@ -167,19 +168,6 @@ fn setup(mut commands: Commands, mut textures: UnsendableResMut<TextureManager<S
             },
         )
         .load();
-
-    // textures
-    //     .create("duck.png")
-    //     .with_sprite(
-    //         Sprites::Ball,
-    //         SpriteDescriptor {
-    //             width: 900,
-    //             height: 1160,
-    //             x: 0,
-    //             y: 0,
-    //         },
-    //     )
-    //     .load();
 
     commands.create_resource(GameSettings {
         drag_constant: 10.0,
@@ -208,39 +196,6 @@ fn setup(mut commands: Commands, mut textures: UnsendableResMut<TextureManager<S
     ));
 
     commands.create_resource(ActiveCamera { entity: camera });
-
-    // commands.spawn((
-    //     Sprite::<Sprites> {
-    //         width: 0.78,
-    //         height: 1.,
-    //         origin: Vec3::new(0.5, 0.5, 0.0),
-    //         color: Color::white(),
-    //         sprite_type: Sprites::Ball,
-    //     },
-    //     Transform::new(Vec3::new(0.0, -0.5, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
-    // ));
-
-    // commands.spawn((
-    //     Sprite::<Sprites> {
-    //         width: 0.78,
-    //         height: 1.,
-    //         origin: Vec3::new(0.5, 0.5, 0.0),
-    //         color: Color::white(),
-    //         sprite_type: Sprites::Ball,
-    //     },
-    //     Transform::new(Vec3::new(0.5, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
-    // ));
-
-    // commands.spawn((
-    //     Sprite::<Sprites> {
-    //         width: 0.78,
-    //         height: 1.,
-    //         origin: Vec3::new(0.5, 0.5, 0.0),
-    //         color: Color::white(),
-    //         sprite_type: Sprites::Ball,
-    //     },
-    //     Transform::new(Vec3::new(-0.7, -0.5, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
-    // ));
 
     commands.spawn((
         Sprite::<Sprites> {

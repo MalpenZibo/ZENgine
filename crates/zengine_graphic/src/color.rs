@@ -22,6 +22,10 @@ impl Color {
         }
     }
 
+    pub fn to_array(&self) -> [f32; 4] {
+        [self.r as f32, self.g as f32, self.b as f32, self.a as f32]
+    }
+
     pub fn white() -> Color {
         Color::new(255, 255, 255, 255)
     }

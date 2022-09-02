@@ -67,6 +67,7 @@ pub struct VertexBuffers(FxHashMap<usize, (Buffer, usize, Buffer, usize)>);
 struct Vertex {
     position: [f32; 4],
     tex_coords: [f32; 2],
+    color: [f32; 4],
 }
 
 impl Vertex {
@@ -85,6 +86,11 @@ impl Vertex {
                     offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
                     shader_location: 1,
                     format: wgpu::VertexFormat::Float32x2,
+                },
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 6]>() as wgpu::BufferAddress,
+                    shader_location: 2,
+                    format: wgpu::VertexFormat::Float32x4,
                 },
             ],
         }
@@ -335,6 +341,7 @@ fn calculate_vertices(
     origin: Vec3,
     relative_min: Vec2,
     relative_max: Vec2,
+    color: &Color,
     transform: Mat4,
 ) -> [Vertex; 4] {
     let min_x = -(width * origin.x);
@@ -355,24 +362,28 @@ fn calculate_vertices(
                 .mul_vec4(Vec4::new(min_x, max_y, 0.0, 1.0))
                 .to_array(),
             tex_coords: [min_u, min_v],
+            color: color.to_array(),
         },
         Vertex {
             position: transform
                 .mul_vec4(Vec4::new(min_x, min_y, 0.0, 1.0))
                 .to_array(),
             tex_coords: [min_u, max_v],
+            color: color.to_array(),
         },
         Vertex {
             position: transform
                 .mul_vec4(Vec4::new(max_x, min_y, 0.0, 1.0))
                 .to_array(),
             tex_coords: [max_u, max_v],
+            color: color.to_array(),
         },
         Vertex {
             position: transform
                 .mul_vec4(Vec4::new(max_x, max_y, 0.0, 1.0))
                 .to_array(),
             tex_coords: [max_u, min_v],
+            color: color.to_array(),
         },
     ]
 }
@@ -486,6 +497,7 @@ pub fn renderer<ST: SpriteType>(
                         s.origin,
                         sprite_handle.relative_min,
                         sprite_handle.relative_max,
+                        &s.color,
                         t.get_transformation_matrix(),
                     ));
                 }
