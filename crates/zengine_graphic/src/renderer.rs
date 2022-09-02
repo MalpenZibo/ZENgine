@@ -442,10 +442,10 @@ pub fn renderer<ST: SpriteType>(
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: bg_color.color.r,
-                        g: bg_color.color.g,
-                        b: bg_color.color.b,
-                        a: bg_color.color.a,
+                        r: bg_color.color.r as f64,
+                        g: bg_color.color.g as f64,
+                        b: bg_color.color.b as f64,
+                        a: bg_color.color.a as f64,
                     }),
                     store: true,
                 },
