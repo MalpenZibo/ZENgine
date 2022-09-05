@@ -9,8 +9,8 @@ use zengine::{
         Entity,
     },
     graphic::{
-        renderer, setup_render, texture_loader, ActiveCamera, Background, Camera, CameraMode,
-        Color, Sprite, SpriteDescriptor, TextureManager,
+        ActiveCamera, Background, Camera, CameraMode, Color, RenderModule, Sprite,
+        SpriteDescriptor, TextureManager,
     },
     input::{input_system, Bindings, InputHandler},
     log::Level,
@@ -113,17 +113,15 @@ fn main() {
             fullscreen: false,
             vsync: false,
         }))
-        .add_startup_system(setup_render)
+        .add_module(RenderModule::<Sprites>::default())
         .add_startup_system(setup)
         .add_system(input_system(bindings))
-        .add_system(texture_loader::<Sprites>)
         .add_system(collision_system)
         .add_system(ai_pad_control)
         .add_system(player_pad_control)
         .add_system(pad_movement)
         .add_system(ball_movement)
         .add_system(collision_response)
-        .add_system_into_stage(renderer::<Sprites>, StageLabel::Render)
         .add_system_into_stage(timing_system(None), StageLabel::PostRender)
         .run();
 }

@@ -1,3 +1,5 @@
+use std::ops::MulAssign;
+
 use zengine_core::Transform;
 use zengine_ecs::Entity;
 use zengine_macro::{Component, Resource};
@@ -51,7 +53,7 @@ pub struct Camera {
 
 impl Camera {
     pub fn get_projection(&self, transform: Option<&Transform>) -> glam::Mat4 {
-        let proj = match self.mode {
+        let mut proj = match self.mode {
             CameraMode::Mode2D((width, height)) => glam::Mat4::orthographic_lh(
                 -width / 2.0,
                 width / 2.0,
@@ -63,20 +65,9 @@ impl Camera {
         };
 
         if let Some(transform) = transform {
-            proj * transform.get_transformation_matrix().inverse() // * glam::Mat4::look_at_lh(*position, glam::Vec3::ZERO, glam::Vec3::Y)
-        } else {
-            proj
+            proj.mul_assign(transform.get_transformation_matrix().inverse());
         }
 
-        // match &self.mode {
-        //     CameraMode::Mode2D => Matrix4x4::orthographics(
-        //         -(self.width as f32 / 2.0),
-        //         self.width as f32 / 2.0,
-        //         -(self.height as f32 / 2.0),
-        //         self.height as f32 / 2.0,
-        //         0.0,
-        //         1000.0,
-        //     ),
-        // }
+        proj
     }
 }

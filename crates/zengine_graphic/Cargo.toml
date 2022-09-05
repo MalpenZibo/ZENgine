@@ -9,6 +9,7 @@ zengine_ecs = { path = "../zengine_ecs" }
 zengine_core = { path = "../zengine_core" }
 zengine_macro = { path = "../zengine_macro" }
 zengine_window = { path = "../zengine_window" }
+zengine_engine = { path = "../zengine_engine" }
 rustc-hash = "1.1.0"
 log = "0.4"
 winit = "0.27.2"

@@ -174,13 +174,6 @@ impl<ST: SpriteType> TextureManager<ST> {
         self.sprites.get(sprite_type)
     }
 
-    pub fn activate(&self, _texture_id: u32) {
-        // unsafe {
-        //     gl::ActiveTexture(gl::TEXTURE0);
-        //     gl::BindTexture(gl::TEXTURE_2D, texture_id);
-        // }
-    }
-
     fn texture_still_used(&self, texture_handle_index: usize) -> bool {
         self.sprites
             .values()
@@ -211,16 +204,11 @@ impl<ST: SpriteType> TextureManager<ST> {
                     depth_or_array_layers: 1,
                 };
                 let texture = device.create_texture(&wgpu::TextureDescriptor {
-                    // All textures are stored as 3D, we represent our 2D texture
-                    // by setting depth to 1.
                     size,
-                    mip_level_count: 1, // We'll talk about this a little later
+                    mip_level_count: 1,
                     sample_count: 1,
                     dimension: wgpu::TextureDimension::D2,
-                    // Most images are stored using sRGB so we need to reflect that here.
                     format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                    // TEXTURE_BINDING tells wgpu that we want to use this texture in shaders
-                    // COPY_DST means that we want to copy data to this texture
                     usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
                     label: Some("diffuse_texture"),
                 });

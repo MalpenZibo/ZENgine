@@ -44,7 +44,7 @@ pub struct Window {
 #[derive(UnsendableResource, Debug)]
 struct EventLoop(winit::event_loop::EventLoop<()>);
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct WindowModule(pub WindowSpecs);
 impl Module for WindowModule {
     fn init(self, engine: &mut Engine) {
