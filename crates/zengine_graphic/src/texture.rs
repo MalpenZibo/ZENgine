@@ -3,12 +3,12 @@ use rustc_hash::FxHashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::{any::Any, num::NonZeroU32};
-use wgpu::{BindGroupLayout, Device, Queue};
+use wgpu::BindGroupLayout;
 use zengine_asset::image_loader::{self, ImageAsset, ImageAssetHandler};
-use zengine_ecs::system::{OptionalUnsendableRes, UnsendableResMut};
+use zengine_ecs::system::{OptionalRes, UnsendableResMut};
 use zengine_ecs::UnsendableResource;
 
-use crate::RenderContext;
+use crate::{Device, Queue, TextureBindGroupLayout};
 
 pub trait SpriteType: Any + Eq + PartialEq + Hash + Clone + Debug + Send + Sync {}
 impl SpriteType for String {}
@@ -309,17 +309,17 @@ impl<ST: SpriteType> TextureManager<ST> {
 }
 
 pub fn texture_loader<ST: SpriteType>(
-    render_context: OptionalUnsendableRes<RenderContext>,
+    texture_bind_group_layout: OptionalRes<TextureBindGroupLayout>,
+    device: OptionalRes<Device>,
+    queue: OptionalRes<Queue>,
     mut texture_manager: UnsendableResMut<TextureManager<ST>>,
 ) {
     texture_manager.handle_loaded_image();
 
-    if let Some(render_context) = render_context {
-        texture_manager.upload(
-            &render_context.device,
-            &render_context.queue,
-            &render_context.texture_bind_group_layout,
-        );
+    if let (Some(device), Some(queue), Some(texture_bind_group_layout)) =
+        (device, queue, texture_bind_group_layout)
+    {
+        texture_manager.upload(&device, &queue, &texture_bind_group_layout);
 
         texture_manager.unload();
     }

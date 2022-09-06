@@ -1,11 +1,13 @@
+use sprite::{setup_sprite_render, sprite_render};
 use zengine_engine::{Module, StageLabel};
 use zengine_macro::{Component, Resource};
 
 mod camera;
 mod color;
 mod renderer;
-pub(crate) mod renderer_utils;
+mod sprite;
 mod texture;
+pub(crate) mod vertex;
 
 #[derive(Resource, Debug, Default)]
 pub struct Background {
@@ -38,8 +40,13 @@ impl<ST: SpriteType> Module for RenderModule<ST> {
     fn init(self, engine: &mut zengine_engine::Engine) {
         engine
             .add_startup_system(setup_render)
+            .add_startup_system(setup_camera)
+            .add_startup_system(setup_sprite_render)
             .add_system(texture_loader::<ST>)
-            .add_system_into_stage(renderer::<ST>, StageLabel::Render);
+            .add_system_into_stage(clear, StageLabel::Render)
+            .add_system_into_stage(camera_render, StageLabel::Render)
+            .add_system_into_stage(sprite_render::<ST>, StageLabel::Render)
+            .add_system_into_stage(present, StageLabel::Render);
     }
 }
 
