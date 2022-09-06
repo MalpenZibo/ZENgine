@@ -163,7 +163,7 @@ pub fn clear(
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
         let command_encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Clear Encoder"),
+            label: Some("Render Encoder"),
         });
 
         render_context.replace(RenderContext1 {
@@ -171,28 +171,27 @@ pub fn clear(
             surface_texture,
             command_encoder,
         });
-        let render_context_1 = render_context.as_mut().unwrap();
+        let render_context = render_context.as_mut().unwrap();
         {
-            let _render_pass =
-                render_context_1
-                    .command_encoder
-                    .begin_render_pass(&wgpu::RenderPassDescriptor {
-                        label: Some("Clear Pass"),
-                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                            view: &render_context_1.texture_view,
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(wgpu::Color {
-                                    r: bg_color.color.r as f64,
-                                    g: bg_color.color.g as f64,
-                                    b: bg_color.color.b as f64,
-                                    a: bg_color.color.a as f64,
-                                }),
-                                store: true,
-                            },
-                        })],
-                        depth_stencil_attachment: None,
-                    });
+            render_context
+                .command_encoder
+                .begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Clear Pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &render_context.texture_view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color {
+                                r: bg_color.color.r as f64,
+                                g: bg_color.color.g as f64,
+                                b: bg_color.color.b as f64,
+                                a: bg_color.color.a as f64,
+                            }),
+                            store: true,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                });
         }
     }
 }
