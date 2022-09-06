@@ -2,8 +2,8 @@ use std::iter;
 
 use crate::{
     renderer_utils::{Vertex, INDICES},
-    ActiveCamera, Background, Camera, CameraUniform, Color, Sprite, SpriteType, TextureHandleState,
-    TextureManager,
+    ActiveCamera, Background, Camera, CameraUniform, Color, Sprite, SpriteHandle, SpriteType,
+    TextureHandleState, TextureManager,
 };
 use glam::{Mat4, Vec2, Vec3, Vec4};
 use rustc_hash::FxHashMap;
@@ -32,34 +32,18 @@ pub struct RenderContext {
 }
 
 #[derive(Resource, Default, Debug)]
-pub struct Buffers(Vec<Option<Buffer>>);
-
-#[derive(Debug)]
-struct Buffer {
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    vertex_size: usize,
-    index_size: usize,
-    ref_texture: usize,
+pub struct Buffer {
+    vertex_buffer: Option<wgpu::Buffer>,
+    index_buffer: Option<wgpu::Buffer>,
+    size: usize,
 }
 
-#[derive(Debug)]
-pub struct BatchLayer {
-    z: f32,
-    batches: FxHashMap<usize, Vec<Vertex>>,
-}
+type BatchLayerData<'a, ST> =
+    FxHashMap<usize, Vec<(&'a Sprite<ST>, &'a Transform, &'a SpriteHandle)>>;
 
-#[derive(Resource, Default, Debug)]
-pub struct BatcheLayers(Vec<BatchLayer>);
-
-impl BatcheLayers {
-    fn clear(&mut self) {
-        for b_l in self.0.iter_mut() {
-            for v in b_l.batches.values_mut() {
-                v.clear();
-            }
-        }
-    }
+pub struct BatchLayer<'a, ST: SpriteType> {
+    pub z: f32,
+    pub data: BatchLayerData<'a, ST>,
 }
 
 pub fn setup_render(window: OptionalUnsendableRes<Window>, mut commands: Commands) {
@@ -292,8 +276,8 @@ fn calculate_vertices(
 
 fn generate_vertex_and_indexes_buffer(
     device: &Device,
-    vertex: &Vec<Vertex>,
-) -> (wgpu::Buffer, usize, wgpu::Buffer, usize) {
+    vertex: &[Vertex],
+) -> (wgpu::Buffer, wgpu::Buffer) {
     let mut indices = Vec::default();
     for index in 0..vertex.iter().len() / 4 {
         indices.extend(INDICES.iter().map(|i| i + (4 * index as u16)))
@@ -311,7 +295,7 @@ fn generate_vertex_and_indexes_buffer(
         usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
     });
 
-    (vertex_buffer, vertex.len(), index_buffer, indices.len())
+    (vertex_buffer, index_buffer)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -322,8 +306,7 @@ pub fn renderer<ST: SpriteType>(
     camera_query: Query<(Entity, &Camera, Option<&Transform>)>,
     active_camera: OptionalRes<ActiveCamera>,
     sprite_query: Query<(&Sprite<ST>, &Transform)>,
-    batches: Local<BatcheLayers>,
-    vertex_buffers: Local<Buffers>,
+    vertex_buffer: Local<Buffer>,
 ) {
     let render_context = render_context.unwrap();
     let output = render_context.surface.get_current_texture().unwrap();
@@ -374,7 +357,8 @@ pub fn renderer<ST: SpriteType>(
             );
         }
 
-        batches.clear();
+        let mut batches: Vec<BatchLayer<ST>> = Vec::default();
+
         for (s, t) in sprite_query.iter() {
             if let Some(sprite_handle) = texture_manager.get_sprite_handle(&s.sprite_type) {
                 if texture_manager
@@ -386,38 +370,87 @@ pub fn renderer<ST: SpriteType>(
                 {
                     let z = t.position.z;
 
-                    let batch_layer = match batches.0.binary_search_by(|l| l.z.total_cmp(&z)) {
-                        Ok(index) => batches.0.get_mut(index).unwrap(),
+                    let batch_layer = match batches.binary_search_by(|l| l.z.total_cmp(&z)) {
+                        Ok(index) => batches.get_mut(index).unwrap(),
                         Err(index) => {
-                            batches.0.insert(
+                            batches.insert(
                                 index,
                                 BatchLayer {
                                     z,
-                                    batches: FxHashMap::default(),
+                                    data: FxHashMap::default(),
                                 },
                             );
-                            batches.0.get_mut(index).unwrap()
+                            batches.get_mut(index).unwrap()
                         }
                     };
 
                     match batch_layer
-                        .batches
+                        .data
                         .get_mut(&sprite_handle.texture_handle_index)
                     {
                         Some(batch) => {
-                            batch.extend(calculate_vertices(
-                                s.width,
-                                s.height,
-                                s.origin,
-                                sprite_handle.relative_min,
-                                sprite_handle.relative_max,
-                                &s.color,
-                                t.get_transformation_matrix(),
-                            ));
+                            batch.push((s, t, sprite_handle));
                         }
                         None => {
-                            batch_layer.batches.insert(
+                            batch_layer.data.insert(
                                 sprite_handle.texture_handle_index,
+                                vec![(s, t, sprite_handle)],
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        let num_of_sprite = batches
+            .iter()
+            .flat_map(|l| l.data.values().map(|v| v.len()))
+            .sum();
+        if vertex_buffer.size >= num_of_sprite && vertex_buffer.vertex_buffer.is_some() {
+            render_context.queue.write_buffer(
+                vertex_buffer.vertex_buffer.as_ref().unwrap(),
+                0,
+                bytemuck::cast_slice(
+                    &batches
+                        .iter()
+                        .rev()
+                        .flat_map(|b| {
+                            b.data.values().flat_map(|v| {
+                                v.iter().flat_map(|(s, t, sprite_handle)| {
+                                    calculate_vertices(
+                                        s.width,
+                                        s.height,
+                                        s.origin,
+                                        sprite_handle.relative_min,
+                                        sprite_handle.relative_max,
+                                        &s.color,
+                                        t.get_transformation_matrix(),
+                                    )
+                                })
+                            })
+                        })
+                        .collect::<Vec<Vertex>>(),
+                ),
+            );
+            let mut indices = Vec::default();
+            for index in 0..num_of_sprite {
+                indices.extend(INDICES.iter().map(|i| i + (4 * index as u16)))
+            }
+
+            render_context.queue.write_buffer(
+                vertex_buffer.index_buffer.as_ref().unwrap(),
+                0,
+                bytemuck::cast_slice(&indices),
+            );
+        } else {
+            let (v_buffer, i_buffer) = generate_vertex_and_indexes_buffer(
+                &render_context.device,
+                &batches
+                    .iter()
+                    .rev()
+                    .flat_map(|b| {
+                        b.data.values().flat_map(|v| {
+                            v.iter().flat_map(|(s, t, sprite_handle)| {
                                 calculate_vertices(
                                     s.width,
                                     s.height,
@@ -427,86 +460,49 @@ pub fn renderer<ST: SpriteType>(
                                     &s.color,
                                     t.get_transformation_matrix(),
                                 )
-                                .into(),
-                            );
-                        }
-                    }
-                }
+                            })
+                        })
+                    })
+                    .collect::<Vec<Vertex>>(),
+            );
+            if let Some(buffer) = &vertex_buffer.vertex_buffer {
+                buffer.destroy();
             }
-        }
-
-        let vertex_buffers = &mut vertex_buffers.0;
-        let buffer_used = batches.0.iter().map(|l| l.batches.len()).sum();
-        vertex_buffers.extend(
-            (vertex_buffers.len()..buffer_used)
-                .into_iter()
-                .map(|_| None),
-        );
-
-        let mut buffer_iter = vertex_buffers.iter_mut();
-
-        for batch_layer in batches.0.iter().rev() {
-            for (k, v) in batch_layer.batches.iter() {
-                let buffer = buffer_iter.next();
-                if let Some(Some(buffer)) = buffer {
-                    if buffer.vertex_size < v.len() {
-                        let (v_buffer, v_size, i_buffer, i_size) =
-                            generate_vertex_and_indexes_buffer(&render_context.device, v);
-                        buffer.vertex_buffer.destroy();
-                        buffer.index_buffer.destroy();
-
-                        buffer.vertex_buffer = v_buffer;
-                        buffer.vertex_size = v_size;
-                        buffer.index_buffer = i_buffer;
-                        buffer.index_size = i_size;
-
-                        buffer.ref_texture = *k;
-                    } else {
-                        render_context.queue.write_buffer(
-                            &buffer.vertex_buffer,
-                            0,
-                            bytemuck::cast_slice(v),
-                        );
-                        let mut indices = Vec::default();
-                        for index in 0..v.len() / 4 {
-                            indices.extend(INDICES.iter().map(|i| i + (4 * index as u16)))
-                        }
-
-                        render_context.queue.write_buffer(
-                            &buffer.index_buffer,
-                            0,
-                            bytemuck::cast_slice(&indices),
-                        );
-
-                        buffer.ref_texture = *k;
-                    }
-                } else if let Some(buffer @ None) = buffer {
-                    let (v_buffer, v_size, i_buffer, i_size) =
-                        generate_vertex_and_indexes_buffer(&render_context.device, v);
-                    buffer.replace(Buffer {
-                        vertex_buffer: v_buffer,
-                        vertex_size: v_size,
-                        index_buffer: i_buffer,
-                        index_size: i_size,
-                        ref_texture: *k,
-                    });
-                }
+            if let Some(buffer) = &vertex_buffer.index_buffer {
+                buffer.destroy();
             }
+            vertex_buffer.vertex_buffer = Some(v_buffer);
+            vertex_buffer.index_buffer = Some(i_buffer);
+
+            vertex_buffer.size = num_of_sprite;
         }
 
         render_pass.set_bind_group(1, &render_context.camera_bind_group, &[]);
-        for b in vertex_buffers.iter().take(buffer_used) {
-            let b = b.as_ref().unwrap();
-            let texture = texture_manager
-                .textures
-                .get(b.ref_texture)
-                .and_then(|t1| t1.texture.as_ref())
-                .unwrap();
 
-            render_pass.set_bind_group(0, &texture.diffuse_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, b.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(b.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..b.index_size as u32, 0, 0..1);
+        render_pass.set_vertex_buffer(0, vertex_buffer.vertex_buffer.as_ref().unwrap().slice(..));
+        render_pass.set_index_buffer(
+            vertex_buffer.index_buffer.as_ref().unwrap().slice(..),
+            wgpu::IndexFormat::Uint16,
+        );
+
+        let mut offset: u32 = 0;
+        for b in batches.iter().rev() {
+            for (k, v) in b.data.iter() {
+                let texture = texture_manager
+                    .textures
+                    .get(*k)
+                    .and_then(|t1| t1.texture.as_ref())
+                    .unwrap();
+
+                let elements = v.len() as u32;
+                let i_offset = offset * 6;
+                let max_i = elements * 6 + i_offset;
+
+                render_pass.set_bind_group(0, &texture.diffuse_bind_group, &[]);
+                render_pass.draw_indexed(i_offset..max_i, 0, 0..1);
+
+                offset += elements;
+            }
         }
     }
 
