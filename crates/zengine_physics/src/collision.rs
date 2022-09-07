@@ -1,11 +1,12 @@
 #![allow(clippy::blocks_in_if_conditions)]
+use glam::Vec3;
 use rustc_hash::FxHashSet;
+use zengine_core::Transform;
 use zengine_ecs::{
     system::{EventPublisher, Local, Query, QueryIter},
     Entity,
 };
 use zengine_macro::Component;
-use zengine_math::{Transform, Vector3};
 
 #[derive(Debug)]
 pub enum ShapeType {
@@ -15,7 +16,7 @@ pub enum ShapeType {
 
 #[derive(Component, Debug)]
 pub struct Shape2D {
-    pub origin: Vector3,
+    pub origin: Vec3,
     pub shape_type: ShapeType,
 }
 
@@ -26,8 +27,8 @@ pub struct Collision {
 }
 
 fn check_rectangle_and_circle(
-    (a_width, a_height, a_position, a_origin): (&f32, &f32, &Vector3, &Vector3),
-    (b_radius, b_position, b_origin): (&f32, &Vector3, &Vector3),
+    (a_width, a_height, a_position, a_origin): (&f32, &f32, &Vec3, &Vec3),
+    (b_radius, b_position, b_origin): (&f32, &Vec3, &Vec3),
 ) -> bool {
     let left = a_width * a_origin.x;
     let right = a_width - left;
@@ -64,19 +65,19 @@ pub fn collision_system(
                     ShapeType::Circle { radius: b_radius },
                 ) => {
                     let diameter = *a_radius * 2.0 * a_transform.scale;
-                    let a_delta = Vector3::new(
+                    let a_delta = Vec3::new(
                         diameter * -(-0.5 + a_shape.origin.x),
                         diameter * -(-0.5 + a_shape.origin.y),
                         0.0,
                     );
                     let diameter = *b_radius * 2.0 * b_transform.scale;
-                    let b_delta = Vector3::new(
+                    let b_delta = Vec3::new(
                         diameter * -(-0.5 + b_shape.origin.x),
                         diameter * -(-0.5 + b_shape.origin.y),
                         0.0,
                     );
                     let distance = (a_transform.position + a_delta)
-                        .distance(&(b_transform.position + b_delta))
+                        .distance(b_transform.position + b_delta)
                         .abs();
 
                     let radius_lenghts =
@@ -131,7 +132,7 @@ pub fn collision_system(
                         height: b_height,
                     },
                 ) => {
-                    let point_in_shape = |point: Vector3| {
+                    let point_in_shape = |point: Vec3| {
                         let left = a_width * a_shape.origin.x * a_transform.scale;
                         let right = a_width * a_transform.scale - left;
                         let bottom = a_height * a_shape.origin.y * a_transform.scale;
@@ -151,19 +152,19 @@ pub fn collision_system(
                     let bottom = b_height * b_shape.origin.y * b_transform.scale;
                     let top = b_height * b_transform.scale - bottom;
 
-                    point_in_shape(Vector3::new(
+                    point_in_shape(Vec3::new(
                         b_transform.position.x - left,
                         b_transform.position.y - bottom,
                         0.0,
-                    )) || point_in_shape(Vector3::new(
+                    )) || point_in_shape(Vec3::new(
                         b_transform.position.x - left,
                         b_transform.position.y + top,
                         0.0,
-                    )) || point_in_shape(Vector3::new(
+                    )) || point_in_shape(Vec3::new(
                         b_transform.position.x + right,
                         b_transform.position.y - bottom,
                         0.0,
-                    )) || point_in_shape(Vector3::new(
+                    )) || point_in_shape(Vec3::new(
                         b_transform.position.x + right,
                         b_transform.position.y + top,
                         0.0,

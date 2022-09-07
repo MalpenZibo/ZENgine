@@ -8,7 +8,7 @@ pub struct Color {
 
 impl Default for Color {
     fn default() -> Self {
-        Color::white()
+        Color::WHITE
     }
 }
 
@@ -22,23 +22,42 @@ impl Color {
         }
     }
 
-    pub fn white() -> Color {
-        Color::new(255, 255, 255, 255)
+    pub fn to_array(&self) -> [f32; 4] {
+        [self.r, self.g, self.b, self.a]
     }
 
-    pub fn black() -> Color {
-        Color::new(0, 0, 0, 255)
-    }
+    pub const WHITE: Self = Color {
+        r: 1.,
+        g: 1.,
+        b: 1.,
+        a: 1.,
+    };
 
-    pub fn red() -> Color {
-        Color::new(255, 0, 0, 255)
-    }
+    pub const BLACK: Self = Color {
+        r: 0.,
+        g: 0.,
+        b: 0.,
+        a: 1.,
+    };
 
-    pub fn green() -> Color {
-        Color::new(0, 255, 0, 255)
-    }
+    pub const RED: Self = Color {
+        r: 1.,
+        g: 0.,
+        b: 0.,
+        a: 1.,
+    };
 
-    pub fn blue() -> Color {
-        Color::new(0, 0, 255, 255)
-    }
+    pub const GREEN: Self = Color {
+        r: 0.,
+        g: 1.,
+        b: 0.,
+        a: 1.,
+    };
+
+    pub const BLUE: Self = Color {
+        r: 0.,
+        g: 0.,
+        b: 1.,
+        a: 1.,
+    };
 }

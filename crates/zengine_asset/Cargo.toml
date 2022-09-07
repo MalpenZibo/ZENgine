@@ -5,3 +5,10 @@ edition = "2021"
 
 [dependencies]
 image = "0.23.10"
+cfg-if = "1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = { version = "0.2" }
+web-sys = { version = "0.3", features = ["Request", "Window", "Response"] }
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"

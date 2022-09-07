@@ -9,7 +9,16 @@ zengine_engine = { path = "../zengine_engine" }
 zengine_input = { path = "../zengine_input" }
 zengine_macro = { path = "../zengine_macro" }
 serde = { version = "1.0", features = ["derive"] }
-glutin = "0.29.1"
+cfg-if = "1"
 log = "0.4"
 rustc-hash = "1.1.0"
 gilrs = "0.9.0"
+winit = "0.27.2"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+web-sys = { version = "0.3", features = [
+    "Document",
+    "Window",
+    "Element",
+]}

@@ -1,19 +1,21 @@
 use serde::Deserialize;
 use zengine::{
+    core::{timing_system, Time, Transform},
     ecs::{
         system::{
             Commands, EventPublisher, EventStream, Local, OptionalRes, Query, QueryIter,
-            QueryIterMut, Res, ResMut,
+            QueryIterMut, Res, UnsendableResMut,
         },
         Entity,
     },
-    graphic::{ActiveCamera, Camera, CameraMode, Color, SpriteDescriptor, TextureManager},
+    graphic::{
+        ActiveCamera, Background, Camera, CameraMode, Color, RenderModule, Sprite,
+        SpriteDescriptor, TextureManager,
+    },
     input::{input_system, Bindings, InputHandler},
-    log::LevelFilter,
-    math::{Transform, Vector2, Vector3},
+    log::Level,
+    math::{Vec2, Vec3},
     physics::{collision_system, Collision, Shape2D, ShapeType},
-    render::{render_system, setup_render, Background, CollisionTrace, Sprite},
-    time::{timing_system, Time},
     window::{WindowModule, WindowSpecs},
     Component, Engine, InputType, Resource, SpriteType, StageLabel,
 };
@@ -66,7 +68,7 @@ pub struct Pad {
 
 #[derive(Debug, Component, Default, Clone)]
 pub struct Ball {
-    vel: Vector2,
+    vel: Vec2,
 }
 
 #[derive(Debug, Default, Resource)]
@@ -80,7 +82,7 @@ pub enum GameEvent {
 }
 
 fn main() {
-    Engine::init_logger(LevelFilter::Info);
+    Engine::init_logger(Level::Info);
 
     let content = "
         axis_mappings:
@@ -95,7 +97,7 @@ fn main() {
               scale: -1.0
             - source:
                 ControllerStick:
-                    device_id: 1
+                    device_id: 0
                     which: Left
                     axis: X
               scale: 1.0
@@ -111,7 +113,7 @@ fn main() {
             fullscreen: false,
             vsync: false,
         }))
-        .add_startup_system(setup_render::<Sprites>(CollisionTrace::Inactive))
+        .add_module(RenderModule::<Sprites>::default())
         .add_startup_system(setup)
         .add_system(input_system(bindings))
         .add_system(collision_system)
@@ -120,12 +122,11 @@ fn main() {
         .add_system(pad_movement)
         .add_system(ball_movement)
         .add_system(collision_response)
-        .add_system_into_stage(render_system::<Sprites>, StageLabel::Render)
         .add_system_into_stage(timing_system(None), StageLabel::PostRender)
         .run();
 }
 
-fn setup(mut commands: Commands, mut textures: ResMut<TextureManager<Sprites>>) {
+fn setup(mut commands: Commands, mut textures: UnsendableResMut<TextureManager<Sprites>>) {
     textures
         .create("bg.png")
         .with_sprite(
@@ -138,6 +139,7 @@ fn setup(mut commands: Commands, mut textures: ResMut<TextureManager<Sprites>>) 
             },
         )
         .load();
+
     textures
         .create("pad.png")
         .with_sprite(
@@ -150,6 +152,7 @@ fn setup(mut commands: Commands, mut textures: ResMut<TextureManager<Sprites>>) 
             },
         )
         .load();
+
     textures
         .create("ball.png")
         .with_sprite(
@@ -168,7 +171,7 @@ fn setup(mut commands: Commands, mut textures: ResMut<TextureManager<Sprites>>) 
     });
 
     commands.create_resource(Background {
-        color: Color::black(),
+        color: Color::BLACK,
     });
 
     let pad = Pad {
@@ -180,13 +183,11 @@ fn setup(mut commands: Commands, mut textures: ResMut<TextureManager<Sprites>>) 
 
     let camera = commands.spawn((
         Camera {
-            width: WIDTH as u32,
-            height: HEIGHT as u32,
-            mode: CameraMode::Mode2D,
+            mode: CameraMode::Mode2D((WIDTH, HEIGHT)),
         },
         Transform::new(
-            Vector3::new(WIDTH / 2.0, HEIGHT / 2.0, 50.0),
-            Vector3::new(0.0, 0.0, 0.0),
+            Vec3::new(WIDTH / 2.0, HEIGHT / 2.0, -50.0),
+            Vec3::new(0.0, 0.0, 0.0),
             1.0,
         ),
     ));
@@ -197,25 +198,17 @@ fn setup(mut commands: Commands, mut textures: ResMut<TextureManager<Sprites>>) 
         Sprite::<Sprites> {
             width: WIDTH,
             height: HEIGHT,
-            origin: Vector3::new(0.0, 0.0, 0.0),
-            color: Color::white(),
+            origin: Vec3::new(0.0, 0.0, 0.0),
+            color: Color::WHITE,
             sprite_type: Sprites::Background,
         },
-        Transform::new(
-            Vector3::new(0.0, 0.0, 0.0),
-            Vector3::new(0.0, 0.0, 0.0),
-            1.0,
-        ),
+        Transform::new(Vec3::new(0.0, 0.0, 2.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
     ));
 
     let sx = commands.spawn((
-        Transform::new(
-            Vector3::new(0.0, 0.0, 0.0),
-            Vector3::new(0.0, 0.0, 0.0),
-            1.0,
-        ),
+        Transform::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
         Shape2D {
-            origin: Vector3::new(1.0, 0.0, 0.0),
+            origin: Vec3::new(1.0, 0.0, 0.0),
             shape_type: ShapeType::Rectangle {
                 width: 300.0,
                 height: HEIGHT,
@@ -223,13 +216,9 @@ fn setup(mut commands: Commands, mut textures: ResMut<TextureManager<Sprites>>) 
         },
     ));
     let dx = commands.spawn((
-        Transform::new(
-            Vector3::new(WIDTH, 0.0, 0.0),
-            Vector3::new(0.0, 0.0, 0.0),
-            1.0,
-        ),
+        Transform::new(Vec3::new(WIDTH, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
         Shape2D {
-            origin: Vector3::new(0.0, 0.0, 0.0),
+            origin: Vec3::new(0.0, 0.0, 0.0),
             shape_type: ShapeType::Rectangle {
                 width: 300.0,
                 height: HEIGHT,
@@ -238,13 +227,9 @@ fn setup(mut commands: Commands, mut textures: ResMut<TextureManager<Sprites>>) 
     ));
 
     let top = commands.spawn((
-        Transform::new(
-            Vector3::new(0.0, HEIGHT, 0.0),
-            Vector3::new(0.0, 0.0, 0.0),
-            1.0,
-        ),
+        Transform::new(Vec3::new(0.0, HEIGHT, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
         Shape2D {
-            origin: Vector3::new(0.0, 0.0, 0.0),
+            origin: Vec3::new(0.0, 0.0, 0.0),
             shape_type: ShapeType::Rectangle {
                 width: WIDTH,
                 height: 300.0,
@@ -253,13 +238,9 @@ fn setup(mut commands: Commands, mut textures: ResMut<TextureManager<Sprites>>) 
     ));
 
     let bottom = commands.spawn((
-        Transform::new(
-            Vector3::new(0.0, 0.0, 0.0),
-            Vector3::new(0.0, 0.0, 0.0),
-            1.0,
-        ),
+        Transform::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
         Shape2D {
-            origin: Vector3::new(0.0, 1.0, 0.0),
+            origin: Vec3::new(0.0, 1.0, 0.0),
             shape_type: ShapeType::Rectangle {
                 width: WIDTH,
                 height: 300.0,
@@ -278,17 +259,17 @@ fn setup(mut commands: Commands, mut textures: ResMut<TextureManager<Sprites>>) 
         Sprite::<Sprites> {
             width: PAD_HALF_WIDTH * 2.0,
             height: PAD_HALF_HEIGHT * 2.0,
-            origin: Vector3::new(0.5, 0.5, 0.0),
-            color: Color::white(),
+            origin: Vec3::new(0.5, 0.5, 0.0),
+            color: Color::WHITE,
             sprite_type: Sprites::Pad,
         },
         Transform::new(
-            Vector3::new(WIDTH / 2.0, 0.0 + 20.0 + PAD_HALF_HEIGHT, 1.0),
-            Vector3::zero(),
+            Vec3::new(WIDTH / 2.0, 0.0 + 20.0 + PAD_HALF_HEIGHT, 1.0),
+            Vec3::ZERO,
             1.0,
         ),
         Shape2D {
-            origin: Vector3::new(0.5, 0.5, 0.0),
+            origin: Vec3::new(0.5, 0.5, 0.0),
             shape_type: ShapeType::Rectangle {
                 width: PAD_HALF_WIDTH * 2.0,
                 height: PAD_HALF_HEIGHT * 2.0,
@@ -302,17 +283,17 @@ fn setup(mut commands: Commands, mut textures: ResMut<TextureManager<Sprites>>) 
         Sprite::<Sprites> {
             width: PAD_HALF_WIDTH * 2.0,
             height: PAD_HALF_HEIGHT * 2.0,
-            origin: Vector3::new(0.5, 0.5, 0.0),
-            color: Color::white(),
+            origin: Vec3::new(0.5, 0.5, 0.0),
+            color: Color::WHITE,
             sprite_type: Sprites::Pad,
         },
         Transform::new(
-            Vector3::new(WIDTH / 2.0, HEIGHT - 20.0 - PAD_HALF_HEIGHT, 1.0),
-            Vector3::zero(),
+            Vec3::new(WIDTH / 2.0, HEIGHT - 20.0 - PAD_HALF_HEIGHT, 1.0),
+            Vec3::ZERO,
             1.0,
         ),
         Shape2D {
-            origin: Vector3::new(0.5, 0.5, 0.0),
+            origin: Vec3::new(0.5, 0.5, 0.0),
             shape_type: ShapeType::Rectangle {
                 width: PAD_HALF_WIDTH * 2.0,
                 height: PAD_HALF_HEIGHT * 2.0,
@@ -326,17 +307,13 @@ fn setup(mut commands: Commands, mut textures: ResMut<TextureManager<Sprites>>) 
         Sprite::<Sprites> {
             width: BALL_RADIUS * 2.0,
             height: BALL_RADIUS * 2.0,
-            origin: Vector3::new(0.5, 0.5, 0.0),
-            color: Color::white(),
+            origin: Vec3::new(0.5, 0.5, 0.0),
+            color: Color::WHITE,
             sprite_type: Sprites::Ball,
         },
-        Transform::new(
-            Vector3::new(WIDTH / 2.0, HEIGHT / 2.0, 2.0),
-            Vector3::zero(),
-            1.0,
-        ),
+        Transform::new(Vec3::new(WIDTH / 2.0, HEIGHT / 2.0, 1.0), Vec3::ZERO, 1.0),
         Shape2D {
-            origin: Vector3::new(0.5, 0.5, 0.0),
+            origin: Vec3::new(0.5, 0.5, 0.0),
             shape_type: ShapeType::Circle {
                 radius: BALL_RADIUS,
             },
@@ -447,10 +424,10 @@ enum Side {
     Top(Entity),
 }
 
-fn initial_ball_movement() -> Vector2 {
+fn initial_ball_movement() -> Vec2 {
     let angle =
         (fastrand::i32(70..110) as f32 + if fastrand::bool() { 180.0 } else { 0.0 }).to_radians();
-    Vector2::new(BALL_VEL * angle.cos(), BALL_VEL * angle.sin())
+    Vec2::new(BALL_VEL * angle.cos(), BALL_VEL * angle.sin())
 }
 
 fn collision_response(
@@ -605,7 +582,7 @@ fn collision_response(
                             None
                         }
                     }) {
-                        ball.vel = Vector2::new(-ball.vel.x, ball.vel.y);
+                        ball.vel = Vec2::new(-ball.vel.x, ball.vel.y);
                         transform.position.x = if border_entity == field_border.sx {
                             0.0 + BALL_RADIUS
                         } else {
@@ -658,7 +635,7 @@ fn collision_response(
                                 }
                             })
                         {
-                            ball.vel = Vector2::new(
+                            ball.vel = Vec2::new(
                                 ball.vel.x
                                     + (if ball_transform.position.x < pad_transform.position.x {
                                         -1.0

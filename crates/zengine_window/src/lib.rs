@@ -1,21 +1,17 @@
-use std::ops::Deref;
-
 use gilrs::Gilrs;
-use glutin::{
+use log::info;
+use winit::{
     dpi::LogicalSize,
     event::{ElementState, Event, MouseScrollDelta, WindowEvent},
     event_loop::{ControlFlow, EventLoopWindowTarget},
     window::{Fullscreen, WindowBuilder},
-    Api, GlProfile, GlRequest,
 };
-use glutin::{ContextBuilder, ContextWrapper, PossiblyCurrent};
-use zengine_ecs::UnsendableResource;
 use zengine_engine::{Engine, Module};
 use zengine_input::{
     device::{ControllerButton, Which},
     Axis, Input, InputEvent,
 };
-use zengine_macro::Resource;
+use zengine_macro::{Resource, UnsendableResource};
 
 #[derive(Resource, Debug, Clone)]
 pub struct WindowSpecs {
@@ -38,56 +34,64 @@ impl Default for WindowSpecs {
     }
 }
 
-#[derive(Debug)]
-pub struct Window(ContextWrapper<PossiblyCurrent, glutin::window::Window>);
-
-impl UnsendableResource for Window {}
-
-impl Deref for Window {
-    type Target = ContextWrapper<PossiblyCurrent, glutin::window::Window>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+#[derive(UnsendableResource, Debug)]
+pub struct Window {
+    pub internal: winit::window::Window,
+    pub width: u32,
+    pub height: u32,
 }
 
-#[derive(Debug)]
-struct EventLoop(glutin::event_loop::EventLoop<()>);
+#[derive(UnsendableResource, Debug)]
+struct EventLoop(winit::event_loop::EventLoop<()>);
 
-impl UnsendableResource for EventLoop {}
-
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct WindowModule(pub WindowSpecs);
 impl Module for WindowModule {
     fn init(self, engine: &mut Engine) {
-        let event_loop = glutin::event_loop::EventLoop::new();
-        let mut window = WindowBuilder::new()
+        let event_loop = winit::event_loop::EventLoop::new();
+        let mut window_builder = WindowBuilder::new()
             .with_title(self.0.title.clone())
-            .with_inner_size(LogicalSize::new(self.0.width, self.0.height));
+            .with_inner_size(LogicalSize::new(self.0.width, self.0.height))
+            .with_resizable(false);
 
         if self.0.fullscreen {
-            window =
-                window.with_fullscreen(Some(Fullscreen::Borderless(event_loop.primary_monitor())));
+            window_builder = window_builder
+                .with_decorations(false)
+                .with_fullscreen(Some(Fullscreen::Borderless(None)));
         }
 
-        let mut gl_window = ContextBuilder::new()
-            .with_double_buffer(Some(true))
-            .with_gl_profile(GlProfile::Core)
-            .with_vsync(self.0.vsync);
+        let window = window_builder.build(&event_loop).unwrap();
+        let window_size = if self.0.fullscreen {
+            let size = window.current_monitor().unwrap().size();
 
-        if cfg!(target_os = "macos") {
-            gl_window = gl_window.with_gl(GlRequest::Specific(Api::OpenGl, (4, 1)));
+            (size.width, size.height)
         } else {
-            gl_window = gl_window.with_gl(GlRequest::Specific(Api::OpenGl, (4, 6)));
+            window.inner_size().into()
+        };
+        info!("size: {:?}", window_size);
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            // Winit prevents sizing with CSS, so we have to set
+            // the size manually when on web.
+            use winit::platform::web::WindowExtWebSys;
+            web_sys::window()
+                .and_then(|win| win.document())
+                .and_then(|doc| {
+                    let dst = doc.get_element_by_id("zengine-root")?;
+                    let canvas = web_sys::Element::from(window.canvas());
+                    dst.append_child(&canvas).ok()?;
+                    Some(())
+                })
+                .expect("Couldn't append canvas to document body.");
         }
-
-        let gl_window = gl_window.build_windowed(window, &event_loop).unwrap();
-        let size = gl_window.window().inner_size();
-        println!("size: {:?}", size);
-
-        let gl_window = unsafe { gl_window.make_current() }.unwrap();
 
         engine.world.create_resource(self.0);
-        engine.world.create_unsendable_resource(Window(gl_window));
+        engine.world.create_unsendable_resource(Window {
+            internal: window,
+            width: window_size.0,
+            height: window_size.1,
+        });
         engine
             .world
             .create_unsendable_resource(EventLoop(event_loop));

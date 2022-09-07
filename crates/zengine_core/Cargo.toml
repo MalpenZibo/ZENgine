@@ -1,5 +1,5 @@
 [package]
-name = "zengine_time"
+name = "zengine_core"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,3 +7,5 @@ edition = "2021"
 zengine_ecs = { path = "../zengine_ecs" }
 zengine_macro = { path = "../zengine_macro" }
 log = "0.4"
+instant = "0.1.12"
+glam = "0.21.3"
