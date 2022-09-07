@@ -1,22 +1,35 @@
-<img align="left" width="64px" src="docs/images/logo.svg" />
+<img align="left" width="64px" src="assets/branding/logo.svg" />
 
-# ZENgine &emsp; ![Build](https://github.com/MalpenZibo/ZENgine/workflows/Build/badge.svg) ![Test](https://github.com/MalpenZibo/ZENgine/workflows/Test/badge.svg) ![Clippy](https://github.com/MalpenZibo/ZENgine/workflows/Clippy/badge.svg) ![Format](https://github.com/MalpenZibo/ZENgine/workflows/Format/badge.svg)
+# ZENgine &emsp; ![CI](https://github.com/MalpenZibo/ZENgine/workflows/CI/badge.svg)
 
 ## What is ZENgine?
 
-ZENgine is a WIP 2D game engine with some fundamental features. It's based on an ECS architecture and developed using a data-driven and data-oriented design.
+ZENgine is a very simple 2D data-driven game engine for didactic purposes written in Rust using an an ECS architecture.
 
-The engine uses the OpenGL API and the SDL2 Library. It can run both on Windows and macOS.
+## Inspiration
+ZENgine is heavily inspired by:
+* [Bevy](https://github.com/bevyengine/bevy) A refreshingly simple data-driven game engine built in Rust 
+* [Amethyst](https://github.com/amethyst/amethyst) Data-oriented and data-driven game engine written in Rust 
+* [kudo](https://github.com/kettle11/kudo) An Entity Component System for Rust.
 
-## Motivation
-I have always been a game engine enthusiast but sadly is not my primary focus in my working life. 
-I created some experimental game engines for android, one using Java and the other using C++, and some engines for the web using the Canvas API and later the WebGL API.
+## Didactic purpose
+I started this project mainly to improve my knowledge in Rust, which is a programming language that I love, and in game engine architecture which is a subject that has always fascinated me.
 
-In the last year, I discovered RUST, and now it's my favorite language (sadly, in my everyday work, it's not used 😥). So to learn RUST, I decided, as a personal project, that writes a game engine from scratch could be a great idea (spoiler, it's not).
+I created a small series of videos (only in Italian 😏) that cover the first iteration of the engine before the massive refactor of all engine.
+In the future, I plan to create a series of posts about the engine and how it works.
 
-At the same time to improve my communication skill, I created a youtube series where I try to explain the whole developing process.
+## Get Started
+There's a very crude implementation of `pong` in the example folder that "should" run on Windows, Mac, Linux, and every modern browser.
 
-## Youtube Series
-The making of ZENgine is shown through a series of youtube videos (sorry, only in Italian 😏)
+Simply run `cargo run` in the  `pong` folder or `trunk serve` to run the web version (could be necessary to click on the browser page to make the input system work).
 
-https://www.youtube.com/playlist?list=PL-88NuvRRCqAPrkxlIH3bFdNiKTYhZbuj
+To launch the web version is mandatory to setup correctly the environment.
+Install the wasm32-unknown-unknown target with:
+```bash
+rustup target add wasm32-unknown-unknown
+```
+
+Then install `wasm-bindgen-cli` and [Trunk](https://trunkrs.dev/) with:
+```bash
+cargo install trunk wasm-bindgen-cli
+```
