@@ -30,36 +30,35 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: Window
+          - name: Windows
             os: windows-latest
             target: x86_64-pc-windows-msvc
-            profile: default
           - name: MacOS
             os: macos-latest
             target: aarch64-apple-darwin
-            profile: minimal
           - name: Linux
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            profile: minimal
           - name: Web
             os: windows-latest
             target: wasm32-unknown-unknown
-            profile: minimal
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           target: ${{ matrix.target }}
-          profile: ${{ matrix.profile }}
+          profile: minimal
           toolchain: stable
           override: true
+      - name: install clippy
+        if: matrix.name == 'Windows'
+        run: rustup component add clippy
       - uses: actions-rs/cargo@v1
-        if: matrix.name == 'Window'
+        if: matrix.name == 'Windows'
         with:
           command: clippy
           args: -- -D warnings
-      - name: install llvmpipe, lavapipe, and vulkan sdk
+      - name: install dependencies
         if: matrix.name == 'Linux'
         run: |
           sudo apt-get update -y -qq
