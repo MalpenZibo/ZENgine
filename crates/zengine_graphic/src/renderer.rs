@@ -46,17 +46,17 @@ impl Deref for Device {
 }
 
 #[derive(Debug)]
-pub struct RenderContext1 {
+pub struct RenderContext {
     pub surface_texture: wgpu::SurfaceTexture,
     pub texture_view: wgpu::TextureView,
     pub command_encoder: wgpu::CommandEncoder,
 }
 
 #[derive(Resource, Default, Debug)]
-pub struct RenderContextInstance(Option<RenderContext1>);
+pub struct RenderContextInstance(Option<RenderContext>);
 
 impl Deref for RenderContextInstance {
-    type Target = Option<RenderContext1>;
+    type Target = Option<RenderContext>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -166,7 +166,7 @@ pub fn clear(
             label: Some("Render Encoder"),
         });
 
-        render_context.replace(RenderContext1 {
+        render_context.replace(RenderContext {
             texture_view,
             surface_texture,
             command_encoder,

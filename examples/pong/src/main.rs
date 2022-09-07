@@ -171,7 +171,7 @@ fn setup(mut commands: Commands, mut textures: UnsendableResMut<TextureManager<S
     });
 
     commands.create_resource(Background {
-        color: Color::black(),
+        color: Color::BLACK,
     });
 
     let pad = Pad {
@@ -199,7 +199,7 @@ fn setup(mut commands: Commands, mut textures: UnsendableResMut<TextureManager<S
             width: WIDTH,
             height: HEIGHT,
             origin: Vec3::new(0.0, 0.0, 0.0),
-            color: Color::white(),
+            color: Color::WHITE,
             sprite_type: Sprites::Background,
         },
         Transform::new(Vec3::new(0.0, 0.0, 2.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
@@ -260,7 +260,7 @@ fn setup(mut commands: Commands, mut textures: UnsendableResMut<TextureManager<S
             width: PAD_HALF_WIDTH * 2.0,
             height: PAD_HALF_HEIGHT * 2.0,
             origin: Vec3::new(0.5, 0.5, 0.0),
-            color: Color::white(),
+            color: Color::WHITE,
             sprite_type: Sprites::Pad,
         },
         Transform::new(
@@ -284,7 +284,7 @@ fn setup(mut commands: Commands, mut textures: UnsendableResMut<TextureManager<S
             width: PAD_HALF_WIDTH * 2.0,
             height: PAD_HALF_HEIGHT * 2.0,
             origin: Vec3::new(0.5, 0.5, 0.0),
-            color: Color::white(),
+            color: Color::WHITE,
             sprite_type: Sprites::Pad,
         },
         Transform::new(
@@ -308,7 +308,7 @@ fn setup(mut commands: Commands, mut textures: UnsendableResMut<TextureManager<S
             width: BALL_RADIUS * 2.0,
             height: BALL_RADIUS * 2.0,
             origin: Vec3::new(0.5, 0.5, 0.0),
-            color: Color::white(),
+            color: Color::WHITE,
             sprite_type: Sprites::Ball,
         },
         Transform::new(Vec3::new(WIDTH / 2.0, HEIGHT / 2.0, 1.0), Vec3::ZERO, 1.0),
