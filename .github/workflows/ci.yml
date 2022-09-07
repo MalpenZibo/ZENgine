@@ -12,13 +12,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        name: Checkout
       - uses: actions-rs/toolchain@v1
+        name: Setup toolchain
         with:
           profile: minimal
           toolchain: stable
           override: true
       - run: rustup component add rustfmt
+        name: Install rustfmt
       - uses: actions-rs/cargo@v1
+        name: Check format
         with:
           command: fmt
           args: --all -- --check
@@ -44,21 +48,24 @@ jobs:
             target: wasm32-unknown-unknown
     steps:
       - uses: actions/checkout@v2
+        name: Checkout
       - uses: actions-rs/toolchain@v1
+        name: Setup toolchain
         with:
           target: ${{ matrix.target }}
           profile: minimal
           toolchain: stable
           override: true
-      - name: install clippy
+      - name: Install clippy
         if: matrix.name == 'Windows'
         run: rustup component add clippy
       - uses: actions-rs/cargo@v1
+        name: Clippy
         if: matrix.name == 'Windows'
         with:
           command: clippy
           args: -- -D warnings
-      - name: install dependencies
+      - name: Install dependencies
         if: matrix.name == 'Linux'
         run: |
           sudo apt-get update -y -qq
@@ -71,8 +78,10 @@ jobs:
           sudo apt-get update
           sudo apt install -y libudev-dev libegl1-mesa libgl1-mesa-dri libxcb-xfixes0-dev mesa-vulkan-drivers vulkan-sdk
       - uses: actions-rs/cargo@v1
+        name: Check
         with:
           command: check
       - uses: actions-rs/cargo@v1
+        name: Test
         with:
           command: test
