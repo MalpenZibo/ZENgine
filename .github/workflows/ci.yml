@@ -8,35 +8,57 @@ on:
 
 jobs:
   check:
-    name: Check
-    runs-on: ubuntu-latest
+    name: Check ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - name: Window
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - name: MacOS
+            os: macos-latest
+            target: aarch64-apple-darwin
+          - name: Linux
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - name: Web
+            os: ubuntu-latest
+            target: wasm32-unknown-unknown
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
+          target: ${{ matrix.target }}
           profile: minimal
           toolchain: stable
           override: true
+      - name: install llvmpipe, lavapipe, and vulkan sdk
+        if: matrix.name == 'Linux'
+        run: |
+          sudo apt-get update -y -qq
+
+          # llvmpipe/lavapipe
+          sudo add-apt-repository ppa:oibaf/graphics-drivers -y
+          # vulkan sdk
+          wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-focal.list https://packages.lunarg.com/vulkan/lunarg-vulkan-focal.list
+          sudo apt-get update
+          sudo apt install -y libegl1-mesa libgl1-mesa-dri libxcb-xfixes0-dev mesa-vulkan-drivers vulkan-sdk
       - uses: actions-rs/cargo@v1
         with:
           command: check
-
-  test:
-    name: Test Suite
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - run: rustup component add clippy
+      - uses: actions-rs/cargo@v1
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
+          command: clippy
+          args: -- -D warnings
       - uses: actions-rs/cargo@v1
         with:
           command: test
 
   fmt:
-    name: Rustfmt
+    name: Format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -50,19 +72,3 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
-
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - run: rustup component add clippy
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
