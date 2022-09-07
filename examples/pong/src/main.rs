@@ -97,7 +97,7 @@ fn main() {
               scale: -1.0
             - source:
                 ControllerStick:
-                    device_id: 1
+                    device_id: 0
                     which: Left
                     axis: X
               scale: 1.0
