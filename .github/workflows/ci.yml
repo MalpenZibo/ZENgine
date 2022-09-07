@@ -23,7 +23,7 @@ jobs:
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
           - name: Web
-            os: ubuntu-latest
+            os: windows-latest
             target: wasm32-unknown-unknown
     steps:
       - uses: actions/checkout@v2
