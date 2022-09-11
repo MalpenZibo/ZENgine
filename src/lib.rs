@@ -28,5 +28,9 @@ pub mod window {
     pub use zengine_window::*;
 }
 
+pub mod audio {
+    pub use zengine_audio::*;
+}
+
 extern crate zengine_macro;
 pub use zengine_macro::*;
