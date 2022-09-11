@@ -17,14 +17,16 @@ pub struct Audio {
     data: Option<Vec<u8>>,
 }
 
+pub type AudioSinkId = usize;
+
 #[derive(UnsendableResource)]
 pub struct AudioManager<AT: AudioType> {
-    sink_id: usize,
+    sink_id: AudioSinkId,
     audio_asset: FxHashMap<AT, Audio>,
     queue: VecDeque<(usize, AT)>,
     _stream: OutputStream,
     stream_handle: OutputStreamHandle,
-    sink: FxHashMap<usize, Sink>,
+    sink: FxHashMap<AudioSinkId, Sink>,
 }
 
 impl<AT: AudioType> Debug for AudioManager<AT> {
@@ -63,7 +65,7 @@ impl<AT: AudioType> AudioManager<AT> {
         );
     }
 
-    pub fn play(&mut self, audio_type: AT) -> usize {
+    pub fn play(&mut self, audio_type: AT) -> AudioSinkId {
         let id = self.sink_id;
         self.sink_id += 1;
         self.queue.push_back((id, audio_type));
@@ -100,6 +102,10 @@ impl<AT: AudioType> AudioManager<AT> {
             }
             i += 1;
         }
+    }
+
+    pub fn get_audio_sink(&self, audio_sink_id: AudioSinkId) -> Option<&Sink> {
+        self.sink.get(&audio_sink_id)
     }
 }
 
