@@ -1,12 +1,14 @@
-use crossbeam_channel::{Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender, TryRecvError};
+use downcast_rs::{impl_downcast, Downcast};
 use rustc_hash::FxHashMap;
 use std::hash::{Hash, Hasher};
-use std::marker::PhantomData;
 use std::sync::{Arc, RwLock};
 use std::{any::TypeId, path::Path};
+use zengine_ecs::system::{Res, ResMut};
 use zengine_macro::Resource;
 
-use crate::handle::HandleId;
+use crate::assets::Assets;
+use crate::handle::{HandleEvent, HandleEventChannel, HandleId};
 use crate::io_task;
 use crate::{
     assets::{Asset, AssetPath},
@@ -45,11 +47,19 @@ pub struct AssetChannel<T> {
     pub receiver: Receiver<AssetEvent<T>>,
 }
 
-trait AnyAssetChannel: Sync + Send + std::fmt::Debug + 'static {
+impl<T> Default for AssetChannel<T> {
+    fn default() -> Self {
+        let (sender, receiver) = crossbeam_channel::unbounded();
+        Self { sender, receiver }
+    }
+}
+
+trait AnyAssetChannel: Downcast + Sync + Send + std::fmt::Debug + 'static {
     fn create(&self, id: HandleId, asset: Box<dyn Asset>);
 
     fn destroy(&self, id: HandleId);
 }
+impl_downcast!(AnyAssetChannel);
 
 impl<T: Asset> AnyAssetChannel for AssetChannel<T> {
     fn create(&self, id: HandleId, asset: Box<dyn Asset>) {
@@ -71,6 +81,8 @@ pub struct AssetManager {
     loaders: Vec<Arc<dyn Loader>>,
     extension_to_loader: FxHashMap<String, usize>,
     asset_channels: Arc<RwLock<FxHashMap<TypeId, Box<dyn AnyAssetChannel>>>>,
+    asset_handle_event_channel: HandleEventChannel,
+    asset_handle_ref_count: FxHashMap<HandleId, usize>,
 }
 
 impl AssetManager {
@@ -79,8 +91,9 @@ impl AssetManager {
         let mut hasher = ahash::AHasher::default();
         asset_path.path.hash(&mut hasher);
         let id: u64 = hasher.finish();
-
         let type_id = TypeId::of::<T>();
+
+        let handle_id: HandleId = (type_id, id);
 
         let loader = self
             .find_loader(&asset_path.extension)
@@ -107,14 +120,20 @@ impl AssetManager {
             let asset_channels = asset_channels.read().unwrap();
             let asset_channel = asset_channels.get(&type_id).unwrap();
 
-            asset_channel.create(id, context.asset.unwrap());
+            asset_channel.create(handle_id, context.asset.unwrap());
         });
 
-        Handle {
-            id,
-            type_id,
-            _phantom: PhantomData::default(),
-        }
+        Handle::strong(handle_id, self.asset_handle_event_channel.sender.clone())
+    }
+
+    pub fn register_asset_type<T: Asset>(&self) -> Assets<T> {
+        let type_id = TypeId::of::<T>();
+        self.asset_channels
+            .write()
+            .unwrap()
+            .insert(type_id, Box::new(AssetChannel::<T>::default()));
+
+        Assets::new(self.asset_handle_event_channel.sender.clone())
     }
 
     pub fn register_loader<T: Loader>(&mut self, loader: T) {
@@ -129,5 +148,57 @@ impl AssetManager {
         self.extension_to_loader
             .get(extension)
             .and_then(|index| self.loaders.get(*index).cloned())
+    }
+}
+
+pub fn update_asset_storage<T: Asset>(
+    asset_manager: Res<AssetManager>,
+    mut assets: ResMut<Assets<T>>,
+) {
+    let type_id = TypeId::of::<T>();
+    let asset_channels = asset_manager.asset_channels.read().unwrap();
+    let asset_channel = asset_channels.get(&type_id).unwrap();
+    let asset_channel = asset_channel.downcast_ref::<AssetChannel<T>>().unwrap();
+
+    loop {
+        match asset_channel.receiver.try_recv() {
+            Ok(AssetEvent::Create(AssetCreateEvent { id, asset })) => {
+                assets.set(&id, asset);
+            }
+            Ok(AssetEvent::Destroy(id)) => {
+                assets.remove(&id);
+            }
+            Err(TryRecvError::Empty) => break,
+            Err(TryRecvError::Disconnected) => panic!("Asset channel disconnected"),
+        }
+    }
+}
+
+pub fn update_ref_count(mut asset_manager: ResMut<AssetManager>) {
+    loop {
+        match asset_manager.asset_handle_event_channel.receiver.try_recv() {
+            Ok(HandleEvent::Increment(id)) => {
+                *asset_manager.asset_handle_ref_count.entry(id).or_insert(0) += 1;
+            }
+            Ok(HandleEvent::Decrement(id)) => {
+                *asset_manager.asset_handle_ref_count.entry(id).or_insert(0) -= 1;
+            }
+            Err(TryRecvError::Empty) => break,
+            Err(TryRecvError::Disconnected) => panic!("AssetHandle channel disconnected"),
+        }
+    }
+}
+
+pub fn destroy_unused_assets(mut asset_manager: ResMut<AssetManager>) {
+    for k in asset_manager
+        .asset_handle_ref_count
+        .iter()
+        .filter_map(|(k, v)| if *v == 0 { Some(*k) } else { None })
+        .collect::<Vec<HandleId>>()
+    {
+        asset_manager.asset_handle_ref_count.remove(&k);
+        let asset_channels = asset_manager.asset_channels.read().unwrap();
+        let asset_channel = asset_channels.get(&k.0).unwrap();
+        asset_channel.destroy(k);
     }
 }
