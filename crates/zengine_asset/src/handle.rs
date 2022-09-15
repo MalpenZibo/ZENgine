@@ -1,18 +1,43 @@
-use std::{any::TypeId, marker::PhantomData};
+use std::{
+    any::TypeId,
+    hash::{Hash, Hasher},
+    marker::PhantomData,
+};
 
 use crossbeam_channel::{Receiver, Sender};
 
-use crate::assets::{Asset, Assets};
+use crate::{
+    assets::{Asset, Assets},
+    AssetPath,
+};
 
-pub type HandleId = (TypeId, u64);
+#[derive(Debug, Eq, Hash, PartialEq, Clone, Copy)]
+pub struct HandleId(TypeId, u64);
 
-pub(crate) enum HandleEvent {
+impl HandleId {
+    pub fn new<T: Asset>(asset_path: &AssetPath) -> Self {
+        let type_id = TypeId::of::<T>();
+
+        let mut hasher = ahash::AHasher::default();
+        asset_path.path.hash(&mut hasher);
+        let id: u64 = hasher.finish();
+
+        Self(type_id, id)
+    }
+
+    pub fn get_type(&self) -> TypeId {
+        self.0
+    }
+}
+
+#[derive(PartialEq, Debug)]
+pub(crate) enum HandleRef {
     Increment(HandleId),
     Decrement(HandleId),
 }
 
 pub(crate) enum HandleType {
-    Strong(Sender<HandleEvent>),
+    Strong(Sender<HandleRef>),
     Weak,
 }
 
@@ -25,7 +50,7 @@ pub struct Handle<T> {
 impl<T> Drop for Handle<T> {
     fn drop(&mut self) {
         if let HandleType::Strong(sender) = &self.handle_type {
-            sender.send(HandleEvent::Decrement(self.id)).unwrap();
+            sender.send(HandleRef::Decrement(self.id)).unwrap();
         }
     }
 }
@@ -40,13 +65,11 @@ impl<T: Asset> Clone for Handle<T> {
 }
 
 impl<T: Asset> Handle<T> {
-    pub(crate) fn strong(id: HandleId, handle_event_sender: Sender<HandleEvent>) -> Self {
-        handle_event_sender
-            .send(HandleEvent::Increment(id))
-            .unwrap();
+    pub(crate) fn strong(id: HandleId, handle_ref_sender: Sender<HandleRef>) -> Self {
+        handle_ref_sender.send(HandleRef::Increment(id)).unwrap();
         Self {
             id,
-            handle_type: HandleType::Strong(handle_event_sender),
+            handle_type: HandleType::Strong(handle_ref_sender),
             _phantom: PhantomData::default(),
         }
     }
@@ -74,21 +97,203 @@ impl<T: Asset> Handle<T> {
     pub fn make_strong(&mut self, assets: &Assets<T>) {
         if self.is_weak() {
             let sender = assets.sender.clone();
-            sender.send(HandleEvent::Increment(self.id)).unwrap();
+            sender.send(HandleRef::Increment(self.id)).unwrap();
             self.handle_type = HandleType::Strong(sender)
         }
     }
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct HandleEventChannel {
-    pub sender: Sender<HandleEvent>,
-    pub receiver: Receiver<HandleEvent>,
+pub(crate) struct HandleRefChannel {
+    pub sender: Sender<HandleRef>,
+    pub receiver: Receiver<HandleRef>,
 }
 
-impl Default for HandleEventChannel {
+impl Default for HandleRefChannel {
     fn default() -> Self {
         let (sender, receiver) = crossbeam_channel::unbounded();
         Self { sender, receiver }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crossbeam_channel::TryRecvError;
+
+    use crate::{Asset, Assets, Handle, HandleId, HandleRef};
+
+    #[derive(Debug)]
+    pub struct TestAsset1 {}
+    impl Asset for TestAsset1 {}
+
+    #[derive(Debug)]
+    pub struct TestAsset2 {}
+    impl Asset for TestAsset2 {}
+
+    #[test]
+    fn handle_id_unique_constrain() {
+        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let same_id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let different_id = HandleId::new::<TestAsset1>(&"path2.txt".into());
+
+        assert_eq!(id, same_id);
+        assert_ne!(id, different_id);
+
+        let different_id = HandleId::new::<TestAsset2>(&"path1.txt".into());
+        assert_ne!(id, different_id);
+    }
+
+    #[test]
+    fn strong_handle_increment_ref_counter() {
+        let (sender, receiver) = crossbeam_channel::unbounded::<HandleRef>();
+
+        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let _handle: Handle<TestAsset1> = Handle::strong(id, sender);
+
+        let handle_ref = receiver.try_recv();
+
+        assert_eq!(handle_ref, Ok(HandleRef::Increment(id)));
+    }
+
+    #[test]
+    fn strong_handle_is_a_strong_one() {
+        let (sender, _receiver) = crossbeam_channel::unbounded::<HandleRef>();
+
+        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let handle: Handle<TestAsset1> = Handle::strong(id, sender);
+
+        assert!(handle.is_strong());
+        assert!(!handle.is_weak());
+    }
+
+    #[test]
+    fn weak_handle_is_a_weak_one() {
+        let (sender, _receiver) = crossbeam_channel::unbounded::<HandleRef>();
+
+        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let handle: Handle<TestAsset1> = Handle::strong(id, sender).as_weak();
+
+        assert!(handle.is_weak());
+        assert!(!handle.is_strong());
+    }
+
+    #[test]
+    fn weak_handle_do_not_increment_ref_counter() {
+        let (sender, receiver) = crossbeam_channel::unbounded::<HandleRef>();
+
+        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let handle: Handle<TestAsset1> = Handle::strong(id, sender);
+        let _handle2 = handle.as_weak();
+
+        let handle_ref = receiver.try_recv();
+        assert_eq!(handle_ref, Ok(HandleRef::Increment(id)));
+
+        let handle_ref = receiver.try_recv();
+        assert_eq!(handle_ref, Err(TryRecvError::Empty));
+    }
+
+    #[test]
+    fn cloning_a_strong_handle_increment_ref_counter() {
+        let (sender, receiver) = crossbeam_channel::unbounded::<HandleRef>();
+
+        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let handle: Handle<TestAsset1> = Handle::strong(id, sender);
+
+        let handle_ref = receiver.try_recv();
+        assert_eq!(handle_ref, Ok(HandleRef::Increment(id)));
+
+        #[allow(clippy::redundant_clone)]
+        let _cloned_handle: Handle<TestAsset1> = handle.clone();
+
+        let handle_ref = receiver.try_recv();
+        assert_eq!(handle_ref, Ok(HandleRef::Increment(id)));
+    }
+
+    #[test]
+    fn cloning_a_weak_handle_do_not_increment_ref_counter() {
+        let (sender, receiver) = crossbeam_channel::unbounded::<HandleRef>();
+
+        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let handle: Handle<TestAsset1> = Handle::strong(id, sender);
+
+        let handle_ref = receiver.try_recv();
+        assert_eq!(handle_ref, Ok(HandleRef::Increment(id)));
+
+        #[allow(clippy::redundant_clone)]
+        let _cloned_handle: Handle<TestAsset1> = handle.as_weak().clone();
+
+        let handle_ref = receiver.try_recv();
+        assert_eq!(handle_ref, Err(TryRecvError::Empty));
+    }
+
+    #[test]
+    fn drop_a_strong_handle_decrement_ref_counter() {
+        let (sender, receiver) = crossbeam_channel::unbounded::<HandleRef>();
+
+        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        {
+            let _handle: Handle<TestAsset1> = Handle::strong(id, sender);
+
+            let handle_ref = receiver.try_recv();
+            assert_eq!(handle_ref, Ok(HandleRef::Increment(id)));
+        }
+
+        let handle_ref = receiver.try_recv();
+        assert_eq!(handle_ref, Ok(HandleRef::Decrement(id)));
+    }
+
+    #[test]
+    fn drop_a_weak_handle_do_not_decrement_ref_counter() {
+        let (sender, receiver) = crossbeam_channel::unbounded::<HandleRef>();
+
+        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let handle: Handle<TestAsset1> = Handle::strong(id, sender);
+
+        let handle_ref = receiver.try_recv();
+        assert_eq!(handle_ref, Ok(HandleRef::Increment(id)));
+
+        {
+            let _weak_handle = handle.as_weak();
+        }
+
+        let handle_ref = receiver.try_recv();
+        assert_eq!(handle_ref, Err(TryRecvError::Empty));
+    }
+
+    #[test]
+    fn making_a_weak_handle_a_strong_one_increment_ref_counter() {
+        let (sender, receiver) = crossbeam_channel::unbounded::<HandleRef>();
+
+        let assets: Assets<TestAsset1> = Assets::new(sender);
+
+        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let mut handle: Handle<TestAsset1> = Handle::weak(id);
+
+        handle.make_strong(&assets);
+
+        assert!(handle.is_strong());
+
+        let handle_ref = receiver.try_recv();
+        assert_eq!(handle_ref, Ok(HandleRef::Increment(id)));
+    }
+
+    #[test]
+    fn making_a_strong_handle_a_strong_one_do_not_increment_ref_counter() {
+        let (sender, receiver) = crossbeam_channel::unbounded::<HandleRef>();
+
+        let assets: Assets<TestAsset1> = Assets::new(sender.clone());
+
+        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let mut handle: Handle<TestAsset1> = Handle::strong(id, sender);
+
+        let handle_ref = receiver.try_recv();
+        assert_eq!(handle_ref, Ok(HandleRef::Increment(id)));
+
+        handle.make_strong(&assets);
+
+        assert!(handle.is_strong());
+
+        let handle_ref = receiver.try_recv();
+        assert_eq!(handle_ref, Err(TryRecvError::Empty));
     }
 }
