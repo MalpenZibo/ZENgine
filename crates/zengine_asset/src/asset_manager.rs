@@ -3,7 +3,7 @@ use downcast_rs::{impl_downcast, Downcast};
 use rustc_hash::FxHashMap;
 use std::sync::{Arc, RwLock};
 use std::{any::TypeId, path::Path};
-use zengine_ecs::system::{Res, ResMut};
+use zengine_ecs::system::{OptionalResMut, Res, ResMut};
 use zengine_macro::Resource;
 
 use crate::assets::Assets;
@@ -24,7 +24,7 @@ impl<'a> LoaderContext<'a> {
     }
 }
 
-pub trait Loader: Send + Sync + std::fmt::Debug + 'static {
+pub trait AssetLoader: Send + Sync + std::fmt::Debug + 'static {
     fn load(&self, data: Vec<u8>, context: &mut LoaderContext);
 
     fn extension(&self) -> &[&str];
@@ -80,7 +80,7 @@ impl<T: Asset> AnyAssetCommandChannel for AssetCommandChannel<T> {
 
 #[derive(Resource, Debug)]
 pub struct AssetManager {
-    loaders: Vec<Arc<dyn Loader>>,
+    loaders: Vec<Arc<dyn AssetLoader>>,
     extension_to_loader: FxHashMap<String, usize>,
     asset_channels: Arc<RwLock<FxHashMap<TypeId, Box<dyn AnyAssetCommandChannel>>>>,
     asset_handle_ref_channel: HandleRefChannel,
@@ -166,7 +166,7 @@ impl AssetManager {
         Assets::new(self.asset_handle_ref_channel.sender.clone())
     }
 
-    pub fn register_loader<T: Loader>(&mut self, loader: T) {
+    pub fn register_loader<T: AssetLoader>(&mut self, loader: T) {
         let index = self.loaders.len();
         for e in loader.extension() {
             self.extension_to_loader.insert(e.to_string(), index);
@@ -174,7 +174,7 @@ impl AssetManager {
         self.loaders.push(Arc::new(loader));
     }
 
-    fn find_loader(&self, extension: &str) -> Option<Arc<dyn Loader>> {
+    fn find_loader(&self, extension: &str) -> Option<Arc<dyn AssetLoader>> {
         self.extension_to_loader
             .get(extension)
             .and_then(|index| self.loaders.get(*index).cloned())
@@ -234,9 +234,11 @@ impl AssetManager {
 
 pub fn update_asset_storage<T: Asset>(
     asset_manager: Res<AssetManager>,
-    mut assets: ResMut<Assets<T>>,
+    assets: OptionalResMut<Assets<T>>,
 ) {
-    asset_manager.update_asset_storage(&mut assets);
+    if let Some(mut assets) = assets {
+        asset_manager.update_asset_storage(&mut assets);
+    }
 }
 
 pub fn update_ref_count(mut asset_manager: ResMut<AssetManager>) {
@@ -251,7 +253,7 @@ pub fn destroy_unused_assets(mut asset_manager: ResMut<AssetManager>) {
 mod tests {
     use std::{path::Path, thread, time::Duration};
 
-    use crate::{io::FileAssetIo, Asset, AssetManager, Assets, Handle, Loader};
+    use crate::{io::FileAssetIo, Asset, AssetLoader, AssetManager, Assets, Handle};
 
     #[derive(Debug)]
     pub struct TestAsset {
@@ -261,7 +263,7 @@ mod tests {
 
     #[derive(Debug)]
     pub struct TestLoader {}
-    impl Loader for TestLoader {
+    impl AssetLoader for TestLoader {
         fn extension(&self) -> &[&str] {
             &["test"]
         }

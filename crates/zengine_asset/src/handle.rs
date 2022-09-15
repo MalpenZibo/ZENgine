@@ -25,6 +25,10 @@ impl HandleId {
         Self(type_id, id)
     }
 
+    pub fn new_manual(type_id: TypeId, id: u64) -> Self {
+        Self(type_id, id)
+    }
+
     pub fn get_type(&self) -> TypeId {
         self.0
     }
@@ -36,11 +40,13 @@ pub(crate) enum HandleRef {
     Decrement(HandleId),
 }
 
+#[derive(Debug)]
 pub(crate) enum HandleType {
     Strong(Sender<HandleRef>),
     Weak,
 }
 
+#[derive(Debug)]
 pub struct Handle<T> {
     pub id: HandleId,
     handle_type: HandleType,
@@ -50,7 +56,7 @@ pub struct Handle<T> {
 impl<T> Drop for Handle<T> {
     fn drop(&mut self) {
         if let HandleType::Strong(sender) = &self.handle_type {
-            sender.send(HandleRef::Decrement(self.id)).unwrap();
+            let _res = sender.send(HandleRef::Decrement(self.id));
         }
     }
 }

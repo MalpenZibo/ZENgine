@@ -2,12 +2,14 @@ use crossbeam_channel::Sender;
 use downcast_rs::{impl_downcast, Downcast};
 use rustc_hash::FxHashMap;
 use std::{ffi::OsStr, path::PathBuf};
+use zengine_macro::Resource;
 
 use crate::handle::{HandleId, HandleRef};
 
 pub trait Asset: Downcast + Send + Sync + std::fmt::Debug + 'static {}
 impl_downcast!(Asset);
 
+#[derive(Resource, Debug)]
 pub struct Assets<T: Asset> {
     assets: FxHashMap<HandleId, T>,
     pub(crate) sender: Sender<HandleRef>,

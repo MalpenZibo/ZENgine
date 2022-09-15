@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 zengine_ecs = { path = "../zengine_ecs" }
+zengine_engine = { path = "../zengine_engine" }
 zengine_macro = { path = "../zengine_macro" }
 
 image = "0.23.10"

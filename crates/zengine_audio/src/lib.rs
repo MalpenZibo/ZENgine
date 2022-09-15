@@ -1,114 +1,112 @@
 use rodio::{OutputStream, OutputStreamHandle, Sink};
-use rustc_hash::FxHashMap;
+use std::collections::VecDeque;
 use std::fmt::Debug;
-use std::hash::Hash;
 use std::io::Cursor;
-use std::{any::Any, collections::VecDeque};
-use zengine_asset::audio_loader::{self, AudioAssetHandler};
-use zengine_ecs::system::UnsendableResMut;
-use zengine_macro::UnsendableResource;
+use zengine_asset::{AssetExtension, AssetLoader, Assets, Handle, HandleId};
+use zengine_ecs::system::{OptionalRes, OptionalResMut, ResMut, UnsendableRes};
+use zengine_engine::{Module, StageLabel};
+use zengine_macro::{Asset, Resource, UnsendableResource};
 
-pub trait AudioType: Any + Eq + PartialEq + Hash + Clone + Debug + Send + Sync {}
-impl AudioType for String {}
+#[derive(Default)]
+pub struct AudioModule;
 
-#[derive(Debug)]
-pub struct Audio {
-    audio_asset: AudioAssetHandler,
-    data: Option<Vec<u8>>,
-}
-
-pub type AudioSinkId = usize;
-
-#[derive(UnsendableResource)]
-pub struct AudioManager<AT: AudioType> {
-    sink_id: AudioSinkId,
-    audio_asset: FxHashMap<AT, Audio>,
-    queue: VecDeque<(usize, AT)>,
-    _stream: OutputStream,
-    stream_handle: OutputStreamHandle,
-    sink: FxHashMap<AudioSinkId, Sink>,
-}
-
-impl<AT: AudioType> Debug for AudioManager<AT> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "AudioManager {{ audio_asset: {:?}, queue: {:?} }}",
-            self.audio_asset, self.queue
-        )
+impl Module for AudioModule {
+    fn init(self, engine: &mut zengine_engine::Engine) {
+        engine
+            .add_asset::<Audio>()
+            .add_asset::<AudioInstance>()
+            .add_system_into_stage(audio_system, StageLabel::PostUpdate)
+            .add_asset_loader(AudioLoader);
     }
 }
 
-impl<AT: AudioType> Default for AudioManager<AT> {
+#[derive(Debug)]
+pub struct AudioLoader;
+impl AssetLoader for AudioLoader {
+    fn extension(&self) -> &[&str] {
+        &["ogg", "wav", "flac"]
+    }
+
+    fn load(&self, data: Vec<u8>, context: &mut zengine_asset::LoaderContext) {
+        context.set_asset(Audio { data });
+    }
+}
+
+#[derive(Asset, Debug)]
+pub struct Audio {
+    data: Vec<u8>,
+}
+
+#[derive(Asset)]
+pub struct AudioInstance(Sink);
+impl Debug for AudioInstance {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "AudioInstance")
+    }
+}
+
+#[derive(Resource, Default, Debug)]
+pub struct AudioDevice {
+    instance_counter: u64,
+    queue: VecDeque<(HandleId, Handle<Audio>)>,
+}
+
+impl AudioDevice {
+    pub fn play(&mut self, audio: Handle<Audio>) -> Handle<AudioInstance> {
+        let handle_id = HandleId::new_manual(audio.id.get_type(), self.instance_counter);
+        self.instance_counter += 1;
+
+        self.queue.push_back((handle_id, audio));
+
+        Handle::weak(handle_id)
+    }
+}
+
+#[derive(UnsendableResource)]
+pub struct AudioOutput {
+    _stream: OutputStream,
+    stream_handle: OutputStreamHandle,
+}
+
+impl Debug for AudioOutput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "AudioManager")
+    }
+}
+
+impl Default for AudioOutput {
     fn default() -> Self {
         let stream_handle = OutputStream::try_default().expect("Audio device not found");
         Self {
-            sink_id: 0,
-            audio_asset: FxHashMap::default(),
-            queue: VecDeque::default(),
             _stream: stream_handle.0,
             stream_handle: stream_handle.1,
-            sink: FxHashMap::default(),
         }
     }
 }
 
-impl<AT: AudioType> AudioManager<AT> {
-    pub fn load(&mut self, audio_type: AT, file_path: &str) {
-        let audio_asset = audio_loader::load(file_path);
-        self.audio_asset.insert(
-            audio_type,
-            Audio {
-                audio_asset,
-                data: None,
-            },
-        );
-    }
-
-    pub fn play(&mut self, audio_type: AT) -> AudioSinkId {
-        let id = self.sink_id;
-        self.sink_id += 1;
-        self.queue.push_back((id, audio_type));
-
-        id
-    }
-
-    fn play_queue(&mut self) {
-        let len = self.queue.len();
+pub fn audio_system(
+    audio_output: UnsendableRes<AudioOutput>,
+    mut audio_device: ResMut<AudioDevice>,
+    audio: OptionalRes<Assets<Audio>>,
+    audio_instances: OptionalResMut<Assets<AudioInstance>>,
+) {
+    if let (Some(audio), Some(mut audio_instances)) = (audio, audio_instances) {
+        let len = audio_device.queue.len();
         let mut i = 0;
 
         while i < len {
-            let (id, audio_type) = self.queue.pop_front().unwrap();
-            if let Some(audio) = self.audio_asset.get_mut(&audio_type).and_then(|a| {
-                if a.data.is_some() {
-                    a.data.as_ref()
-                } else {
-                    let audio_asset = a.audio_asset.try_recv();
-                    if let Ok(audio_asset) = audio_asset {
-                        a.data = Some(audio_asset.data);
-                        a.data.as_ref()
-                    } else {
-                        None
-                    }
-                }
-            }) {
-                let sink = Sink::try_new(&self.stream_handle).unwrap();
-                let decoder = rodio::Decoder::new(Cursor::new(audio.clone())).unwrap();
+            let (instance_id, audio_handle) = audio_device.queue.pop_front().unwrap();
+            if let Some(audio) = audio.get(&audio_handle.id) {
+                let sink = Sink::try_new(&audio_output.stream_handle).unwrap();
+                let decoder = rodio::Decoder::new(Cursor::new(audio.data.clone())).unwrap();
                 sink.append(decoder);
 
-                self.sink.insert(id, sink);
+                let audio_instance = AudioInstance(sink);
+                audio_instances.set(&instance_id, audio_instance);
             } else {
-                self.queue.push_back((id, audio_type));
+                audio_device.queue.push_back((instance_id, audio_handle));
             }
             i += 1;
         }
     }
-
-    pub fn get_audio_sink(&self, audio_sink_id: AudioSinkId) -> Option<&Sink> {
-        self.sink.get(&audio_sink_id)
-    }
-}
-
-pub fn audio_system<AT: AudioType>(mut audio_manager: UnsendableResMut<AudioManager<AT>>) {
-    audio_manager.play_queue()
 }
