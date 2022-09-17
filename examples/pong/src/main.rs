@@ -186,8 +186,8 @@ fn setup(
         .with_sprite(
             Sprites::Ball,
             SpriteDescriptor {
-                width: 25,
-                height: 25,
+                width: 50,
+                height: 50,
                 x: 0,
                 y: 0,
             },
@@ -317,7 +317,7 @@ fn setup(
         },
         Transform::new(
             Vec3::new(WIDTH / 2.0, HEIGHT - 20.0 - PAD_HALF_HEIGHT, 1.0),
-            Vec3::ZERO,
+            Vec3::new(0., 0., 180.),
             1.0,
         ),
         Shape2D {
