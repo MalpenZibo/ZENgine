@@ -19,6 +19,7 @@ exclude = ["benches"]
 members = ["crates/*", "examples/*"]
 
 [dependencies]
+zengine_asset = { path = "crates/zengine_asset" }
 zengine_engine = { path = "crates/zengine_engine" }
 zengine_ecs = { path = "crates/zengine_ecs" }
 zengine_core = { path = "crates/zengine_core" }
@@ -26,6 +27,7 @@ zengine_graphic = { path = "crates/zengine_graphic" }
 zengine_input = { path = "crates/zengine_input" }
 zengine_physics = { path = "crates/zengine_physics" }
 zengine_window = { path = "crates/zengine_window" }
+zengine_audio = { path = "crates/zengine_audio" }
 zengine_macro = { path = "crates/zengine_macro" }
 glam = "0.21.3"
 

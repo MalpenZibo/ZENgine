@@ -141,7 +141,9 @@ impl<'a, R: UnsendableResource + Default> SystemParamFetch<'a> for UnsendableRes
     type Item = UnsendableRes<'a, R>;
 
     fn init(&mut self, world: &mut World) {
-        world.create_unsendable_resource(R::default());
+        if world.get_unsendable_resource::<R>().is_none() {
+            world.create_unsendable_resource(R::default());
+        }
     }
 
     fn fetch(&mut self, world: &'a World) -> Self::Item {
@@ -171,7 +173,9 @@ impl<'a, R: UnsendableResource + Default> SystemParamFetch<'a> for UnsendableRes
     type Item = UnsendableResMut<'a, R>;
 
     fn init(&mut self, world: &mut World) {
-        world.create_unsendable_resource(R::default())
+        if world.get_unsendable_resource::<R>().is_none() {
+            world.create_unsendable_resource(R::default())
+        }
     }
 
     fn fetch(&mut self, world: &'a World) -> Self::Item {

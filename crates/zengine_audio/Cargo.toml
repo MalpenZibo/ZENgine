@@ -1,0 +1,18 @@
+[package]
+name = "zengine_audio"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+zengine_asset = { path = "../zengine_asset" }
+zengine_ecs = { path = "../zengine_ecs" }
+zengine_engine = { path = "../zengine_engine" }
+zengine_macro = { path = "../zengine_macro" }
+
+log = "0.4"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rodio = { version = "0.15", default-features = false, features = ["vorbis", "flac", "wav"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+rodio = { version = "0.15", default-features = false,  features = ["vorbis", "flac", "wav", "wasm-bindgen"] }

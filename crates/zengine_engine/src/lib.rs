@@ -14,7 +14,9 @@ pub trait Module {
 #[derive(Hash, Eq, PartialEq)]
 pub enum StageLabel {
     Startup,
+    PreUpdate,
     Update,
+    PostUpdate,
     Render,
     PostRender,
 }
@@ -69,13 +71,17 @@ impl Default for Engine {
         Engine {
             stages: HashMap::from([
                 (StageLabel::Startup, Stage::default()),
+                (StageLabel::PreUpdate, Stage::default()),
                 (StageLabel::Update, Stage::default()),
+                (StageLabel::PostUpdate, Stage::default()),
                 (StageLabel::Render, Stage::default()),
                 (StageLabel::PostRender, Stage::default()),
             ]),
             stage_order: vec![
                 StageLabel::Startup,
+                StageLabel::PreUpdate,
                 StageLabel::Update,
+                StageLabel::PostUpdate,
                 StageLabel::Render,
                 StageLabel::PostRender,
             ],

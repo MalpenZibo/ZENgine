@@ -4,7 +4,7 @@
 
 ## What is ZENgine?
 
-ZENgine is a very simple 2D data-driven game engine for didactic purposes written in Rust using an an ECS architecture.
+ZENgine is a very simple 2D data-driven game engine for didactic purposes written in Rust using an ECS architecture.
 
 ## Inspiration
 ZENgine is heavily inspired by:
@@ -21,7 +21,7 @@ In the future, I plan to create a series of posts about the engine and how it wo
 ## Get Started
 There's a very crude implementation of `pong` in the example folder that "should" run on Windows, Mac, Linux, and every modern browser.
 
-Simply run `cargo run` in the  `pong` folder or `trunk serve` to run the web version (could be necessary to click on the browser page to make the input system work).
+Simply run `cargo run` in the  `pong` folder or `trunk serve` to run the web version (it could be necessary to click on the browser page to make the input system work).
 
 To launch the web version is mandatory to setup correctly the environment.
 Install the wasm32-unknown-unknown target with:
