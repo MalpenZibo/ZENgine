@@ -5,6 +5,7 @@ use std::{
 };
 
 use crossbeam_channel::{Receiver, Sender};
+use zengine_engine::log::debug;
 
 use crate::{
     assets::{Asset, Assets},
@@ -57,6 +58,7 @@ impl<T> Drop for Handle<T> {
     fn drop(&mut self) {
         if let HandleType::Strong(sender) = &self.handle_type {
             let _res = sender.send(HandleRef::Decrement(self.id));
+            debug!("Drop a strong handle id: {:?}", self.id);
         }
     }
 }
@@ -73,6 +75,7 @@ impl<T: Asset> Clone for Handle<T> {
 impl<T: Asset> Handle<T> {
     pub(crate) fn strong(id: HandleId, handle_ref_sender: Sender<HandleRef>) -> Self {
         handle_ref_sender.send(HandleRef::Increment(id)).unwrap();
+        debug!("Create a strong handle id: {:?}", id);
         Self {
             id,
             handle_type: HandleType::Strong(handle_ref_sender),
@@ -102,6 +105,7 @@ impl<T: Asset> Handle<T> {
 
     pub fn make_strong(&mut self, assets: &Assets<T>) {
         if self.is_weak() {
+            debug!("Create a strong handle from a weak one id: {:?}", self.id);
             let sender = assets.sender.clone();
             sender.send(HandleRef::Increment(self.id)).unwrap();
             self.handle_type = HandleType::Strong(sender)

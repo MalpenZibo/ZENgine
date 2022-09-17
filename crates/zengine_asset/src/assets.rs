@@ -4,7 +4,10 @@ use rustc_hash::FxHashMap;
 use std::{ffi::OsStr, path::PathBuf};
 use zengine_macro::Resource;
 
-use crate::handle::{HandleId, HandleRef};
+use crate::{
+    handle::{HandleId, HandleRef},
+    Handle,
+};
 
 pub trait Asset: Downcast + Send + Sync + std::fmt::Debug + 'static {}
 impl_downcast!(Asset);
@@ -27,12 +30,26 @@ impl<T: Asset> Assets<T> {
         self.assets.get(id)
     }
 
-    pub fn set(&mut self, id: &HandleId, asset: T) {
+    pub fn set(&mut self, id: &HandleId, asset: T) -> Handle<T> {
+        self.set_untracked(id, asset);
+
+        Handle::strong(*id, self.sender.clone())
+    }
+
+    pub fn set_untracked(&mut self, id: &HandleId, asset: T) {
         self.assets.insert(*id, asset);
     }
 
     pub fn remove(&mut self, id: &HandleId) -> Option<T> {
         self.assets.remove(id)
+    }
+
+    pub fn len(&self) -> usize {
+        self.assets.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.assets.is_empty()
     }
 }
 

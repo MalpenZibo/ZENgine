@@ -1,9 +1,13 @@
+use log::debug;
 use rodio::{OutputStream, OutputStreamHandle, Sink};
-use std::collections::VecDeque;
+use std::any::TypeId;
 use std::fmt::Debug;
 use std::io::Cursor;
+use std::sync::atomic::Ordering;
+use std::sync::RwLock;
+use std::{collections::VecDeque, sync::atomic::AtomicU64};
 use zengine_asset::{AssetExtension, AssetLoader, Assets, Handle, HandleId};
-use zengine_ecs::system::{OptionalRes, OptionalResMut, ResMut, UnsendableRes};
+use zengine_ecs::system::{OptionalRes, OptionalResMut, Res, UnsendableRes};
 use zengine_engine::{Module, StageLabel};
 use zengine_macro::{Asset, Resource, UnsendableResource};
 
@@ -47,16 +51,19 @@ impl Debug for AudioInstance {
 
 #[derive(Resource, Default, Debug)]
 pub struct AudioDevice {
-    instance_counter: u64,
-    queue: VecDeque<(HandleId, Handle<Audio>)>,
+    instance_counter: AtomicU64,
+    queue: RwLock<VecDeque<(HandleId, Handle<Audio>)>>,
 }
 
 impl AudioDevice {
-    pub fn play(&mut self, audio: Handle<Audio>) -> Handle<AudioInstance> {
-        let handle_id = HandleId::new_manual(audio.id.get_type(), self.instance_counter);
-        self.instance_counter += 1;
+    pub fn play(&self, audio: Handle<Audio>) -> Handle<AudioInstance> {
+        let next_id = self.instance_counter.fetch_add(1, Ordering::Relaxed);
+        let type_id = TypeId::of::<AudioInstance>();
+        let handle_id = HandleId::new_manual(type_id, next_id);
 
-        self.queue.push_back((handle_id, audio));
+        debug!("created an Audio Instance handle {:?}", handle_id);
+
+        self.queue.write().unwrap().push_back((handle_id, audio));
 
         Handle::weak(handle_id)
     }
@@ -86,25 +93,26 @@ impl Default for AudioOutput {
 
 pub fn audio_system(
     audio_output: UnsendableRes<AudioOutput>,
-    mut audio_device: ResMut<AudioDevice>,
+    audio_device: Res<AudioDevice>,
     audio: OptionalRes<Assets<Audio>>,
     audio_instances: OptionalResMut<Assets<AudioInstance>>,
 ) {
     if let (Some(audio), Some(mut audio_instances)) = (audio, audio_instances) {
-        let len = audio_device.queue.len();
+        let mut queue = audio_device.queue.write().unwrap();
+        let len = queue.len();
         let mut i = 0;
 
         while i < len {
-            let (instance_id, audio_handle) = audio_device.queue.pop_front().unwrap();
+            let (instance_id, audio_handle) = queue.pop_front().unwrap();
             if let Some(audio) = audio.get(&audio_handle.id) {
                 let sink = Sink::try_new(&audio_output.stream_handle).unwrap();
                 let decoder = rodio::Decoder::new(Cursor::new(audio.data.clone())).unwrap();
                 sink.append(decoder);
 
                 let audio_instance = AudioInstance(sink);
-                audio_instances.set(&instance_id, audio_instance);
+                let _ = audio_instances.set(&instance_id, audio_instance);
             } else {
-                audio_device.queue.push_back((instance_id, audio_handle));
+                queue.push_back((instance_id, audio_handle));
             }
             i += 1;
         }

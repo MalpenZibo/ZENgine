@@ -4,6 +4,7 @@ use rustc_hash::FxHashMap;
 use std::sync::{Arc, RwLock};
 use std::{any::TypeId, path::Path};
 use zengine_ecs::system::{OptionalResMut, Res, ResMut};
+use zengine_engine::log::debug;
 use zengine_macro::Resource;
 
 use crate::assets::Assets;
@@ -191,9 +192,11 @@ impl AssetManager {
         loop {
             match asset_channel.receiver.try_recv() {
                 Ok(AssetCommand::Create(AssetCreateCommand { id, asset })) => {
-                    assets.set(&id, asset);
+                    debug!("Create asset for storage. Asset id: {:?}", id);
+                    assets.set_untracked(&id, asset);
                 }
                 Ok(AssetCommand::Destroy(id)) => {
+                    debug!("Destroy asset for storage. Asset id: {:?}", id);
                     assets.remove(&id);
                 }
                 Err(TryRecvError::Empty) => break,
@@ -206,10 +209,22 @@ impl AssetManager {
         loop {
             match self.asset_handle_ref_channel.receiver.try_recv() {
                 Ok(HandleRef::Increment(id)) => {
-                    *self.asset_handle_ref_count.entry(id).or_insert(0) += 1;
+                    let count = self.asset_handle_ref_count.entry(id).or_insert(0);
+                    debug!(
+                        "Increment handle ref for asset id: {:?} count {:?}",
+                        id, count
+                    );
+                    *count += 1;
                 }
                 Ok(HandleRef::Decrement(id)) => {
-                    *self.asset_handle_ref_count.entry(id).or_insert(0) -= 1;
+                    let count = self.asset_handle_ref_count.entry(id).or_insert(0);
+                    debug!(
+                        "Decrement handle ref for asset id: {:?} count {:?}",
+                        id, count
+                    );
+                    if *count > 0 {
+                        *count -= 1;
+                    }
                 }
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => panic!("Asset handle ref channel disconnected"),
@@ -224,6 +239,8 @@ impl AssetManager {
             .filter_map(|(k, v)| if *v == 0 { Some(*k) } else { None })
             .collect::<Vec<HandleId>>()
         {
+            debug!("Destroy unused asset id: {:?}", k);
+
             self.asset_handle_ref_count.remove(&k);
             let asset_channels = self.asset_channels.read().unwrap();
             let asset_channel = asset_channels.get(&k.get_type()).unwrap();
