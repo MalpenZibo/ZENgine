@@ -1,7 +1,7 @@
-use std::{path::{Path,PathBuf}};
-use wasm_bindgen::JsCast;
-use js_sys::Uint8Array;
 use async_trait::async_trait;
+use js_sys::Uint8Array;
+use std::path::{Path, PathBuf};
+use wasm_bindgen::JsCast;
 
 use super::AssetIo;
 
@@ -34,7 +34,7 @@ impl AssetIo for WasmAssetIo {
         let resp_value = wasm_bindgen_futures::JsFuture::from(resp.array_buffer().unwrap())
             .await
             .unwrap();
-        
+
         Uint8Array::new(&resp_value).to_vec()
     }
 }
