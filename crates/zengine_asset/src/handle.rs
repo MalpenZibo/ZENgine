@@ -26,7 +26,9 @@ impl HandleId {
         Self(type_id, id)
     }
 
-    pub fn new_manual(type_id: TypeId, id: u64) -> Self {
+    pub fn new_manual<T: Asset>(id: u64) -> Self {
+        let type_id = TypeId::of::<T>();
+
         Self(type_id, id)
     }
 

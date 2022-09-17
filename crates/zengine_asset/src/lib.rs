@@ -3,7 +3,6 @@ mod assets;
 mod handle;
 mod io;
 
-pub mod audio_loader;
 pub mod image_loader;
 
 use std::path::{Path, PathBuf};

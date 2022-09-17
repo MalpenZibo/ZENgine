@@ -1,6 +1,5 @@
 use log::debug;
 use rodio::{OutputStream, OutputStreamHandle, Sink, Source};
-use std::any::TypeId;
 use std::fmt::Debug;
 use std::io::Cursor;
 use std::sync::atomic::Ordering;
@@ -131,18 +130,7 @@ pub struct AudioDevice {
 
 impl AudioDevice {
     pub fn play(&self, audio: Handle<Audio>) -> Handle<AudioInstance> {
-        let next_id = self.instance_counter.fetch_add(1, Ordering::Relaxed);
-        let type_id = TypeId::of::<AudioInstance>();
-        let handle_id = HandleId::new_manual(type_id, next_id);
-
-        debug!("created an Audio Instance handle {:?}", handle_id);
-
-        self.queue
-            .write()
-            .unwrap()
-            .push_back((handle_id, audio, AudioSettings::default()));
-
-        Handle::weak(handle_id)
+        self.play_with_settings(audio, AudioSettings::default())
     }
 
     pub fn play_with_settings(
@@ -151,8 +139,7 @@ impl AudioDevice {
         settings: AudioSettings,
     ) -> Handle<AudioInstance> {
         let next_id = self.instance_counter.fetch_add(1, Ordering::Relaxed);
-        let type_id = TypeId::of::<AudioInstance>();
-        let handle_id = HandleId::new_manual(type_id, next_id);
+        let handle_id = HandleId::new_manual::<AudioInstance>(next_id);
 
         debug!("created an Audio Instance handle {:?}", handle_id);
 
