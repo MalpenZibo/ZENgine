@@ -1,5 +1,5 @@
 use log::debug;
-use rodio::{OutputStream, OutputStreamHandle, Sink};
+use rodio::{OutputStream, OutputStreamHandle, Sink, Source};
 use std::any::TypeId;
 use std::fmt::Debug;
 use std::io::Cursor;
@@ -36,23 +36,97 @@ impl AssetLoader for AudioLoader {
     }
 }
 
+#[derive(Debug)]
+pub struct AudioSettings {
+    pub volume: f32,
+    pub speed: f32,
+    pub in_loop: bool,
+}
+
+impl Default for AudioSettings {
+    fn default() -> Self {
+        Self {
+            volume: 1.0,
+            speed: 1.0,
+            in_loop: false,
+        }
+    }
+}
+
+impl AudioSettings {
+    pub fn with_speed(mut self, speed: f32) -> Self {
+        self.speed = speed;
+        self
+    }
+
+    pub fn with_volume(mut self, volume: f32) -> Self {
+        self.volume = volume;
+        self
+    }
+
+    pub fn in_loop(mut self) -> Self {
+        self.in_loop = true;
+        self
+    }
+}
+
 #[derive(Asset, Debug)]
 pub struct Audio {
     data: Vec<u8>,
 }
 
 #[derive(Asset)]
-pub struct AudioInstance(Sink);
+pub struct AudioInstance(Option<Sink>);
 impl Debug for AudioInstance {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "AudioInstance")
     }
 }
 
+impl Drop for AudioInstance {
+    fn drop(&mut self) {
+        self.0.take().unwrap().detach();
+    }
+}
+
+impl AudioInstance {
+    pub fn volume(&self) -> f32 {
+        self.0.as_ref().unwrap().volume()
+    }
+
+    pub fn set_volume(&self, volume: f32) {
+        self.0.as_ref().unwrap().set_volume(volume);
+    }
+
+    pub fn speed(&self) -> f32 {
+        self.0.as_ref().unwrap().speed()
+    }
+
+    pub fn set_speed(&self, speed: f32) {
+        self.0.as_ref().unwrap().set_speed(speed);
+    }
+
+    pub fn play(&self) {
+        self.0.as_ref().unwrap().play();
+    }
+
+    pub fn pause(&self) {
+        self.0.as_ref().unwrap().pause();
+    }
+
+    pub fn is_paused(&self) -> bool {
+        self.0.as_ref().unwrap().is_paused()
+    }
+
+    pub fn stop(&self) {
+        self.0.as_ref().unwrap().stop();
+    }
+}
+
 #[derive(Resource, Default, Debug)]
 pub struct AudioDevice {
     instance_counter: AtomicU64,
-    queue: RwLock<VecDeque<(HandleId, Handle<Audio>)>>,
+    queue: RwLock<VecDeque<(HandleId, Handle<Audio>, AudioSettings)>>,
 }
 
 impl AudioDevice {
@@ -63,7 +137,29 @@ impl AudioDevice {
 
         debug!("created an Audio Instance handle {:?}", handle_id);
 
-        self.queue.write().unwrap().push_back((handle_id, audio));
+        self.queue
+            .write()
+            .unwrap()
+            .push_back((handle_id, audio, AudioSettings::default()));
+
+        Handle::weak(handle_id)
+    }
+
+    pub fn play_with_settings(
+        &self,
+        audio: Handle<Audio>,
+        settings: AudioSettings,
+    ) -> Handle<AudioInstance> {
+        let next_id = self.instance_counter.fetch_add(1, Ordering::Relaxed);
+        let type_id = TypeId::of::<AudioInstance>();
+        let handle_id = HandleId::new_manual(type_id, next_id);
+
+        debug!("created an Audio Instance handle {:?}", handle_id);
+
+        self.queue
+            .write()
+            .unwrap()
+            .push_back((handle_id, audio, settings));
 
         Handle::weak(handle_id)
     }
@@ -103,16 +199,27 @@ pub fn audio_system(
         let mut i = 0;
 
         while i < len {
-            let (instance_id, audio_handle) = queue.pop_front().unwrap();
+            let (instance_id, audio_handle, settings) = queue.pop_front().unwrap();
             if let Some(audio) = audio.get(&audio_handle.id) {
                 let sink = Sink::try_new(&audio_output.stream_handle).unwrap();
-                let decoder = rodio::Decoder::new(Cursor::new(audio.data.clone())).unwrap();
-                sink.append(decoder);
 
-                let audio_instance = AudioInstance(sink);
+                if settings.in_loop {
+                    sink.append(
+                        rodio::Decoder::new(Cursor::new(audio.data.clone()))
+                            .unwrap()
+                            .repeat_infinite(),
+                    );
+                } else {
+                    sink.append(rodio::Decoder::new(Cursor::new(audio.data.clone())).unwrap())
+                };
+
+                sink.set_speed(settings.speed);
+                sink.set_volume(settings.volume);
+
+                let audio_instance = AudioInstance(Some(sink));
                 let _ = audio_instances.set(&instance_id, audio_instance);
             } else {
-                queue.push_back((instance_id, audio_handle));
+                queue.push_back((instance_id, audio_handle, settings));
             }
             i += 1;
         }

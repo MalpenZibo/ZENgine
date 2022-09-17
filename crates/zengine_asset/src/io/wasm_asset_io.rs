@@ -25,7 +25,7 @@ impl AssetIo for WasmAssetIo {
         let window = web_sys::window().unwrap();
 
         let resp_value = wasm_bindgen_futures::JsFuture::from(
-            window.fetch_with_str(asset_path.to_str().unwrap()),
+            window.fetch_with_str(full_path.to_str().unwrap()),
         )
         .await
         .unwrap();

@@ -1,10 +1,12 @@
 use serde::Deserialize;
 use zengine::{
+    asset::{AssetManager, AssetModule, Assets, Handle},
+    audio::{Audio, AudioDevice, AudioInstance, AudioModule, AudioSettings},
     core::{timing_system, Time, Transform},
     ecs::{
         system::{
             Commands, EventPublisher, EventStream, Local, OptionalRes, Query, QueryIter,
-            QueryIterMut, Res, UnsendableResMut,
+            QueryIterMut, Res, ResMut, UnsendableResMut,
         },
         Entity,
     },
@@ -41,6 +43,15 @@ pub enum Sprites {
     Pad,
     Ball,
 }
+
+#[derive(Resource, Debug)]
+pub struct BounceEffect(Handle<Audio>);
+
+#[derive(Resource, Debug)]
+pub struct ScoreEffect(Handle<Audio>);
+
+#[derive(Resource, Debug)]
+pub struct BgMusic(Handle<AudioInstance>);
 
 #[derive(Debug, Resource)]
 pub struct Player1 {
@@ -114,6 +125,8 @@ fn main() {
             vsync: false,
         }))
         .add_module(RenderModule::<Sprites>::default())
+        .add_module(AssetModule::new("assets"))
+        .add_module(AudioModule::default())
         .add_startup_system(setup)
         .add_system(input_system(bindings))
         .add_system(collision_system)
@@ -126,7 +139,22 @@ fn main() {
         .run();
 }
 
-fn setup(mut commands: Commands, mut textures: UnsendableResMut<TextureManager<Sprites>>) {
+fn setup(
+    mut commands: Commands,
+    mut textures: UnsendableResMut<TextureManager<Sprites>>,
+    mut asset_manager: ResMut<AssetManager>,
+    audio_device: Res<AudioDevice>,
+    audio_instances: OptionalRes<Assets<AudioInstance>>,
+) {
+    commands.create_resource(BounceEffect(asset_manager.load("audio/bounce.wav")));
+    commands.create_resource(ScoreEffect(asset_manager.load("audio/score.wav")));
+
+    let bg = asset_manager.load("audio/bg.ogg");
+    let mut bg =
+        audio_device.play_with_settings(bg, AudioSettings::default().in_loop().with_volume(0.4));
+    bg.make_strong(audio_instances.as_ref().unwrap());
+    commands.create_resource(BgMusic(bg));
+
     textures
         .create("bg.png")
         .with_sprite(
@@ -430,12 +458,16 @@ fn initial_ball_movement() -> Vec2 {
     Vec2::new(BALL_VEL * angle.cos(), BALL_VEL * angle.sin())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn collision_response(
     mut query_pad: Query<(Entity, &mut Transform, &mut Pad)>,
     mut query_ball: Query<(Entity, &mut Transform, &mut Ball)>,
     collision_event: EventStream<Collision>,
     field_border: OptionalRes<FieldBorder>,
     mut game_event: EventPublisher<GameEvent>,
+    audio_device: Res<AudioDevice>,
+    bounce_effect: OptionalRes<BounceEffect>,
+    score_effect: OptionalRes<ScoreEffect>,
 ) {
     fn get_collision_type(
         collision: &Collision,
@@ -589,6 +621,8 @@ fn collision_response(
                             WIDTH - BALL_RADIUS
                         }
                     }
+
+                    audio_device.play(bounce_effect.as_ref().unwrap().0.clone());
                 }
                 Some(CollisionType::BallBorder {
                     ball: ball_entity,
@@ -612,6 +646,8 @@ fn collision_response(
                     }
 
                     game_event.publish(GameEvent::Score);
+
+                    audio_device.play(score_effect.as_ref().unwrap().0.clone());
 
                     return;
                 }
@@ -654,6 +690,8 @@ fn collision_response(
                                 } else {
                                     -(PAD_HALF_HEIGHT + BALL_RADIUS)
                                 };
+
+                            audio_device.play(bounce_effect.as_ref().unwrap().0.clone());
                         }
                     }
                 }
