@@ -1,5 +1,6 @@
 use std::{
     any::TypeId,
+    cmp::Ordering,
     hash::{Hash, Hasher},
     marker::PhantomData,
 };
@@ -12,7 +13,7 @@ use crate::{
     AssetPath,
 };
 
-#[derive(Debug, Eq, Hash, PartialEq, Clone, Copy)]
+#[derive(Debug, Eq, Hash, PartialEq, Ord, PartialOrd, Clone, Copy)]
 pub struct HandleId(TypeId, u64);
 
 impl HandleId {
@@ -26,6 +27,11 @@ impl HandleId {
         Self(type_id, id)
     }
 
+    pub fn default<T: Asset>() -> Self {
+        let type_id = TypeId::of::<T>();
+        Self(type_id, 0)
+    }
+
     pub fn new_manual<T: Asset>(id: u64) -> Self {
         let type_id = TypeId::of::<T>();
 
@@ -37,15 +43,22 @@ impl HandleId {
     }
 }
 
+impl<T: Asset> From<Handle<T>> for HandleId {
+    fn from(value: Handle<T>) -> Self {
+        value.id
+    }
+}
+
 #[derive(PartialEq, Debug)]
 pub(crate) enum HandleRef {
     Increment(HandleId),
     Decrement(HandleId),
 }
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub(crate) enum HandleType {
     Strong(Sender<HandleRef>),
+    #[default]
     Weak,
 }
 
@@ -56,9 +69,35 @@ pub struct Handle<T> {
     _phantom: PhantomData<T>,
 }
 
-impl<T: Asset> From<Handle<T>> for HandleId {
-    fn from(value: Handle<T>) -> Self {
-        value.id
+impl<T: Asset> Hash for Handle<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Hash::hash(&self.id, state);
+    }
+}
+
+impl<T: Asset> PartialEq for Handle<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl<T: Asset> Eq for Handle<T> {}
+
+impl<T: Asset> PartialOrd for Handle<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.id.cmp(&other.id))
+    }
+}
+
+impl<T: Asset> Ord for Handle<T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.id.cmp(&other.id)
+    }
+}
+
+impl<T: Asset> Default for Handle<T> {
+    fn default() -> Self {
+        Handle::weak(HandleId::default::<T>())
     }
 }
 

@@ -20,7 +20,7 @@ impl Drop for GpuImage {
     }
 }
 
-#[derive(Asset, Debug)]
+#[derive(Asset, Default, Debug)]
 pub struct Image {
     pub width: u32,
     pub height: u32,
@@ -30,6 +30,15 @@ pub struct Image {
 }
 
 impl Image {
+    pub fn new(width: u32, height: u32, data: Vec<u8>) -> Self {
+        Self {
+            width,
+            height,
+            data: Some(data),
+            ..Default::default()
+        }
+    }
+
     pub fn convert_to_gpu_image(
         &mut self,
         device: &Device,

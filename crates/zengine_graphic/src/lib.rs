@@ -8,6 +8,7 @@ mod color;
 mod image_asset;
 mod renderer;
 mod sprite;
+mod texture_atlas;
 pub(crate) mod vertex;
 
 pub use camera::*;
@@ -15,6 +16,7 @@ pub use color::*;
 pub use image_asset::*;
 pub use renderer::*;
 pub use sprite::*;
+pub use texture_atlas::*;
 
 #[derive(Resource, Debug, Default)]
 pub struct Background {
