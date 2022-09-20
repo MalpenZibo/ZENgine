@@ -26,22 +26,28 @@ impl<T: Asset> Assets<T> {
         }
     }
 
-    pub fn get(&self, id: &HandleId) -> Option<&T> {
-        self.assets.get(id)
+    pub fn get(&self, handle: &Handle<T>) -> Option<&T> {
+        self.assets.get(&handle.id)
     }
 
-    pub fn set(&mut self, id: &HandleId, asset: T) -> Handle<T> {
+    pub fn get_mut(&mut self, handle: &Handle<T>) -> Option<&mut T> {
+        self.assets.get_mut(&handle.id)
+    }
+
+    pub fn set(&mut self, handle: Handle<T>, asset: T) -> Handle<T> {
+        let id = handle.id;
         self.set_untracked(id, asset);
 
-        Handle::strong(*id, self.sender.clone())
+        Handle::strong(id, self.sender.clone())
     }
 
-    pub fn set_untracked(&mut self, id: &HandleId, asset: T) {
-        self.assets.insert(*id, asset);
+    pub fn set_untracked(&mut self, handle_id: HandleId, asset: T) {
+        self.assets.insert(handle_id, asset);
     }
 
-    pub fn remove(&mut self, id: &HandleId) -> Option<T> {
-        self.assets.remove(id)
+    pub fn remove<H: Into<HandleId>>(&mut self, handle: H) -> Option<T> {
+        let id = handle.into();
+        self.assets.remove(&id)
     }
 
     pub fn len(&self) -> usize {

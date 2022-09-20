@@ -187,7 +187,7 @@ pub fn audio_system(
 
         while i < len {
             let (instance_id, audio_handle, settings) = queue.pop_front().unwrap();
-            if let Some(audio) = audio.get(&audio_handle.id) {
+            if let Some(audio) = audio.get(&audio_handle) {
                 let sink = Sink::try_new(&audio_output.stream_handle).unwrap();
 
                 if settings.in_loop {
@@ -204,7 +204,7 @@ pub fn audio_system(
                 sink.set_volume(settings.volume);
 
                 let audio_instance = AudioInstance(Some(sink));
-                let _ = audio_instances.set(&instance_id, audio_instance);
+                let _ = audio_instances.set(Handle::weak(instance_id), audio_instance);
             } else {
                 queue.push_back((instance_id, audio_handle, settings));
             }

@@ -107,6 +107,10 @@ pub struct EventPublisher<'a, E: Any + std::fmt::Debug> {
 }
 
 impl<'a, E: Any + std::fmt::Debug> EventPublisher<'a, E> {
+    pub fn new(event_handler: RwLockWriteGuard<'a, EventHandler<E>>) -> Self {
+        Self { event_handler }
+    }
+
     pub fn publish(&mut self, event: E) {
         self.event_handler.publish(event)
     }

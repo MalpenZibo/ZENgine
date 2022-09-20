@@ -12,6 +12,12 @@ pub use assets::*;
 pub use handle::*;
 use zengine_engine::{Engine, Module, StageLabel};
 
+#[derive(Debug)]
+pub enum AssetEvent<T: Asset> {
+    Loaded(Handle<T>),
+    Unloaded(Handle<T>),
+}
+
 #[derive(Default)]
 pub struct AssetModule {
     asset_base_path: Option<PathBuf>,

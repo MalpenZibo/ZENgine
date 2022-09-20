@@ -56,6 +56,12 @@ pub struct Handle<T> {
     _phantom: PhantomData<T>,
 }
 
+impl<T: Asset> From<Handle<T>> for HandleId {
+    fn from(value: Handle<T>) -> Self {
+        value.id
+    }
+}
+
 impl<T> Drop for Handle<T> {
     fn drop(&mut self) {
         if let HandleType::Strong(sender) = &self.handle_type {
@@ -93,7 +99,11 @@ impl<T: Asset> Handle<T> {
         }
     }
 
-    pub fn as_weak(&self) -> Self {
+    pub fn clone_as_weak(&self) -> Self {
+        Handle::weak(self.id)
+    }
+
+    pub fn as_weak(self) -> Self {
         Handle::weak(self.id)
     }
 
