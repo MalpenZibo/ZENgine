@@ -8,7 +8,6 @@ zengine_ecs = { path = "../zengine_ecs" }
 zengine_engine = { path = "../zengine_engine" }
 zengine_macro = { path = "../zengine_macro" }
 
-image = "0.23.10"
 cfg-if = "1"
 rustc-hash = "1.1.0"
 crossbeam-channel = "0.5.6"

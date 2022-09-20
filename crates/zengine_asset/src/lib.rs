@@ -3,8 +3,6 @@ mod assets;
 mod handle;
 mod io;
 
-pub mod image_loader;
-
 use std::path::{Path, PathBuf};
 
 pub use asset_manager::*;
