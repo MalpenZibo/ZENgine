@@ -8,7 +8,8 @@ mod color;
 mod image_asset;
 mod renderer;
 mod sprite;
-mod texture_atlas;
+mod texture;
+// mod texture_atlas;
 pub(crate) mod vertex;
 
 pub use camera::*;
@@ -16,7 +17,8 @@ pub use color::*;
 pub use image_asset::*;
 pub use renderer::*;
 pub use sprite::*;
-pub use texture_atlas::*;
+pub use texture::*;
+// pub use texture_atlas::*;
 
 #[derive(Resource, Debug, Default)]
 pub struct Background {
@@ -31,10 +33,11 @@ impl Module for RenderModule {
         engine
             .add_asset::<Image>()
             .add_asset_loader(ImageLoader)
+            .add_asset::<Texture>()
             .add_startup_system(setup_render)
             .add_startup_system(setup_camera)
             .add_startup_system(setup_sprite_render)
-            .add_system_into_stage(prepare_image_asset, StageLabel::Render)
+            .add_system_into_stage(prepare_texture_asset, StageLabel::Render)
             .add_system_into_stage(clear, StageLabel::Render)
             .add_system_into_stage(camera_render, StageLabel::Render)
             .add_system_into_stage(sprite_render, StageLabel::Render)

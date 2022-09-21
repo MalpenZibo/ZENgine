@@ -8,21 +8,24 @@ use zengine_ecs::system::{Commands, Local, OptionalRes, Query, QueryIter, ResMut
 use zengine_macro::{Component, Resource};
 
 use crate::{
-    vertex::Vertex, CameraBuffer, Color, Device, Image, Queue, RenderContextInstance, SurfaceData,
-    TextureBindGroupLayout,
+    vertex::Vertex, CameraBuffer, Color, Device, Queue, RenderContextInstance, SurfaceData,
+    Texture, TextureBindGroupLayout,
 };
 
 pub const INDICES: &[u16] = &[0, 1, 2, 2, 3, 0];
 
 #[derive(Debug)]
-pub enum Texture {
-    Simple(Handle<Image>),
+pub enum SpriteTexture {
+    Simple(Handle<Texture>),
 }
 
-impl Texture {
-    pub fn is_ready(&self, images: &Assets<Image>) -> bool {
+impl SpriteTexture {
+    pub fn is_ready(&self, textures: &Assets<Texture>) -> bool {
         match self {
-            Self::Simple(handle) => images.get(handle).is_some(),
+            Self::Simple(handle) => textures
+                .get(handle)
+                .and_then(|t| t.gpu_image.as_ref())
+                .is_some(),
         }
     }
 
@@ -39,7 +42,7 @@ pub struct Sprite {
     pub height: f32,
     pub origin: glam::Vec3,
     pub color: Color,
-    pub texture: Texture,
+    pub texture: SpriteTexture,
 }
 
 #[derive(Resource, Default, Debug)]
@@ -211,12 +214,12 @@ pub fn sprite_render(
     device: OptionalRes<Device>,
     mut render_context: ResMut<RenderContextInstance>,
     render_pipeline: OptionalRes<RenderPipeline>,
-    images: OptionalRes<Assets<Image>>,
+    textures: OptionalRes<Assets<Texture>>,
     camera_buffer: OptionalRes<CameraBuffer>,
     sprite_query: Query<(&Sprite, &Transform)>,
     sprite_buffer: Local<SpriteBuffer>,
 ) {
-    if let Some(images) = images {
+    if let Some(textures) = textures {
         if let (Some(device), Some(queue), Some(camera_buffer), Some(render_pipeline)) =
             (device, queue, camera_buffer, render_pipeline)
         {
@@ -240,7 +243,7 @@ pub fn sprite_render(
 
                 let mut batches: Vec<BatchLayer> = Vec::default();
                 for (s, t) in sprite_query.iter() {
-                    if s.texture.is_ready(&images) {
+                    if s.texture.is_ready(&textures) {
                         let z = t.position.z;
 
                         let batch_layer = match batches.binary_search_by(|l| l.z.total_cmp(&z)) {
@@ -358,7 +361,7 @@ pub fn sprite_render(
                 let mut offset: u32 = 0;
                 for b in batches.iter().rev() {
                     for (k, v) in b.data.iter() {
-                        let texture = images
+                        let texture = textures
                             .get(&Handle::weak(*k))
                             .and_then(|t1| t1.gpu_image.as_ref())
                             .unwrap();

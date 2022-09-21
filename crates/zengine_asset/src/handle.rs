@@ -142,7 +142,7 @@ impl<T: Asset> Handle<T> {
         Handle::weak(self.id)
     }
 
-    pub fn as_weak(self) -> Self {
+    pub fn as_weak(&self) -> Self {
         Handle::weak(self.id)
     }
 

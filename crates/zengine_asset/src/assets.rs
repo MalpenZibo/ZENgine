@@ -32,6 +32,10 @@ impl<T: Asset> Assets<T> {
         }
     }
 
+    pub fn contains(&self, handle: &Handle<T>) -> bool {
+        self.assets.contains_key(&handle.id)
+    }
+
     pub fn get(&self, handle: &Handle<T>) -> Option<&T> {
         self.assets.get(&handle.id)
     }

@@ -5,12 +5,15 @@ use zengine::{
     core::{timing_system, Time, Transform},
     ecs::{
         system::{
-            Commands, EventPublisher, EventStream, Local, OptionalRes, Query, QueryIter,
-            QueryIterMut, Res, ResMut,
+            Commands, EventPublisher, EventStream, Local, OptionalRes, OptionalResMut, Query,
+            QueryIter, QueryIterMut, Res, ResMut,
         },
         Entity,
     },
-    graphic::{ActiveCamera, Background, Camera, CameraMode, Color, RenderModule, Sprite, Texture},
+    graphic::{
+        ActiveCamera, Background, Camera, CameraMode, Color, RenderModule, Sprite, SpriteTexture,
+        Texture, TextureAsset,
+    },
     input::{input_system, Bindings, InputHandler},
     log::Level,
     math::{Vec2, Vec3},
@@ -149,9 +152,11 @@ fn main() {
 fn setup(
     mut commands: Commands,
     mut asset_manager: ResMut<AssetManager>,
+    mut textures: OptionalResMut<Assets<Texture>>,
     audio_device: Res<AudioDevice>,
     audio_instances: OptionalRes<Assets<AudioInstance>>,
 ) {
+    let textures = textures.as_mut().unwrap();
     commands.create_resource(BounceEffect(asset_manager.load("audio/bounce.wav")));
     commands.create_resource(ScoreEffect(asset_manager.load("audio/score.wav")));
 
@@ -165,6 +170,11 @@ fn setup(
     let board = asset_manager.load("images/board.png");
     let pad_image = asset_manager.load("images/pad.png");
     let ball = asset_manager.load("images/ball.png");
+
+    let bg = textures.create_texture(&bg);
+    let board = textures.create_texture(&board);
+    let pad_image = textures.create_texture(&pad_image);
+    let ball = textures.create_texture(&ball);
 
     commands.create_resource(GameSettings {
         drag_constant: 10.0,
@@ -196,7 +206,7 @@ fn setup(
             height: HEIGHT,
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
-            texture: Texture::Simple(bg),
+            texture: SpriteTexture::Simple(bg),
         },
         Transform::new(Vec3::new(0.0, 0.0, 3.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
     ));
@@ -210,7 +220,7 @@ fn setup(
             height,
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
-            texture: Texture::Simple(board),
+            texture: SpriteTexture::Simple(board),
         },
         Transform::new(Vec3::new(0.0, 0.0, 2.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
     ));
@@ -287,7 +297,7 @@ fn setup(
             height: PAD_HALF_HEIGHT * 2.0,
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
-            texture: Texture::Simple(pad_image.clone()),
+            texture: SpriteTexture::Simple(pad_image.clone()),
         },
         Transform::new(
             Vec3::new(0.0, -(height / 2.) + 20.0 + PAD_HALF_HEIGHT, 1.0),
@@ -311,7 +321,7 @@ fn setup(
             height: PAD_HALF_HEIGHT * 2.0,
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
-            texture: Texture::Simple(pad_image),
+            texture: SpriteTexture::Simple(pad_image),
         },
         Transform::new(
             Vec3::new(0.0, height / 2. - 20.0 - PAD_HALF_HEIGHT, 1.0),
@@ -335,7 +345,7 @@ fn setup(
             height: BALL_RADIUS * 2.0,
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
-            texture: Texture::Simple(ball),
+            texture: SpriteTexture::Simple(ball),
         },
         Transform::new(Vec3::new(0.0, 0.0, 1.0), Vec3::ZERO, 1.0),
         Shape2D {
