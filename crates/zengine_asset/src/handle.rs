@@ -41,6 +41,10 @@ impl HandleId {
     pub fn get_type(&self) -> TypeId {
         self.0
     }
+
+    pub fn get_id(&self) -> u64 {
+        self.1
+    }
 }
 
 impl<T: Asset> From<Handle<T>> for HandleId {

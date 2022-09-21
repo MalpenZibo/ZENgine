@@ -44,6 +44,14 @@ impl<T: Asset> Assets<T> {
         self.assets.get_mut(&handle.id)
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = (&HandleId, &T)> {
+        self.assets.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&HandleId, &mut T)> {
+        self.assets.iter_mut()
+    }
+
     pub fn add(&mut self, asset: T) -> Handle<T> {
         let handle = Handle::strong(
             HandleId::new_manual::<T>(self.counter.fetch_add(1, Ordering::Relaxed)),

@@ -1,9 +1,5 @@
-use std::num::NonZeroU32;
-
-use crate::{Device, Queue, TextureBindGroupLayout};
 use image::{DynamicImage, GenericImageView};
-use zengine_asset::{AssetEvent, AssetLoader, Assets};
-use zengine_ecs::system::{EventStream, OptionalRes, OptionalResMut};
+use zengine_asset::AssetLoader;
 use zengine_macro::Asset;
 
 #[derive(Asset, Default, Debug)]
@@ -20,7 +16,6 @@ impl Image {
             width,
             height,
             data,
-            ..Default::default()
         }
     }
 }

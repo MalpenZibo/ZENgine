@@ -12,7 +12,7 @@ use zengine::{
     },
     graphic::{
         ActiveCamera, Background, Camera, CameraMode, Color, RenderModule, Sprite, SpriteTexture,
-        Texture, TextureAsset,
+        Texture, TextureAssets, TextureAtlas, TextureAtlasAssets,
     },
     input::{input_system, Bindings, InputHandler},
     log::Level,
@@ -94,6 +94,9 @@ pub enum GameEvent {
     Score,
 }
 
+#[derive(Resource, Debug)]
+pub struct Test(Handle<TextureAtlas>);
+
 fn main() {
     Engine::init_logger(Level::Info);
 
@@ -153,10 +156,13 @@ fn setup(
     mut commands: Commands,
     mut asset_manager: ResMut<AssetManager>,
     mut textures: OptionalResMut<Assets<Texture>>,
+    mut textures_atlas: OptionalResMut<Assets<TextureAtlas>>,
     audio_device: Res<AudioDevice>,
     audio_instances: OptionalRes<Assets<AudioInstance>>,
 ) {
     let textures = textures.as_mut().unwrap();
+    let textures_atlas = textures_atlas.as_mut().unwrap();
+
     commands.create_resource(BounceEffect(asset_manager.load("audio/bounce.wav")));
     commands.create_resource(ScoreEffect(asset_manager.load("audio/score.wav")));
 
@@ -172,9 +178,12 @@ fn setup(
     let ball = asset_manager.load("images/ball.png");
 
     let bg = textures.create_texture(&bg);
-    let board = textures.create_texture(&board);
-    let pad_image = textures.create_texture(&pad_image);
-    let ball = textures.create_texture(&ball);
+    let atlas = textures_atlas.create_texture_atlas(&[&board, &pad_image, &ball]);
+
+    // commands.create_resource(Test(atlas.clone()));
+    // let board = textures.create_texture(&board);
+    // let pad_image = textures.create_texture(&pad_image);
+    // let ball = textures.create_texture(&ball);
 
     commands.create_resource(GameSettings {
         drag_constant: 10.0,
@@ -220,7 +229,10 @@ fn setup(
             height,
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
-            texture: SpriteTexture::Simple(board),
+            texture: SpriteTexture::Atlas {
+                texture_handle: atlas.clone(),
+                target_image: board,
+            },
         },
         Transform::new(Vec3::new(0.0, 0.0, 2.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
     ));
@@ -297,7 +309,10 @@ fn setup(
             height: PAD_HALF_HEIGHT * 2.0,
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
-            texture: SpriteTexture::Simple(pad_image.clone()),
+            texture: SpriteTexture::Atlas {
+                texture_handle: atlas.clone(),
+                target_image: pad_image.clone_as_weak(),
+            },
         },
         Transform::new(
             Vec3::new(0.0, -(height / 2.) + 20.0 + PAD_HALF_HEIGHT, 1.0),
@@ -321,7 +336,10 @@ fn setup(
             height: PAD_HALF_HEIGHT * 2.0,
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
-            texture: SpriteTexture::Simple(pad_image),
+            texture: SpriteTexture::Atlas {
+                texture_handle: atlas.clone(),
+                target_image: pad_image.clone_as_weak(),
+            },
         },
         Transform::new(
             Vec3::new(0.0, height / 2. - 20.0 - PAD_HALF_HEIGHT, 1.0),
@@ -345,7 +363,10 @@ fn setup(
             height: BALL_RADIUS * 2.0,
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
-            texture: SpriteTexture::Simple(ball),
+            texture: SpriteTexture::Atlas {
+                texture_handle: atlas,
+                target_image: ball.clone_as_weak(),
+            },
         },
         Transform::new(Vec3::new(0.0, 0.0, 1.0), Vec3::ZERO, 1.0),
         Shape2D {
