@@ -1,10 +1,10 @@
 use log::debug;
 use rodio::{OutputStream, OutputStreamHandle, Sink, Source};
+use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::io::Cursor;
-use std::sync::atomic::Ordering;
 use std::sync::RwLock;
-use std::{collections::VecDeque, sync::atomic::AtomicU64};
+use zengine_asset::Asset;
 use zengine_asset::{AssetExtension, AssetLoader, Assets, Handle, HandleId};
 use zengine_ecs::system::{OptionalRes, OptionalResMut, Res, UnsendableRes};
 use zengine_engine::{Module, StageLabel};
@@ -124,7 +124,6 @@ impl AudioInstance {
 
 #[derive(Resource, Default, Debug)]
 pub struct AudioDevice {
-    instance_counter: AtomicU64,
     queue: RwLock<VecDeque<(HandleId, Handle<Audio>, AudioSettings)>>,
 }
 
@@ -138,7 +137,7 @@ impl AudioDevice {
         audio: Handle<Audio>,
         settings: AudioSettings,
     ) -> Handle<AudioInstance> {
-        let next_id = self.instance_counter.fetch_add(1, Ordering::Relaxed);
+        let next_id = AudioInstance::next_counter();
         let handle_id = HandleId::new_from_u64::<AudioInstance>(next_id);
 
         debug!("created an Audio Instance handle {:?}", handle_id);

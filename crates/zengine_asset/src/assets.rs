@@ -1,11 +1,7 @@
 use crossbeam_channel::Sender;
 use downcast_rs::{impl_downcast, Downcast};
 use rustc_hash::FxHashMap;
-use std::{
-    ffi::OsStr,
-    path::PathBuf,
-    sync::atomic::{AtomicU64, Ordering},
-};
+use std::{ffi::OsStr, path::PathBuf};
 use zengine_macro::Resource;
 
 use crate::{
@@ -13,12 +9,15 @@ use crate::{
     Handle,
 };
 
-pub trait Asset: Downcast + Send + Sync + std::fmt::Debug + 'static {}
+pub trait Asset: Downcast + Send + Sync + std::fmt::Debug + 'static {
+    fn next_counter() -> u64
+    where
+        Self: Sized;
+}
 impl_downcast!(Asset);
 
 #[derive(Resource, Debug)]
 pub struct Assets<T: Asset> {
-    counter: AtomicU64,
     assets: FxHashMap<HandleId, T>,
     pub(crate) sender: Sender<HandleRef>,
 }
@@ -26,7 +25,6 @@ pub struct Assets<T: Asset> {
 impl<T: Asset> Assets<T> {
     pub(crate) fn new(sender: Sender<HandleRef>) -> Self {
         Self {
-            counter: AtomicU64::default(),
             assets: FxHashMap::default(),
             sender,
         }
@@ -54,7 +52,7 @@ impl<T: Asset> Assets<T> {
 
     pub fn add(&mut self, asset: T) -> Handle<T> {
         let handle = Handle::strong(
-            HandleId::new_from_u64::<T>(self.counter.fetch_add(1, Ordering::Relaxed)),
+            HandleId::new_from_u64::<T>(T::next_counter()),
             self.sender.clone(),
         );
 

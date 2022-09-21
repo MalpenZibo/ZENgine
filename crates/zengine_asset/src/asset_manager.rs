@@ -288,7 +288,14 @@ mod tests {
     pub struct TestAsset {
         _data: Vec<u8>,
     }
-    impl Asset for TestAsset {}
+    impl Asset for TestAsset {
+        fn next_counter() -> u64
+        where
+            Self: Sized,
+        {
+            0
+        }
+    }
 
     #[derive(Debug)]
     pub struct TestLoader {}

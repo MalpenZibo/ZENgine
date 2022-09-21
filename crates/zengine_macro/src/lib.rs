@@ -68,10 +68,19 @@ pub fn asset_macro_derive(input: TokenStream) -> TokenStream {
     let zengine_asset_path: Path = ZENgineManifest::default().get_path("zengine_asset");
 
     let name = input.ident;
+    let asset_counter = format_ident!("{}_COUNTER", name.to_string().to_uppercase());
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     let expanded = quote! {
-        impl #impl_generics #zengine_asset_path::Asset for #name #ty_generics #where_clause {}
+        static #asset_counter: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        impl #impl_generics #zengine_asset_path::Asset for #name #ty_generics #where_clause {
+            fn next_counter() -> u64
+            where
+                Self: Sized,
+            {
+                #asset_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            }
+        }
     };
 
     TokenStream::from(expanded)
@@ -87,21 +96,6 @@ pub fn input_type_macro_derive(input: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         impl #impl_generics #zengine_input_path::InputType for #name #ty_generics #where_clause {}
-    };
-
-    TokenStream::from(expanded)
-}
-
-#[proc_macro_derive(SpriteType)]
-pub fn sprite_type_macro_derive(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    let zengine_graphic_path = ZENgineManifest::default().get_path("zengine_graphic");
-
-    let name = input.ident;
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-
-    let expanded = quote! {
-        impl #impl_generics #zengine_graphic_path::SpriteType for #name #ty_generics #where_clause {}
     };
 
     TokenStream::from(expanded)

@@ -14,7 +14,10 @@ use crate::{
 };
 
 #[derive(Debug, Eq, Hash, PartialEq, Ord, PartialOrd, Clone, Copy)]
-pub struct HandleId(TypeId, u64);
+pub enum HandleId {
+    FromPath(TypeId, u64),
+    FromU64(TypeId, u64),
+}
 
 impl HandleId {
     pub fn new_from_path<T: Asset>(asset_path: &AssetPath) -> Self {
@@ -24,23 +27,29 @@ impl HandleId {
         asset_path.path.hash(&mut hasher);
         let id: u64 = hasher.finish();
 
-        Self(type_id, id)
+        Self::FromPath(type_id, id)
     }
 
     pub fn new_from_u64<T: Asset>(id: u64) -> Self {
         let type_id = TypeId::of::<T>();
 
-        Self(type_id, id)
+        Self::FromU64(type_id, id)
     }
 
     pub fn clone_with_different_type<T: Asset>(&self) -> Self {
         let type_id = TypeId::of::<T>();
 
-        Self(type_id, self.1)
+        match self {
+            Self::FromPath(_, id) => Self::FromPath(type_id, *id),
+            Self::FromU64(_, id) => Self::FromU64(type_id, *id),
+        }
     }
 
     pub fn get_type(&self) -> TypeId {
-        self.0
+        match self {
+            Self::FromPath(type_id, _) => *type_id,
+            Self::FromU64(type_id, _) => *type_id,
+        }
     }
 }
 
@@ -180,11 +189,25 @@ mod tests {
 
     #[derive(Debug)]
     pub struct TestAsset1 {}
-    impl Asset for TestAsset1 {}
+    impl Asset for TestAsset1 {
+        fn next_counter() -> u64
+        where
+            Self: Sized,
+        {
+            0
+        }
+    }
 
     #[derive(Debug)]
     pub struct TestAsset2 {}
-    impl Asset for TestAsset2 {}
+    impl Asset for TestAsset2 {
+        fn next_counter() -> u64
+        where
+            Self: Sized,
+        {
+            0
+        }
+    }
 
     #[test]
     fn handle_id_unique_constrain() {
