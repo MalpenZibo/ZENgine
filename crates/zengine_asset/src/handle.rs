@@ -17,7 +17,7 @@ use crate::{
 pub struct HandleId(TypeId, u64);
 
 impl HandleId {
-    pub fn new<T: Asset>(asset_path: &AssetPath) -> Self {
+    pub fn new_from_path<T: Asset>(asset_path: &AssetPath) -> Self {
         let type_id = TypeId::of::<T>();
 
         let mut hasher = ahash::AHasher::default();
@@ -27,23 +27,20 @@ impl HandleId {
         Self(type_id, id)
     }
 
-    pub fn default<T: Asset>() -> Self {
-        let type_id = TypeId::of::<T>();
-        Self(type_id, 0)
-    }
-
-    pub fn new_manual<T: Asset>(id: u64) -> Self {
+    pub fn new_from_u64<T: Asset>(id: u64) -> Self {
         let type_id = TypeId::of::<T>();
 
         Self(type_id, id)
     }
 
-    pub fn get_type(&self) -> TypeId {
-        self.0
+    pub fn clone_with_different_type<T: Asset>(&self) -> Self {
+        let type_id = TypeId::of::<T>();
+
+        Self(type_id, self.1)
     }
 
-    pub fn get_id(&self) -> u64 {
-        self.1
+    pub fn get_type(&self) -> TypeId {
+        self.0
     }
 }
 
@@ -96,12 +93,6 @@ impl<T: Asset> PartialOrd for Handle<T> {
 impl<T: Asset> Ord for Handle<T> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.id.cmp(&other.id)
-    }
-}
-
-impl<T: Asset> Default for Handle<T> {
-    fn default() -> Self {
-        Handle::weak(HandleId::default::<T>())
     }
 }
 
@@ -197,14 +188,14 @@ mod tests {
 
     #[test]
     fn handle_id_unique_constrain() {
-        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
-        let same_id = HandleId::new::<TestAsset1>(&"path1.txt".into());
-        let different_id = HandleId::new::<TestAsset1>(&"path2.txt".into());
+        let id = HandleId::new_from_path::<TestAsset1>(&"path1.txt".into());
+        let same_id = HandleId::new_from_path::<TestAsset1>(&"path1.txt".into());
+        let different_id = HandleId::new_from_path::<TestAsset1>(&"path2.txt".into());
 
         assert_eq!(id, same_id);
         assert_ne!(id, different_id);
 
-        let different_id = HandleId::new::<TestAsset2>(&"path1.txt".into());
+        let different_id = HandleId::new_from_path::<TestAsset2>(&"path1.txt".into());
         assert_ne!(id, different_id);
     }
 
@@ -212,7 +203,7 @@ mod tests {
     fn strong_handle_increment_ref_counter() {
         let (sender, receiver) = crossbeam_channel::unbounded::<HandleRef>();
 
-        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let id = HandleId::new_from_path::<TestAsset1>(&"path1.txt".into());
         let _handle: Handle<TestAsset1> = Handle::strong(id, sender);
 
         let handle_ref = receiver.try_recv();
@@ -224,7 +215,7 @@ mod tests {
     fn strong_handle_is_a_strong_one() {
         let (sender, _receiver) = crossbeam_channel::unbounded::<HandleRef>();
 
-        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let id = HandleId::new_from_path::<TestAsset1>(&"path1.txt".into());
         let handle: Handle<TestAsset1> = Handle::strong(id, sender);
 
         assert!(handle.is_strong());
@@ -235,7 +226,7 @@ mod tests {
     fn weak_handle_is_a_weak_one() {
         let (sender, _receiver) = crossbeam_channel::unbounded::<HandleRef>();
 
-        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let id = HandleId::new_from_path::<TestAsset1>(&"path1.txt".into());
         let handle: Handle<TestAsset1> = Handle::strong(id, sender).as_weak();
 
         assert!(handle.is_weak());
@@ -246,7 +237,7 @@ mod tests {
     fn weak_handle_do_not_increment_ref_counter() {
         let (sender, receiver) = crossbeam_channel::unbounded::<HandleRef>();
 
-        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let id = HandleId::new_from_path::<TestAsset1>(&"path1.txt".into());
         let handle: Handle<TestAsset1> = Handle::strong(id, sender);
         let _handle2 = handle.as_weak();
 
@@ -261,7 +252,7 @@ mod tests {
     fn cloning_a_strong_handle_increment_ref_counter() {
         let (sender, receiver) = crossbeam_channel::unbounded::<HandleRef>();
 
-        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let id = HandleId::new_from_path::<TestAsset1>(&"path1.txt".into());
         let handle: Handle<TestAsset1> = Handle::strong(id, sender);
 
         let handle_ref = receiver.try_recv();
@@ -278,7 +269,7 @@ mod tests {
     fn cloning_a_weak_handle_do_not_increment_ref_counter() {
         let (sender, receiver) = crossbeam_channel::unbounded::<HandleRef>();
 
-        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let id = HandleId::new_from_path::<TestAsset1>(&"path1.txt".into());
         let handle: Handle<TestAsset1> = Handle::strong(id, sender);
 
         let handle_ref = receiver.try_recv();
@@ -295,7 +286,7 @@ mod tests {
     fn drop_a_strong_handle_decrement_ref_counter() {
         let (sender, receiver) = crossbeam_channel::unbounded::<HandleRef>();
 
-        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let id = HandleId::new_from_path::<TestAsset1>(&"path1.txt".into());
         {
             let _handle: Handle<TestAsset1> = Handle::strong(id, sender);
 
@@ -311,7 +302,7 @@ mod tests {
     fn drop_a_weak_handle_do_not_decrement_ref_counter() {
         let (sender, receiver) = crossbeam_channel::unbounded::<HandleRef>();
 
-        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let id = HandleId::new_from_path::<TestAsset1>(&"path1.txt".into());
         let handle: Handle<TestAsset1> = Handle::strong(id, sender);
 
         let handle_ref = receiver.try_recv();
@@ -331,7 +322,7 @@ mod tests {
 
         let assets: Assets<TestAsset1> = Assets::new(sender);
 
-        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let id = HandleId::new_from_path::<TestAsset1>(&"path1.txt".into());
         let mut handle: Handle<TestAsset1> = Handle::weak(id);
 
         handle.make_strong(&assets);
@@ -348,7 +339,7 @@ mod tests {
 
         let assets: Assets<TestAsset1> = Assets::new(sender.clone());
 
-        let id = HandleId::new::<TestAsset1>(&"path1.txt".into());
+        let id = HandleId::new_from_path::<TestAsset1>(&"path1.txt".into());
         let mut handle: Handle<TestAsset1> = Handle::strong(id, sender);
 
         let handle_ref = receiver.try_recv();

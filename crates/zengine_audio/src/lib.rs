@@ -139,7 +139,7 @@ impl AudioDevice {
         settings: AudioSettings,
     ) -> Handle<AudioInstance> {
         let next_id = self.instance_counter.fetch_add(1, Ordering::Relaxed);
-        let handle_id = HandleId::new_manual::<AudioInstance>(next_id);
+        let handle_id = HandleId::new_from_u64::<AudioInstance>(next_id);
 
         debug!("created an Audio Instance handle {:?}", handle_id);
 

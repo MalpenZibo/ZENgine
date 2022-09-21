@@ -184,7 +184,7 @@ impl TextureAtlasAssets for Assets<TextureAtlas> {
         images.hash(&mut hasher);
         let id: u64 = hasher.finish();
 
-        let handle = Handle::weak(HandleId::new_manual::<TextureAtlas>(id));
+        let handle = Handle::weak(HandleId::new_from_u64::<TextureAtlas>(id));
 
         self.set(
             handle,

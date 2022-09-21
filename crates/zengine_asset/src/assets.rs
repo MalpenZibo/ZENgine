@@ -54,7 +54,7 @@ impl<T: Asset> Assets<T> {
 
     pub fn add(&mut self, asset: T) -> Handle<T> {
         let handle = Handle::strong(
-            HandleId::new_manual::<T>(self.counter.fetch_add(1, Ordering::Relaxed)),
+            HandleId::new_from_u64::<T>(self.counter.fetch_add(1, Ordering::Relaxed)),
             self.sender.clone(),
         );
 

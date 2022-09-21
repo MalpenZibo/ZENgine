@@ -94,9 +94,6 @@ pub enum GameEvent {
     Score,
 }
 
-#[derive(Resource, Debug)]
-pub struct Test(Handle<TextureAtlas>);
-
 fn main() {
     Engine::init_logger(Level::Info);
 
@@ -179,11 +176,6 @@ fn setup(
 
     let bg = textures.create_texture(&bg);
     let atlas = textures_atlas.create_texture_atlas(&[&board, &pad_image, &ball]);
-
-    // commands.create_resource(Test(atlas.clone()));
-    // let board = textures.create_texture(&board);
-    // let pad_image = textures.create_texture(&pad_image);
-    // let ball = textures.create_texture(&ball);
 
     commands.create_resource(GameSettings {
         drag_constant: 10.0,

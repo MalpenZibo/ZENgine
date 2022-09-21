@@ -1,5 +1,5 @@
 use std::num::NonZeroU32;
-use zengine_asset::{AssetEvent, Assets, Handle, HandleId};
+use zengine_asset::{AssetEvent, Assets, Handle};
 use zengine_ecs::system::{EventStream, OptionalRes, OptionalResMut};
 use zengine_macro::Asset;
 
@@ -114,9 +114,9 @@ pub trait TextureAssets {
 }
 
 impl TextureAssets for Assets<Texture> {
-    fn create_texture(&mut self, image: &Handle<Image>) -> Handle<Texture> {
-        let handle = Handle::weak(HandleId::new_manual::<Texture>(image.id.get_id()));
-        self.set(handle, Texture::new(image.clone()))
+    fn create_texture(&mut self, image_handle: &Handle<Image>) -> Handle<Texture> {
+        let handle = Handle::weak(image_handle.id.clone_with_different_type::<Texture>());
+        self.set(handle, Texture::new(image_handle.clone()))
     }
 }
 
@@ -139,7 +139,7 @@ pub fn prepare_texture_asset(
     {
         for e in events {
             if let AssetEvent::Loaded(handle) = e {
-                let handle = Handle::weak(HandleId::new_manual::<Texture>(handle.id.get_id()));
+                let handle = Handle::weak(handle.id.clone_with_different_type::<Texture>());
                 if let Some(texture) = textures.get_mut(&handle) {
                     texture.convert_to_gpu_image(
                         &device,

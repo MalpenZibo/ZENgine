@@ -130,7 +130,7 @@ impl AssetManager {
 
     pub fn load<T: Asset, P: Into<AssetPath>>(&mut self, file_path: P) -> Handle<T> {
         let asset_path = file_path.into();
-        let handle_id: HandleId = HandleId::new::<T>(&asset_path);
+        let handle_id = HandleId::new_from_path::<T>(&asset_path);
 
         let loader = self
             .find_loader(&asset_path.extension)
