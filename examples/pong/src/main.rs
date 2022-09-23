@@ -5,25 +5,27 @@ use zengine::{
     core::{timing_system, Time, Transform},
     ecs::{
         system::{
-            Commands, EventPublisher, EventStream, Local, OptionalRes, Query, QueryIter,
-            QueryIterMut, Res, ResMut, UnsendableResMut,
+            Commands, EventPublisher, EventStream, Local, OptionalRes, OptionalResMut, Query,
+            QueryIter, QueryIterMut, Res, ResMut,
         },
         Entity,
     },
     graphic::{
-        ActiveCamera, Background, Camera, CameraMode, Color, RenderModule, Sprite,
-        SpriteDescriptor, TextureManager,
+        ActiveCamera, Background, Camera, CameraMode, Color, GraphicModule, Sprite, SpriteTexture,
+        Texture, TextureAssets, TextureAtlas, TextureAtlasAssets,
     },
     input::{input_system, Bindings, InputHandler},
     log::Level,
     math::{Vec2, Vec3},
     physics::{collision_system, Collision, Shape2D, ShapeType},
     window::{WindowModule, WindowSpecs},
-    Component, Engine, InputType, Resource, SpriteType, StageLabel,
+    Component, Engine, InputType, Resource, StageLabel,
 };
 
-static WIDTH: f32 = 600.0;
-static HEIGHT: f32 = 800.0;
+static WIDTH: f32 = 1280.0;
+static HEIGHT: f32 = 720.0;
+static BOARD_WIDTH: f32 = HEIGHT / 1.33;
+
 static PAD_HALF_WIDTH: f32 = 75.0;
 static PAD_HALF_HEIGHT: f32 = 15.0;
 static PAD_FORCE: f32 = 2000.0;
@@ -37,7 +39,7 @@ pub enum UserInput {
     Player1XAxis,
 }
 
-#[derive(Hash, Eq, SpriteType, PartialEq, Clone, Debug)]
+#[derive(Hash, Eq, PartialEq, Clone, Debug)]
 pub enum Sprites {
     Background,
     Pad,
@@ -107,6 +109,14 @@ fn main() {
                     key: A
               scale: -1.0
             - source:
+                Keyboard:
+                    key: Right
+              scale: 1.0
+            - source: 
+                Keyboard: 
+                    key: Left
+              scale: -1.0
+            - source:
                 ControllerStick:
                     device_id: 0
                     which: Left
@@ -119,13 +129,13 @@ fn main() {
     Engine::default()
         .add_module(WindowModule(WindowSpecs {
             title: "PONG".to_owned(),
-            width: 600,
-            height: 800,
+            width: WIDTH as u32,
+            height: HEIGHT as u32,
             fullscreen: false,
             vsync: false,
         }))
-        .add_module(RenderModule::<Sprites>::default())
         .add_module(AssetModule::new("assets"))
+        .add_module(GraphicModule::default())
         .add_module(AudioModule::default())
         .add_startup_system(setup)
         .add_system(input_system(bindings))
@@ -141,11 +151,15 @@ fn main() {
 
 fn setup(
     mut commands: Commands,
-    mut textures: UnsendableResMut<TextureManager<Sprites>>,
     mut asset_manager: ResMut<AssetManager>,
+    mut textures: OptionalResMut<Assets<Texture>>,
+    mut textures_atlas: OptionalResMut<Assets<TextureAtlas>>,
     audio_device: Res<AudioDevice>,
     audio_instances: OptionalRes<Assets<AudioInstance>>,
 ) {
+    let textures = textures.as_mut().unwrap();
+    let textures_atlas = textures_atlas.as_mut().unwrap();
+
     commands.create_resource(BounceEffect(asset_manager.load("audio/bounce.wav")));
     commands.create_resource(ScoreEffect(asset_manager.load("audio/score.wav")));
 
@@ -155,44 +169,13 @@ fn setup(
     bg.make_strong(audio_instances.as_ref().unwrap());
     commands.create_resource(BgMusic(bg));
 
-    textures
-        .create("bg.png")
-        .with_sprite(
-            Sprites::Background,
-            SpriteDescriptor {
-                width: 600,
-                height: 800,
-                x: 0,
-                y: 0,
-            },
-        )
-        .load();
+    let bg = asset_manager.load("images/bg.jpg");
+    let board = asset_manager.load("images/board.png");
+    let pad_image = asset_manager.load("images/pad.png");
+    let ball = asset_manager.load("images/ball.png");
 
-    textures
-        .create("pad.png")
-        .with_sprite(
-            Sprites::Pad,
-            SpriteDescriptor {
-                width: 150,
-                height: 30,
-                x: 0,
-                y: 0,
-            },
-        )
-        .load();
-
-    textures
-        .create("ball.png")
-        .with_sprite(
-            Sprites::Ball,
-            SpriteDescriptor {
-                width: 50,
-                height: 50,
-                x: 0,
-                y: 0,
-            },
-        )
-        .load();
+    let bg = textures.create_texture(&bg);
+    let atlas = textures_atlas.create_texture_atlas(&[&board, &pad_image, &ball]);
 
     commands.create_resource(GameSettings {
         drag_constant: 10.0,
@@ -213,40 +196,61 @@ fn setup(
         Camera {
             mode: CameraMode::Mode2D((WIDTH, HEIGHT)),
         },
-        Transform::new(
-            Vec3::new(WIDTH / 2.0, HEIGHT / 2.0, -50.0),
-            Vec3::new(0.0, 0.0, 0.0),
-            1.0,
-        ),
+        Transform::new(Vec3::new(0.0, 0.0, -50.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
     ));
 
     commands.create_resource(ActiveCamera { entity: camera });
 
     commands.spawn((
-        Sprite::<Sprites> {
+        Sprite {
             width: WIDTH,
             height: HEIGHT,
-            origin: Vec3::new(0.0, 0.0, 0.0),
+            origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
-            sprite_type: Sprites::Background,
+            texture: SpriteTexture::Simple(bg),
+        },
+        Transform::new(Vec3::new(0.0, 0.0, 3.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
+    ));
+
+    let height = HEIGHT;
+    let width = BOARD_WIDTH;
+
+    commands.spawn((
+        Sprite {
+            width,
+            height,
+            origin: Vec3::new(0.5, 0.5, 0.0),
+            color: Color::WHITE,
+            texture: SpriteTexture::Atlas {
+                texture_handle: atlas.clone(),
+                target_image: Some(board),
+            },
         },
         Transform::new(Vec3::new(0.0, 0.0, 2.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
     ));
 
     let sx = commands.spawn((
-        Transform::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
+        Transform::new(
+            Vec3::new(-width / 2., 0.0, 0.0),
+            Vec3::new(0.0, 0.0, 0.0),
+            1.0,
+        ),
         Shape2D {
-            origin: Vec3::new(1.0, 0.0, 0.0),
+            origin: Vec3::new(1.0, 0.5, 0.0),
             shape_type: ShapeType::Rectangle {
                 width: 300.0,
-                height: HEIGHT,
+                height,
             },
         },
     ));
     let dx = commands.spawn((
-        Transform::new(Vec3::new(WIDTH, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
+        Transform::new(
+            Vec3::new(width / 2., 0.0, 0.0),
+            Vec3::new(0.0, 0.0, 0.0),
+            1.0,
+        ),
         Shape2D {
-            origin: Vec3::new(0.0, 0.0, 0.0),
+            origin: Vec3::new(0.0, 0.5, 0.0),
             shape_type: ShapeType::Rectangle {
                 width: 300.0,
                 height: HEIGHT,
@@ -255,9 +259,13 @@ fn setup(
     ));
 
     let top = commands.spawn((
-        Transform::new(Vec3::new(0.0, HEIGHT, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
+        Transform::new(
+            Vec3::new(0.0, height / 2., 0.0),
+            Vec3::new(0.0, 0.0, 0.0),
+            1.0,
+        ),
         Shape2D {
-            origin: Vec3::new(0.0, 0.0, 0.0),
+            origin: Vec3::new(0.5, 0.0, 0.0),
             shape_type: ShapeType::Rectangle {
                 width: WIDTH,
                 height: 300.0,
@@ -266,9 +274,13 @@ fn setup(
     ));
 
     let bottom = commands.spawn((
-        Transform::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
+        Transform::new(
+            Vec3::new(0.0, -height / 2., 0.0),
+            Vec3::new(0.0, 0.0, 0.0),
+            1.0,
+        ),
         Shape2D {
-            origin: Vec3::new(0.0, 1.0, 0.0),
+            origin: Vec3::new(0.5, 1.0, 0.0),
             shape_type: ShapeType::Rectangle {
                 width: WIDTH,
                 height: 300.0,
@@ -284,15 +296,18 @@ fn setup(
     });
 
     let pad1 = commands.spawn((
-        Sprite::<Sprites> {
+        Sprite {
             width: PAD_HALF_WIDTH * 2.0,
             height: PAD_HALF_HEIGHT * 2.0,
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
-            sprite_type: Sprites::Pad,
+            texture: SpriteTexture::Atlas {
+                texture_handle: atlas.clone(),
+                target_image: Some(pad_image.clone_as_weak()),
+            },
         },
         Transform::new(
-            Vec3::new(WIDTH / 2.0, 0.0 + 20.0 + PAD_HALF_HEIGHT, 1.0),
+            Vec3::new(0.0, -(height / 2.) + 20.0 + PAD_HALF_HEIGHT, 1.0),
             Vec3::ZERO,
             1.0,
         ),
@@ -308,15 +323,18 @@ fn setup(
     commands.create_resource(Player1 { entity: pad1 });
 
     commands.spawn((
-        Sprite::<Sprites> {
+        Sprite {
             width: PAD_HALF_WIDTH * 2.0,
             height: PAD_HALF_HEIGHT * 2.0,
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
-            sprite_type: Sprites::Pad,
+            texture: SpriteTexture::Atlas {
+                texture_handle: atlas.clone(),
+                target_image: Some(pad_image.clone_as_weak()),
+            },
         },
         Transform::new(
-            Vec3::new(WIDTH / 2.0, HEIGHT - 20.0 - PAD_HALF_HEIGHT, 1.0),
+            Vec3::new(0.0, height / 2. - 20.0 - PAD_HALF_HEIGHT, 1.0),
             Vec3::new(0., 0., 180.),
             1.0,
         ),
@@ -332,14 +350,17 @@ fn setup(
     ));
 
     commands.spawn((
-        Sprite::<Sprites> {
+        Sprite {
             width: BALL_RADIUS * 2.0,
             height: BALL_RADIUS * 2.0,
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
-            sprite_type: Sprites::Ball,
+            texture: SpriteTexture::Atlas {
+                texture_handle: atlas,
+                target_image: Some(ball.clone_as_weak()),
+            },
         },
-        Transform::new(Vec3::new(WIDTH / 2.0, HEIGHT / 2.0, 1.0), Vec3::ZERO, 1.0),
+        Transform::new(Vec3::new(0.0, 0.0, 1.0), Vec3::ZERO, 1.0),
         Shape2D {
             origin: Vec3::new(0.5, 0.5, 0.0),
             shape_type: ShapeType::Circle {
@@ -581,7 +602,7 @@ fn collision_response(
                         }
                     }) {
                         pad.velocity = 0.0;
-                        transform.position.x = 0.0 + PAD_HALF_WIDTH;
+                        transform.position.x = (-BOARD_WIDTH / 2.) + PAD_HALF_WIDTH;
                     }
                 }
                 Some(CollisionType::PadBorder {
@@ -596,7 +617,7 @@ fn collision_response(
                         }
                     }) {
                         pad.velocity = 0.0;
-                        transform.position.x = WIDTH - PAD_HALF_WIDTH;
+                        transform.position.x = (BOARD_WIDTH / 2.) - PAD_HALF_WIDTH;
                     };
                 }
                 Some(CollisionType::BallBorder {
@@ -616,9 +637,9 @@ fn collision_response(
                     }) {
                         ball.vel = Vec2::new(-ball.vel.x, ball.vel.y);
                         transform.position.x = if border_entity == field_border.sx {
-                            0.0 + BALL_RADIUS
+                            (-BOARD_WIDTH / 2.) + BALL_RADIUS
                         } else {
-                            WIDTH - BALL_RADIUS
+                            (BOARD_WIDTH / 2.0) - BALL_RADIUS
                         }
                     }
 
@@ -639,8 +660,8 @@ fn collision_response(
                             None
                         }
                     }) {
-                        transform.position.x = WIDTH / 2.0;
-                        transform.position.y = HEIGHT / 2.0;
+                        transform.position.x = 0.0;
+                        transform.position.y = 0.0;
 
                         ball.vel = initial_ball_movement();
                     }

@@ -1,19 +1,84 @@
-use std::ops::Deref;
-
 use glam::{Mat4, Vec2, Vec3, Vec4};
 use rustc_hash::FxHashMap;
+use std::ops::{Deref, DerefMut};
 use wgpu::util::DeviceExt;
+use zengine_asset::{Assets, Handle};
 use zengine_core::Transform;
-use zengine_ecs::system::{Commands, Local, OptionalRes, Query, QueryIter, ResMut, UnsendableRes};
-use zengine_macro::Resource;
+use zengine_ecs::system::{Commands, Local, OptionalRes, Query, QueryIter, ResMut};
+use zengine_macro::{Component, Resource};
 
 use crate::{
-    vertex::Vertex, CameraBuffer, Color, Device, Queue, RenderContextInstance, Sprite,
-    SpriteHandle, SpriteType, SurfaceData, TextureBindGroupLayout, TextureHandleState,
-    TextureManager,
+    vertex::Vertex, CameraBuffer, Color, Device, Image, Queue, RenderContextInstance, SurfaceData,
+    Texture, TextureAtlas, TextureBindGroupLayout,
 };
 
 pub const INDICES: &[u16] = &[0, 1, 2, 2, 3, 0];
+
+#[derive(Debug)]
+pub enum SpriteTexture {
+    Simple(Handle<Texture>),
+    Atlas {
+        texture_handle: Handle<TextureAtlas>,
+        target_image: Option<Handle<Image>>,
+    },
+}
+
+impl SpriteTexture {
+    pub fn is_ready(
+        &self,
+        textures: &Assets<Texture>,
+        textures_atlas: &Assets<TextureAtlas>,
+    ) -> bool {
+        match self {
+            Self::Simple(handle) => textures
+                .get(handle)
+                .and_then(|t| t.gpu_image.as_ref())
+                .is_some(),
+            Self::Atlas { texture_handle, .. } => textures_atlas
+                .get(texture_handle)
+                .and_then(|t| t.texture.as_ref())
+                .is_some(),
+        }
+    }
+
+    pub fn get_handle(&self, textures_atlas: &Assets<TextureAtlas>) -> Handle<Texture> {
+        match self {
+            Self::Simple(handle) => handle.clone_as_weak(),
+            Self::Atlas { texture_handle, .. } => textures_atlas
+                .get(texture_handle)
+                .and_then(|t| t.texture.as_ref())
+                .unwrap()
+                .clone_as_weak(),
+        }
+    }
+
+    pub fn get_relative_coord(&self, textures_atlas: &Assets<TextureAtlas>) -> (Vec2, Vec2) {
+        match self {
+            Self::Simple(_) => (Vec2::ZERO, Vec2::ONE),
+            Self::Atlas {
+                texture_handle,
+                target_image,
+            } => textures_atlas
+                .get(texture_handle)
+                .and_then(|t| {
+                    target_image
+                        .as_ref()
+                        .map(|target_image| t.get_rect(target_image))
+                })
+                .map(|rect| (rect.relative_min, rect.relative_max))
+                .unwrap_or_else(|| (Vec2::ZERO, Vec2::ONE)),
+        }
+    }
+}
+
+#[derive(Component, Debug)]
+pub struct Sprite {
+    pub width: f32,
+    pub height: f32,
+    pub origin: glam::Vec3,
+    pub color: Color,
+    pub texture: SpriteTexture,
+}
 
 #[derive(Resource, Default, Debug)]
 pub struct SpriteBuffer {
@@ -22,12 +87,11 @@ pub struct SpriteBuffer {
     size: usize,
 }
 
-type BatchLayerData<'a, ST> =
-    FxHashMap<usize, Vec<(&'a Sprite<ST>, &'a Transform, &'a SpriteHandle)>>;
+type BatchLayerData<'a> = FxHashMap<Handle<Texture>, Vec<(&'a Sprite, &'a Transform)>>;
 
-pub struct BatchLayer<'a, ST: SpriteType> {
+pub struct BatchLayer<'a> {
     pub z: f32,
-    pub data: BatchLayerData<'a, ST>,
+    pub data: BatchLayerData<'a>,
 }
 
 #[derive(Resource, Debug)]
@@ -179,20 +243,75 @@ pub fn setup_sprite_render(
     commands.create_resource(RenderPipeline(render_pipeline));
 }
 
+#[derive(Default)]
+struct Batches<'a>(Vec<BatchLayer<'a>>);
+impl<'a> Batches<'a> {
+    fn to_vertex(&self, textures_atlas: &Assets<TextureAtlas>) -> Vec<Vertex> {
+        self.0
+            .iter()
+            .rev()
+            .flat_map(|b| {
+                b.data.values().flat_map(|v| {
+                    v.iter().flat_map(|(s, t)| {
+                        let rect = s.texture.get_relative_coord(textures_atlas);
+
+                        calculate_vertices(
+                            s.width,
+                            s.height,
+                            s.origin,
+                            rect.0,
+                            rect.1,
+                            &s.color,
+                            t.get_transformation_matrix(),
+                        )
+                    })
+                })
+            })
+            .collect()
+    }
+}
+
+impl<'a> Deref for Batches<'a> {
+    type Target = Vec<BatchLayer<'a>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> DerefMut for Batches<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
-pub fn sprite_render<ST: SpriteType>(
+pub fn sprite_render(
     queue: OptionalRes<Queue>,
     device: OptionalRes<Device>,
     mut render_context: ResMut<RenderContextInstance>,
     render_pipeline: OptionalRes<RenderPipeline>,
-    texture_manager: UnsendableRes<TextureManager<ST>>,
+    textures: OptionalRes<Assets<Texture>>,
+    textures_atlas: OptionalRes<Assets<TextureAtlas>>,
     camera_buffer: OptionalRes<CameraBuffer>,
-    sprite_query: Query<(&Sprite<ST>, &Transform)>,
+    sprite_query: Query<(&Sprite, &Transform)>,
     sprite_buffer: Local<SpriteBuffer>,
 ) {
-    if let (Some(device), Some(queue), Some(camera_buffer), Some(render_pipeline)) =
-        (device, queue, camera_buffer, render_pipeline)
-    {
+    if let (
+        Some(textures),
+        Some(textures_atlas),
+        Some(device),
+        Some(queue),
+        Some(camera_buffer),
+        Some(render_pipeline),
+    ) = (
+        textures,
+        textures_atlas,
+        device,
+        queue,
+        camera_buffer,
+        render_pipeline,
+    ) {
         let render_context = render_context.as_mut().unwrap();
         {
             let mut render_pass =
@@ -211,45 +330,36 @@ pub fn sprite_render<ST: SpriteType>(
                         depth_stencil_attachment: None,
                     });
 
-            let mut batches: Vec<BatchLayer<ST>> = Vec::default();
+            let mut batches = Batches::default();
             for (s, t) in sprite_query.iter() {
-                if let Some(sprite_handle) = texture_manager.get_sprite_handle(&s.sprite_type) {
-                    if texture_manager
-                        .textures
-                        .get(sprite_handle.texture_handle_index)
-                        .unwrap()
-                        .state
-                        == TextureHandleState::Uploaded
+                if s.texture.is_ready(&textures, &textures_atlas) {
+                    let z = t.position.z;
+
+                    let batch_layer = match batches.binary_search_by(|l| l.z.total_cmp(&z)) {
+                        Ok(index) => batches.get_mut(index).unwrap(),
+                        Err(index) => {
+                            batches.insert(
+                                index,
+                                BatchLayer {
+                                    z,
+                                    data: FxHashMap::default(),
+                                },
+                            );
+                            batches.get_mut(index).unwrap()
+                        }
+                    };
+
+                    match batch_layer
+                        .data
+                        .get_mut(&s.texture.get_handle(&textures_atlas))
                     {
-                        let z = t.position.z;
-
-                        let batch_layer = match batches.binary_search_by(|l| l.z.total_cmp(&z)) {
-                            Ok(index) => batches.get_mut(index).unwrap(),
-                            Err(index) => {
-                                batches.insert(
-                                    index,
-                                    BatchLayer {
-                                        z,
-                                        data: FxHashMap::default(),
-                                    },
-                                );
-                                batches.get_mut(index).unwrap()
-                            }
-                        };
-
-                        match batch_layer
-                            .data
-                            .get_mut(&sprite_handle.texture_handle_index)
-                        {
-                            Some(batch) => {
-                                batch.push((s, t, sprite_handle));
-                            }
-                            None => {
-                                batch_layer.data.insert(
-                                    sprite_handle.texture_handle_index,
-                                    vec![(s, t, sprite_handle)],
-                                );
-                            }
+                        Some(batch) => {
+                            batch.push((s, t));
+                        }
+                        None => {
+                            batch_layer
+                                .data
+                                .insert(s.texture.get_handle(&textures_atlas), vec![(s, t)]);
                         }
                     }
                 }
@@ -263,27 +373,7 @@ pub fn sprite_render<ST: SpriteType>(
                 queue.write_buffer(
                     sprite_buffer.vertex_buffer.as_ref().unwrap(),
                     0,
-                    bytemuck::cast_slice(
-                        &batches
-                            .iter()
-                            .rev()
-                            .flat_map(|b| {
-                                b.data.values().flat_map(|v| {
-                                    v.iter().flat_map(|(s, t, sprite_handle)| {
-                                        calculate_vertices(
-                                            s.width,
-                                            s.height,
-                                            s.origin,
-                                            sprite_handle.relative_min,
-                                            sprite_handle.relative_max,
-                                            &s.color,
-                                            t.get_transformation_matrix(),
-                                        )
-                                    })
-                                })
-                            })
-                            .collect::<Vec<Vertex>>(),
-                    ),
+                    bytemuck::cast_slice(&batches.to_vertex(&textures_atlas)),
                 );
                 let mut indices = Vec::default();
                 for index in 0..num_of_sprite {
@@ -298,25 +388,7 @@ pub fn sprite_render<ST: SpriteType>(
             } else {
                 let (v_buffer, i_buffer) = generate_vertex_and_indexes_buffer(
                     &device,
-                    &batches
-                        .iter()
-                        .rev()
-                        .flat_map(|b| {
-                            b.data.values().flat_map(|v| {
-                                v.iter().flat_map(|(s, t, sprite_handle)| {
-                                    calculate_vertices(
-                                        s.width,
-                                        s.height,
-                                        s.origin,
-                                        sprite_handle.relative_min,
-                                        sprite_handle.relative_max,
-                                        &s.color,
-                                        t.get_transformation_matrix(),
-                                    )
-                                })
-                            })
-                        })
-                        .collect::<Vec<Vertex>>(),
+                    &batches.to_vertex(&textures_atlas),
                 );
                 if let Some(buffer) = &sprite_buffer.vertex_buffer {
                     buffer.destroy();
@@ -343,10 +415,9 @@ pub fn sprite_render<ST: SpriteType>(
             let mut offset: u32 = 0;
             for b in batches.iter().rev() {
                 for (k, v) in b.data.iter() {
-                    let texture = texture_manager
-                        .textures
-                        .get(*k)
-                        .and_then(|t1| t1.texture.as_ref())
+                    let texture = textures
+                        .get(k)
+                        .and_then(|t1| t1.gpu_image.as_ref())
                         .unwrap();
 
                     let elements = v.len() as u32;

@@ -1,10 +1,10 @@
 use log::debug;
 use rodio::{OutputStream, OutputStreamHandle, Sink, Source};
+use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::io::Cursor;
-use std::sync::atomic::Ordering;
 use std::sync::RwLock;
-use std::{collections::VecDeque, sync::atomic::AtomicU64};
+use zengine_asset::Asset;
 use zengine_asset::{AssetExtension, AssetLoader, Assets, Handle, HandleId};
 use zengine_ecs::system::{OptionalRes, OptionalResMut, Res, UnsendableRes};
 use zengine_engine::{Module, StageLabel};
@@ -124,7 +124,6 @@ impl AudioInstance {
 
 #[derive(Resource, Default, Debug)]
 pub struct AudioDevice {
-    instance_counter: AtomicU64,
     queue: RwLock<VecDeque<(HandleId, Handle<Audio>, AudioSettings)>>,
 }
 
@@ -138,8 +137,8 @@ impl AudioDevice {
         audio: Handle<Audio>,
         settings: AudioSettings,
     ) -> Handle<AudioInstance> {
-        let next_id = self.instance_counter.fetch_add(1, Ordering::Relaxed);
-        let handle_id = HandleId::new_manual::<AudioInstance>(next_id);
+        let next_id = AudioInstance::next_counter();
+        let handle_id = HandleId::new_from_u64::<AudioInstance>(next_id);
 
         debug!("created an Audio Instance handle {:?}", handle_id);
 
@@ -187,7 +186,7 @@ pub fn audio_system(
 
         while i < len {
             let (instance_id, audio_handle, settings) = queue.pop_front().unwrap();
-            if let Some(audio) = audio.get(&audio_handle.id) {
+            if let Some(audio) = audio.get(&audio_handle) {
                 let sink = Sink::try_new(&audio_output.stream_handle).unwrap();
 
                 if settings.in_loop {
@@ -204,7 +203,7 @@ pub fn audio_system(
                 sink.set_volume(settings.volume);
 
                 let audio_instance = AudioInstance(Some(sink));
-                let _ = audio_instances.set(&instance_id, audio_instance);
+                let _ = audio_instances.set(Handle::weak(instance_id), audio_instance);
             } else {
                 queue.push_back((instance_id, audio_handle, settings));
             }

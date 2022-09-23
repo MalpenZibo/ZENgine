@@ -3,13 +3,14 @@ use downcast_rs::{impl_downcast, Downcast};
 use rustc_hash::FxHashMap;
 use std::sync::{Arc, RwLock};
 use std::{any::TypeId, path::Path};
-use zengine_ecs::system::{OptionalResMut, Res, ResMut};
+use zengine_ecs::system::{EventPublisher, OptionalResMut, Res, ResMut};
 use zengine_engine::log::debug;
 use zengine_macro::Resource;
 
 use crate::assets::Assets;
 use crate::handle::{HandleId, HandleRef, HandleRefChannel};
 use crate::io::AssetIo;
+use crate::AssetEvent;
 use crate::{
     assets::{Asset, AssetPath},
     handle::Handle,
@@ -129,7 +130,7 @@ impl AssetManager {
 
     pub fn load<T: Asset, P: Into<AssetPath>>(&mut self, file_path: P) -> Handle<T> {
         let asset_path = file_path.into();
-        let handle_id: HandleId = HandleId::new::<T>(&asset_path);
+        let handle_id = HandleId::new_from_path::<T>(&asset_path);
 
         let loader = self
             .find_loader(&asset_path.extension)
@@ -181,7 +182,11 @@ impl AssetManager {
             .and_then(|index| self.loaders.get(*index).cloned())
     }
 
-    fn update_asset_storage<T: Asset>(&self, assets: &mut Assets<T>) {
+    fn update_asset_storage<T: Asset>(
+        &self,
+        assets: &mut Assets<T>,
+        assets_event: &mut EventPublisher<AssetEvent<T>>,
+    ) {
         let type_id = TypeId::of::<T>();
         let asset_channels = self.asset_channels.read().unwrap();
         let asset_channel = asset_channels.get(&type_id).unwrap();
@@ -193,11 +198,15 @@ impl AssetManager {
             match asset_channel.receiver.try_recv() {
                 Ok(AssetCommand::Create(AssetCreateCommand { id, asset })) => {
                     debug!("Create asset for storage. Asset id: {:?}", id);
-                    assets.set_untracked(&id, asset);
+                    assets.set_untracked(id, asset);
+
+                    assets_event.publish(AssetEvent::Loaded(Handle::weak(id)))
                 }
                 Ok(AssetCommand::Destroy(id)) => {
                     debug!("Destroy asset for storage. Asset id: {:?}", id);
-                    assets.remove(&id);
+                    assets.remove(id);
+
+                    assets_event.publish(AssetEvent::Unloaded(Handle::weak(id)))
                 }
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => panic!("Asset command channel disconnected"),
@@ -252,9 +261,10 @@ impl AssetManager {
 pub fn update_asset_storage<T: Asset>(
     asset_manager: Res<AssetManager>,
     assets: OptionalResMut<Assets<T>>,
+    mut assets_event: EventPublisher<AssetEvent<T>>,
 ) {
     if let Some(mut assets) = assets {
-        asset_manager.update_asset_storage(&mut assets);
+        asset_manager.update_asset_storage(&mut assets, &mut assets_event);
     }
 }
 
@@ -268,15 +278,24 @@ pub fn destroy_unused_assets(mut asset_manager: ResMut<AssetManager>) {
 
 #[cfg(test)]
 mod tests {
-    use std::{path::Path, thread, time::Duration};
+    use std::{path::Path, sync::RwLock, thread, time::Duration};
 
-    use crate::{io::FileAssetIo, Asset, AssetLoader, AssetManager, Assets, Handle};
+    use zengine_ecs::{event::EventHandler, system::EventPublisher};
+
+    use crate::{io::FileAssetIo, Asset, AssetEvent, AssetLoader, AssetManager, Assets, Handle};
 
     #[derive(Debug)]
     pub struct TestAsset {
         _data: Vec<u8>,
     }
-    impl Asset for TestAsset {}
+    impl Asset for TestAsset {
+        fn next_counter() -> u64
+        where
+            Self: Sized,
+        {
+            0
+        }
+    }
 
     #[derive(Debug)]
     pub struct TestLoader {}
@@ -300,8 +319,12 @@ mod tests {
         AssetManager::new(FileAssetIo::new(asset_path))
     }
 
-    fn run_systems(asset_manager: &mut AssetManager, assets: &mut Assets<TestAsset>) {
-        asset_manager.update_asset_storage(assets);
+    fn run_systems(
+        asset_manager: &mut AssetManager,
+        assets: &mut Assets<TestAsset>,
+        assets_event: &mut EventPublisher<AssetEvent<TestAsset>>,
+    ) {
+        asset_manager.update_asset_storage(assets, assets_event);
         asset_manager.update_ref_count();
         asset_manager.destroy_unused_assets();
     }
@@ -314,14 +337,17 @@ mod tests {
         let mut assets = asset_manager.register_asset_type::<TestAsset>();
         asset_manager.register_loader(TestLoader {});
 
+        let stream = RwLock::new(EventHandler::<AssetEvent<TestAsset>>::default());
+        let mut publisher = EventPublisher::new(stream.write().unwrap());
+
         let handle: Handle<TestAsset> = asset_manager.load("file.test");
 
         let timeout = 2000;
         let waiting_tick = 500;
         let mut waiting_time = 0;
         loop {
-            run_systems(&mut asset_manager, &mut assets);
-            let asset = assets.get(&handle.id);
+            run_systems(&mut asset_manager, &mut assets, &mut publisher);
+            let asset = assets.get(&handle);
 
             if asset.is_some() || waiting_time > timeout {
                 break;
@@ -331,7 +357,7 @@ mod tests {
             waiting_time += waiting_tick;
         }
 
-        let asset = assets.get(&handle.id);
+        let asset = assets.get(&handle);
         assert!(asset.is_some());
         assert_eq!(
             asset_manager.asset_handle_ref_count.get(&handle.id),

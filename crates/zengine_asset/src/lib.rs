@@ -3,14 +3,18 @@ mod assets;
 mod handle;
 mod io;
 
-pub mod image_loader;
-
 use std::path::{Path, PathBuf};
 
 pub use asset_manager::*;
 pub use assets::*;
 pub use handle::*;
 use zengine_engine::{Engine, Module, StageLabel};
+
+#[derive(Debug)]
+pub enum AssetEvent<T: Asset> {
+    Loaded(Handle<T>),
+    Unloaded(Handle<T>),
+}
 
 #[derive(Default)]
 pub struct AssetModule {
