@@ -223,7 +223,7 @@ fn setup(
             color: Color::WHITE,
             texture: SpriteTexture::Atlas {
                 texture_handle: atlas.clone(),
-                target_image: board,
+                target_image: Some(board),
             },
         },
         Transform::new(Vec3::new(0.0, 0.0, 2.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
@@ -303,7 +303,7 @@ fn setup(
             color: Color::WHITE,
             texture: SpriteTexture::Atlas {
                 texture_handle: atlas.clone(),
-                target_image: pad_image.clone_as_weak(),
+                target_image: Some(pad_image.clone_as_weak()),
             },
         },
         Transform::new(
@@ -330,7 +330,7 @@ fn setup(
             color: Color::WHITE,
             texture: SpriteTexture::Atlas {
                 texture_handle: atlas.clone(),
-                target_image: pad_image.clone_as_weak(),
+                target_image: Some(pad_image.clone_as_weak()),
             },
         },
         Transform::new(
@@ -357,7 +357,7 @@ fn setup(
             color: Color::WHITE,
             texture: SpriteTexture::Atlas {
                 texture_handle: atlas,
-                target_image: ball.clone_as_weak(),
+                target_image: Some(ball.clone_as_weak()),
             },
         },
         Transform::new(Vec3::new(0.0, 0.0, 1.0), Vec3::ZERO, 1.0),

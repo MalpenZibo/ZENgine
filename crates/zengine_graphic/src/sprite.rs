@@ -1,6 +1,6 @@
 use glam::{Mat4, Vec2, Vec3, Vec4};
 use rustc_hash::FxHashMap;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use wgpu::util::DeviceExt;
 use zengine_asset::{Assets, Handle};
 use zengine_core::Transform;
@@ -19,7 +19,7 @@ pub enum SpriteTexture {
     Simple(Handle<Texture>),
     Atlas {
         texture_handle: Handle<TextureAtlas>,
-        target_image: Handle<Image>,
+        target_image: Option<Handle<Image>>,
     },
 }
 
@@ -60,9 +60,13 @@ impl SpriteTexture {
                 target_image,
             } => textures_atlas
                 .get(texture_handle)
-                .map(|t| t.get_rect(target_image))
+                .and_then(|t| {
+                    target_image
+                        .as_ref()
+                        .map(|target_image| t.get_rect(target_image))
+                })
                 .map(|rect| (rect.relative_min, rect.relative_max))
-                .unwrap(),
+                .unwrap_or_else(|| (Vec2::ZERO, Vec2::ONE)),
         }
     }
 }
@@ -239,6 +243,48 @@ pub fn setup_sprite_render(
     commands.create_resource(RenderPipeline(render_pipeline));
 }
 
+#[derive(Default)]
+struct Batches<'a>(Vec<BatchLayer<'a>>);
+impl<'a> Batches<'a> {
+    fn to_vertex(&self, textures_atlas: &Assets<TextureAtlas>) -> Vec<Vertex> {
+        self.0
+            .iter()
+            .rev()
+            .flat_map(|b| {
+                b.data.values().flat_map(|v| {
+                    v.iter().flat_map(|(s, t)| {
+                        let rect = s.texture.get_relative_coord(textures_atlas);
+
+                        calculate_vertices(
+                            s.width,
+                            s.height,
+                            s.origin,
+                            rect.0,
+                            rect.1,
+                            &s.color,
+                            t.get_transformation_matrix(),
+                        )
+                    })
+                })
+            })
+            .collect()
+    }
+}
+
+impl<'a> Deref for Batches<'a> {
+    type Target = Vec<BatchLayer<'a>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> DerefMut for Batches<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn sprite_render(
     queue: OptionalRes<Queue>,
@@ -284,7 +330,7 @@ pub fn sprite_render(
                         depth_stencil_attachment: None,
                     });
 
-            let mut batches: Vec<BatchLayer> = Vec::default();
+            let mut batches = Batches::default();
             for (s, t) in sprite_query.iter() {
                 if s.texture.is_ready(&textures, &textures_atlas) {
                     let z = t.position.z;
@@ -327,29 +373,7 @@ pub fn sprite_render(
                 queue.write_buffer(
                     sprite_buffer.vertex_buffer.as_ref().unwrap(),
                     0,
-                    bytemuck::cast_slice(
-                        &batches
-                            .iter()
-                            .rev()
-                            .flat_map(|b| {
-                                b.data.values().flat_map(|v| {
-                                    v.iter().flat_map(|(s, t)| {
-                                        let rect = s.texture.get_relative_coord(&textures_atlas);
-
-                                        calculate_vertices(
-                                            s.width,
-                                            s.height,
-                                            s.origin,
-                                            rect.0,
-                                            rect.1,
-                                            &s.color,
-                                            t.get_transformation_matrix(),
-                                        )
-                                    })
-                                })
-                            })
-                            .collect::<Vec<Vertex>>(),
-                    ),
+                    bytemuck::cast_slice(&batches.to_vertex(&textures_atlas)),
                 );
                 let mut indices = Vec::default();
                 for index in 0..num_of_sprite {
@@ -364,27 +388,7 @@ pub fn sprite_render(
             } else {
                 let (v_buffer, i_buffer) = generate_vertex_and_indexes_buffer(
                     &device,
-                    &batches
-                        .iter()
-                        .rev()
-                        .flat_map(|b| {
-                            b.data.values().flat_map(|v| {
-                                v.iter().flat_map(|(s, t)| {
-                                    let rect = s.texture.get_relative_coord(&textures_atlas);
-
-                                    calculate_vertices(
-                                        s.width,
-                                        s.height,
-                                        s.origin,
-                                        rect.0,
-                                        rect.1,
-                                        &s.color,
-                                        t.get_transformation_matrix(),
-                                    )
-                                })
-                            })
-                        })
-                        .collect::<Vec<Vertex>>(),
+                    &batches.to_vertex(&textures_atlas),
                 );
                 if let Some(buffer) = &sprite_buffer.vertex_buffer {
                     buffer.destroy();
