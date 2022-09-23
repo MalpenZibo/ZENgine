@@ -26,9 +26,9 @@ pub struct Background {
 }
 
 #[derive(Default, Debug)]
-pub struct RenderModule;
+pub struct GraphicModule;
 
-impl Module for RenderModule {
+impl Module for GraphicModule {
     fn init(self, engine: &mut zengine_engine::Engine) {
         engine
             .add_asset::<Image>()

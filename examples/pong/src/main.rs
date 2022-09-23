@@ -11,7 +11,7 @@ use zengine::{
         Entity,
     },
     graphic::{
-        ActiveCamera, Background, Camera, CameraMode, Color, RenderModule, Sprite, SpriteTexture,
+        ActiveCamera, Background, Camera, CameraMode, Color, GraphicModule, Sprite, SpriteTexture,
         Texture, TextureAssets, TextureAtlas, TextureAtlasAssets,
     },
     input::{input_system, Bindings, InputHandler},
@@ -135,7 +135,7 @@ fn main() {
             vsync: false,
         }))
         .add_module(AssetModule::new("assets"))
-        .add_module(RenderModule::default())
+        .add_module(GraphicModule::default())
         .add_module(AudioModule::default())
         .add_startup_system(setup)
         .add_system(input_system(bindings))
