@@ -16,6 +16,7 @@ use zengine_macro::Asset;
 use crate::{Device, Image, Queue, Texture, TextureAssets, TextureBindGroupLayout};
 
 const BYTE_PER_PIXEL: usize = 4;
+const PADDING: u32 = 1;
 
 #[derive(Debug)]
 pub struct ImageRect {
@@ -79,7 +80,7 @@ impl TextureAtlas {
             rects_to_place.push_rect(
                 handle.clone_as_weak(),
                 None,
-                RectToInsert::new(image.width, image.height, 1),
+                RectToInsert::new(image.width + PADDING * 2, image.height + PADDING * 2, 1),
             );
         }
 
@@ -120,8 +121,12 @@ impl TextureAtlas {
         self.image_rects = Vec::with_capacity(placements.packed_locations().len());
         for (image_handle, (_, location)) in placements.packed_locations().iter() {
             let image = images.get(image_handle).unwrap();
-            let min = Vec2::new(location.x() as f32, location.y() as f32);
-            let max = min + Vec2::new(location.width() as f32, location.height() as f32);
+
+            let padding = Vec2::new(PADDING as f32, PADDING as f32);
+
+            let min = Vec2::new(location.x() as f32, location.y() as f32) + padding;
+            let max =
+                min + Vec2::new(location.width() as f32, location.height() as f32) - (padding * 2.);
 
             self.image_handles
                 .insert(image_handle.clone_as_weak(), self.image_rects.len());
@@ -150,13 +155,13 @@ impl TextureAtlas {
     }
 
     fn copy_image_to_atlas(atlas_image: &mut Image, image: &Image, location: &PackedLocation) {
-        let source_width = location.width() as usize;
-        let source_height = location.height() as usize;
+        let source_width = (location.width() - PADDING * 2) as usize;
+        let source_height = (location.height() - PADDING * 2) as usize;
 
         let target_width = atlas_image.width as usize;
 
-        let x = location.x() as usize;
-        let y = location.y() as usize;
+        let x = (location.x() + PADDING) as usize;
+        let y = (location.y() + PADDING) as usize;
 
         let target_data = &mut atlas_image.data;
         let source_data = &image.data;
