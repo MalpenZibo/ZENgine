@@ -108,12 +108,18 @@ fn runner(mut engine: Engine) {
 
     let mut gilrs = Gilrs::new().unwrap();
 
+    let mut initialized = false;
+
     let event_handler = move |event: Event<()>,
                               _event_loop: &EventLoopWindowTarget<()>,
                               control_flow: &mut ControlFlow| {
         *control_flow = ControlFlow::Poll;
 
         match event {
+            Event::Resumed {} => {
+                engine.startup();
+                initialized = true;
+            }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
@@ -123,7 +129,7 @@ fn runner(mut engine: Engine) {
             Event::WindowEvent {
                 event: WindowEvent::MouseInput { state, button, .. },
                 ..
-            } => {
+            } if initialized => {
                 let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
                 input.publish(InputEvent {
                     input: Input::MouseButton { button },
@@ -137,7 +143,7 @@ fn runner(mut engine: Engine) {
             Event::WindowEvent {
                 event: WindowEvent::CursorMoved { position, .. },
                 ..
-            } => {
+            } if initialized => {
                 let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
                 input.publish(InputEvent {
                     input: Input::MouseMotion { axis: Axis::X },
@@ -151,7 +157,7 @@ fn runner(mut engine: Engine) {
             Event::WindowEvent {
                 event: WindowEvent::MouseWheel { delta, .. },
                 ..
-            } => match delta {
+            } if initialized => match delta {
                 MouseScrollDelta::LineDelta(x, y) => {
                     let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
                     input.publish(InputEvent {
@@ -182,7 +188,7 @@ fn runner(mut engine: Engine) {
                         ..
                     },
                 ..
-            } => {
+            } if initialized => {
                 let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
                 input.publish(InputEvent {
                     input: Input::Keyboard {
@@ -195,7 +201,7 @@ fn runner(mut engine: Engine) {
                     },
                 })
             }
-            Event::MainEventsCleared => {
+            Event::MainEventsCleared if initialized => {
                 {
                     let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
                     while let Some(gilrs::Event { id, event, .. }) = gilrs.next_event() {

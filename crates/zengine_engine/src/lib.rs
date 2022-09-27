@@ -108,7 +108,6 @@ impl Engine {
                 console_log::init_with_level(level).expect("Couldn't initialize logger");
             }
           else {
-
                 use simplelog::{Config, SimpleLogger, TermLogger, TerminalMode};
                 let level_filter = level.to_level_filter();
                 if TermLogger::init(level_filter, Config::default(), TerminalMode::Mixed).is_err() {
@@ -158,6 +157,23 @@ impl Engine {
         self
     }
 
+    pub fn startup(&mut self) {
+        let mut stages: Vec<Stage> = self
+            .stage_order
+            .iter()
+            .map(|stage_label| self.stages.remove(stage_label).unwrap())
+            .collect();
+
+        for stage in stages.iter_mut() {
+            stage.init(&mut self.world);
+        }
+
+        let mut startup_stage = stages.remove(0);
+        startup_stage.run_and_apply(&mut self.world);
+
+        self.running_stages = stages;
+    }
+
     pub fn update(&mut self) -> bool {
         for stage in self.running_stages.iter_mut() {
             stage.run(&self.world);
@@ -182,21 +198,6 @@ impl Engine {
 
     pub fn run(&mut self) {
         self.world.create_event_handler::<EngineEvent>();
-
-        let mut stages: Vec<Stage> = self
-            .stage_order
-            .iter()
-            .map(|stage_label| self.stages.remove(stage_label).unwrap())
-            .collect();
-
-        for stage in stages.iter_mut() {
-            stage.init(&mut self.world);
-        }
-
-        let mut startup_stage = stages.remove(0);
-        startup_stage.run_and_apply(&mut self.world);
-
-        self.running_stages = stages;
 
         let mut app = std::mem::take(self);
         let runner = std::mem::replace(&mut app.runner, Box::new(default_runner));

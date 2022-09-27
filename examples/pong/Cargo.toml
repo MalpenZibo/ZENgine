@@ -3,8 +3,20 @@ name = "pong"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib", "lib"]
+
 [dependencies]
 zengine = { path = "../../" }
 serde = { version = "1.0", features = ["derive"] }
 fastrand = "1.4.1"
 serde_yaml = "0.8"
+
+[package.metadata.android]
+package = "org.zengine.pong"
+apk_name = "pong"
+assets = "assets"
+build_targets = ["aarch64-linux-android", "armv7-linux-androideabi"]
+
+[package.metadata.android.sdk]
+target_sdk_version = 31

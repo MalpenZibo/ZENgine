@@ -3,7 +3,18 @@ use std::fs::{self};
 use std::path::Path;
 use std::path::PathBuf;
 
+fn add_lib(_name: impl AsRef<str>, _static: bool) {
+    #[cfg(not(feature = "test"))]
+    println!(
+        "cargo:rustc-link-lib={}{}",
+        if _static { "static=" } else { "" },
+        _name.as_ref()
+    );
+}
+
 fn main() {
+    add_lib("c++_shared", false);
+
     let mut source_assets_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let mut destination_assets_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 

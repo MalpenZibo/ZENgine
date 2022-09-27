@@ -102,6 +102,15 @@ impl Default for AssetManager {
                     asset_handle_ref_count: FxHashMap::default(),
                     asset_io: Arc::new(crate::io::WasmAssetIo::default()),
                 }
+            } else if #[cfg(target_os = "android")] {
+                Self {
+                    loaders: Vec::default(),
+                    extension_to_loader: FxHashMap::default(),
+                    asset_channels: Arc::new(RwLock::new(FxHashMap::default())),
+                    asset_handle_ref_channel: HandleRefChannel::default(),
+                    asset_handle_ref_count: FxHashMap::default(),
+                    asset_io: Arc::new(crate::io::AndroidAssetIo::default()),
+                }
             } else {
                 Self {
                     loaders: Vec::default(),
@@ -139,7 +148,7 @@ impl AssetManager {
         let asset_channels = self.asset_channels.clone();
 
         let asset_io = self.asset_io.clone();
-        crate::io::spawn(async move {
+        crate::io_task::spawn(async move {
             let data = asset_io.load(&asset_path.path).await;
 
             let mut context = LoaderContext {

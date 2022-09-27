@@ -7,7 +7,7 @@ use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input,
     token::Comma,
-    DeriveInput, Ident, Index, LitInt, Path, Result,
+    DeriveInput, Ident, Index, ItemFn, LitInt, Path, Result,
 };
 
 mod zengine_manifest;
@@ -520,4 +520,25 @@ pub fn query_iter_mut_for_tuple(input: TokenStream) -> TokenStream {
     }
 
     TokenStream::from(expanded)
+}
+
+#[proc_macro_attribute]
+pub fn zengine_main(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(item as ItemFn);
+    assert!(
+        input.sig.ident == "main",
+        "`zengine_main` can only be used on a function called 'main'.",
+    );
+
+    TokenStream::from(quote! {
+        // use ndk-glue macro to create an activity: https://github.com/rust-windowing/android-ndk-rs/tree/master/ndk-macro
+        #[cfg(target_os = "android")]
+        #[cfg_attr(target_os = "android", zengine::ndk_glue::main(backtrace = "on", ndk_glue = "zengine::ndk_glue"))]
+        fn android_main() {
+            main()
+        }
+
+        #[allow(unused)]
+        #input
+    })
 }

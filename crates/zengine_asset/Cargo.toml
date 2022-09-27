@@ -26,5 +26,8 @@ wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 getrandom = {version = "0.2.0", features = ["js"]}
 
+[target.'cfg(target_os = "android")'.dependencies]
+ndk-glue = { version = "0.7", features = ["logger"] }
+
 [dev-dependencies]
 tempfile = "3.2.0"
