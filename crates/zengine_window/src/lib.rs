@@ -1,4 +1,4 @@
-use gilrs::Gilrs;
+use glam::UVec2;
 use log::info;
 use winit::{
     dpi::LogicalSize,
@@ -7,14 +7,11 @@ use winit::{
     window::{Fullscreen, WindowBuilder},
 };
 use zengine_engine::{Engine, Module};
-use zengine_input::{
-    device::{ControllerButton, Which},
-    Axis, Input, InputEvent,
-};
+use zengine_input::{Axis, Input, InputEvent};
 use zengine_macro::{Resource, UnsendableResource};
 
 #[derive(Resource, Debug, Clone)]
-pub struct WindowSpecs {
+pub struct WindowConfig {
     pub title: String,
     pub width: u32,
     pub height: u32,
@@ -22,9 +19,9 @@ pub struct WindowSpecs {
     pub vsync: bool,
 }
 
-impl Default for WindowSpecs {
+impl Default for WindowConfig {
     fn default() -> Self {
-        WindowSpecs {
+        Self {
             title: String::from("zengine"),
             width: 800,
             height: 600,
@@ -37,15 +34,19 @@ impl Default for WindowSpecs {
 #[derive(UnsendableResource, Debug)]
 pub struct Window {
     pub internal: winit::window::Window,
-    pub width: u32,
-    pub height: u32,
+}
+
+#[derive(Resource, Default, Debug)]
+pub struct WindowSpecs {
+    pub size: UVec2,
+    pub ratio: f32,
 }
 
 #[derive(UnsendableResource, Debug)]
 struct EventLoop(winit::event_loop::EventLoop<()>);
 
 #[derive(Default, Debug)]
-pub struct WindowModule(pub WindowSpecs);
+pub struct WindowModule(pub WindowConfig);
 impl Module for WindowModule {
     fn init(self, engine: &mut Engine) {
         let event_loop = winit::event_loop::EventLoop::new();
@@ -87,10 +88,12 @@ impl Module for WindowModule {
         }
 
         engine.world.create_resource(self.0);
-        engine.world.create_unsendable_resource(Window {
-            internal: window,
-            width: window_size.0,
-            height: window_size.1,
+        engine
+            .world
+            .create_unsendable_resource(Window { internal: window });
+        engine.world.create_resource(WindowSpecs {
+            size: UVec2::new(window_size.0, window_size.1),
+            ratio: window_size.0 as f32 / window_size.1 as f32,
         });
         engine
             .world
@@ -106,9 +109,8 @@ fn runner(mut engine: Engine) {
         .remove_unsendable_resource::<EventLoop>()
         .unwrap();
 
-    let mut gilrs = Gilrs::new().unwrap();
-
     let mut initialized = false;
+    let mut window_with_size = false;
 
     let event_handler = move |event: Event<()>,
                               _event_loop: &EventLoopWindowTarget<()>,
@@ -116,9 +118,12 @@ fn runner(mut engine: Engine) {
         *control_flow = ControlFlow::Poll;
 
         match event {
-            Event::Resumed {} => {
-                engine.startup();
+            Event::Resumed => {
                 initialized = true;
+
+                if initialized && window_with_size {
+                    engine.startup();
+                }
             }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
@@ -127,9 +132,27 @@ fn runner(mut engine: Engine) {
                 *control_flow = ControlFlow::Exit;
             }
             Event::WindowEvent {
+                event: WindowEvent::Resized(size),
+                ..
+            } => {
+                {
+                    let mut window_specs = engine.world.get_mut_resource::<WindowSpecs>().unwrap();
+                    window_specs.size = UVec2::new(size.width, size.height);
+                    window_specs.ratio = size.width as f32 / size.height as f32;
+                }
+
+                info!("New window size {:?}", size);
+
+                window_with_size = true;
+
+                if initialized && window_with_size {
+                    engine.startup();
+                }
+            }
+            Event::WindowEvent {
                 event: WindowEvent::MouseInput { state, button, .. },
                 ..
-            } if initialized => {
+            } if initialized && window_with_size => {
                 let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
                 input.publish(InputEvent {
                     input: Input::MouseButton { button },
@@ -143,7 +166,7 @@ fn runner(mut engine: Engine) {
             Event::WindowEvent {
                 event: WindowEvent::CursorMoved { position, .. },
                 ..
-            } if initialized => {
+            } if initialized && window_with_size => {
                 let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
                 input.publish(InputEvent {
                     input: Input::MouseMotion { axis: Axis::X },
@@ -157,7 +180,7 @@ fn runner(mut engine: Engine) {
             Event::WindowEvent {
                 event: WindowEvent::MouseWheel { delta, .. },
                 ..
-            } if initialized => match delta {
+            } if initialized && window_with_size => match delta {
                 MouseScrollDelta::LineDelta(x, y) => {
                     let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
                     input.publish(InputEvent {
@@ -188,7 +211,7 @@ fn runner(mut engine: Engine) {
                         ..
                     },
                 ..
-            } if initialized => {
+            } if initialized && window_with_size => {
                 let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
                 input.publish(InputEvent {
                     input: Input::Keyboard {
@@ -201,106 +224,7 @@ fn runner(mut engine: Engine) {
                     },
                 })
             }
-            Event::MainEventsCleared if initialized => {
-                {
-                    let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
-                    while let Some(gilrs::Event { id, event, .. }) = gilrs.next_event() {
-                        match event {
-                            gilrs::EventType::ButtonPressed(button, ..) => {
-                                input.publish(InputEvent {
-                                    input: Input::ControllerButton {
-                                        device_id: id,
-                                        button,
-                                    },
-                                    value: 1.0,
-                                })
-                            }
-                            gilrs::EventType::ButtonReleased(button, ..) => {
-                                input.publish(InputEvent {
-                                    input: Input::ControllerButton {
-                                        device_id: id,
-                                        button,
-                                    },
-                                    value: 0.0,
-                                })
-                            }
-                            gilrs::EventType::AxisChanged(axis, value, ..) => match axis {
-                                gilrs::Axis::LeftStickX => input.publish(InputEvent {
-                                    input: Input::ControllerStick {
-                                        device_id: id,
-                                        which: Which::Left,
-                                        axis: Axis::X,
-                                    },
-                                    value,
-                                }),
-                                gilrs::Axis::LeftStickY => input.publish(InputEvent {
-                                    input: Input::ControllerStick {
-                                        device_id: id,
-                                        which: Which::Left,
-                                        axis: Axis::Y,
-                                    },
-                                    value,
-                                }),
-                                gilrs::Axis::RightStickX => input.publish(InputEvent {
-                                    input: Input::ControllerStick {
-                                        device_id: id,
-                                        which: Which::Right,
-                                        axis: Axis::X,
-                                    },
-                                    value,
-                                }),
-                                gilrs::Axis::RightStickY => input.publish(InputEvent {
-                                    input: Input::ControllerStick {
-                                        device_id: id,
-                                        which: Which::Right,
-                                        axis: Axis::Y,
-                                    },
-                                    value,
-                                }),
-                                gilrs::Axis::LeftZ => input.publish(InputEvent {
-                                    input: Input::ControllerTrigger {
-                                        device_id: id,
-                                        which: Which::Left,
-                                    },
-                                    value,
-                                }),
-                                gilrs::Axis::RightZ => input.publish(InputEvent {
-                                    input: Input::ControllerTrigger {
-                                        device_id: id,
-                                        which: Which::Right,
-                                    },
-                                    value,
-                                }),
-                                gilrs::Axis::DPadX => input.publish(InputEvent {
-                                    input: Input::ControllerButton {
-                                        device_id: id,
-                                        button: if value < 0.0 {
-                                            ControllerButton::DPadLeft
-                                        } else {
-                                            ControllerButton::DPadRight
-                                        },
-                                    },
-                                    value,
-                                }),
-                                gilrs::Axis::DPadY => input.publish(InputEvent {
-                                    input: Input::ControllerButton {
-                                        device_id: id,
-                                        button: if value < 0.0 {
-                                            ControllerButton::DPadDown
-                                        } else {
-                                            ControllerButton::DPadUp
-                                        },
-                                    },
-                                    value,
-                                }),
-                                _ => {}
-                            },
-
-                            _ => {}
-                        }
-                    }
-                }
-
+            Event::MainEventsCleared if initialized && window_with_size => {
                 if engine.update() {
                     *control_flow = ControlFlow::Exit;
                 }

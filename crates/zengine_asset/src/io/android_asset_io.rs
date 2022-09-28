@@ -21,7 +21,8 @@ impl AndroidAssetIo {
 #[async_trait]
 impl AssetIo for AndroidAssetIo {
     async fn load(&self, asset_path: &Path) -> Vec<u8> {
-        let full_path = self.base_path.join(asset_path);
+        // let full_path = self.base_path.join(asset_path);
+        let full_path = asset_path;
 
         let asset_manager = ndk_glue::native_activity().asset_manager();
         let mut opened_asset = asset_manager

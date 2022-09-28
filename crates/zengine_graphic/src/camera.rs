@@ -1,5 +1,6 @@
 use std::ops::MulAssign;
 
+use glam::Vec2;
 use wgpu::{util::DeviceExt, BindGroup, BindGroupLayout};
 use zengine_core::Transform;
 use zengine_ecs::{
@@ -37,11 +38,9 @@ pub struct ActiveCamera {
     pub entity: Entity,
 }
 
-type CameraSize = (f32, f32);
-
 #[derive(Debug)]
 pub enum CameraMode {
-    Mode2D(CameraSize),
+    Mode2D(Vec2),
 }
 
 #[derive(Component, Debug)]
@@ -52,11 +51,11 @@ pub struct Camera {
 impl Camera {
     pub fn get_projection(&self, transform: Option<&Transform>) -> glam::Mat4 {
         let mut proj = match self.mode {
-            CameraMode::Mode2D((width, height)) => glam::Mat4::orthographic_lh(
-                -width / 2.0,
-                width / 2.0,
-                -height / 2.0,
-                height / 2.0,
+            CameraMode::Mode2D(size) => glam::Mat4::orthographic_lh(
+                -size.x / 2.0,
+                size.x / 2.0,
+                -size.y / 2.0,
+                size.y / 2.0,
                 0.0,
                 1000.0,
             ),

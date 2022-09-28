@@ -12,8 +12,8 @@ serde = { version = "1.0", features = ["derive"] }
 cfg-if = "1"
 log = "0.4"
 rustc-hash = "1.1.0"
-gilrs = "0.9.0"
 winit = "0.27.3"
+glam = "0.21.3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"

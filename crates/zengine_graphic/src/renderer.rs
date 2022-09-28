@@ -7,7 +7,7 @@ use crate::Background;
 use wgpu::{Adapter, BindGroupLayout, Surface, SurfaceConfiguration};
 use zengine_ecs::system::{Commands, OptionalRes, OptionalUnsendableRes, Res, ResMut};
 use zengine_macro::Resource;
-use zengine_window::Window;
+use zengine_window::{Window, WindowSpecs};
 
 #[derive(Resource, Debug)]
 pub struct SurfaceData {
@@ -68,7 +68,11 @@ impl DerefMut for RenderContextInstance {
     }
 }
 
-pub fn setup_render(window: OptionalUnsendableRes<Window>, mut commands: Commands) {
+pub fn setup_render(
+    window: OptionalUnsendableRes<Window>,
+    window_specs: Res<WindowSpecs>,
+    mut commands: Commands,
+) {
     let window = window.expect("Cannot find a Window");
     let internal_window = &window.internal;
 
@@ -113,8 +117,8 @@ pub fn setup_render(window: OptionalUnsendableRes<Window>, mut commands: Command
     let config = wgpu::SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
         format: surface.get_supported_formats(&adapter)[0],
-        width: window.width,
-        height: window.height,
+        width: window_specs.size.x,
+        height: window_specs.size.y,
         present_mode: wgpu::PresentMode::Fifo,
     };
     surface.configure(&device, &config);

@@ -28,6 +28,7 @@ zengine_input = { path = "crates/zengine_input" }
 zengine_physics = { path = "crates/zengine_physics" }
 zengine_window = { path = "crates/zengine_window" }
 zengine_audio = { path = "crates/zengine_audio" }
+zengine_gamepad = { path = "crates/zengine_gamepad" }
 zengine_macro = { path = "crates/zengine_macro" }
 glam = "0.21.3"
 

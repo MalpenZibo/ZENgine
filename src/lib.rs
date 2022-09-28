@@ -36,6 +36,10 @@ pub mod asset {
     pub use zengine_asset::*;
 }
 
+pub mod gamepad {
+    pub use zengine_gamepad::*;
+}
+
 extern crate zengine_macro;
 pub use zengine_macro::*;
 

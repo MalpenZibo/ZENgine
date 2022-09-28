@@ -1,0 +1,13 @@
+[package]
+name = "zengine_gamepad"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+zengine_ecs = { path = "../zengine_ecs" }
+zengine_engine = { path = "../zengine_engine" }
+zengine_input = { path = "../zengine_input" }
+zengine_macro = { path = "../zengine_macro" }
+
+gilrs = "0.9.0"
+cfg-if = "1"

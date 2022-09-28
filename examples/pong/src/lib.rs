@@ -18,19 +18,12 @@ use zengine::{
     log::Level,
     math::{Vec2, Vec3},
     physics::{collision_system, Collision, Shape2D, ShapeType},
-    window::{WindowModule, WindowSpecs},
+    window::{WindowConfig, WindowModule, WindowSpecs},
     zengine_main, Component, Engine, InputType, Resource, StageLabel,
 };
 
-static WIDTH: f32 = 1280.0;
-static HEIGHT: f32 = 720.0;
-static BOARD_WIDTH: f32 = HEIGHT / 1.33;
-
-static PAD_HALF_WIDTH: f32 = 75.0;
-static PAD_HALF_HEIGHT: f32 = 15.0;
 static PAD_FORCE: f32 = 2000.0;
 static PAD_MASS: f32 = 5.0;
-static BALL_RADIUS: f32 = 12.5;
 static BALL_VEL: f32 = 250.0;
 
 #[derive(Deserialize, InputType, Hash, Eq, PartialEq, Clone, Default, Debug)]
@@ -94,6 +87,14 @@ pub enum GameEvent {
     Score,
 }
 
+#[derive(Resource, Default, Debug)]
+pub struct Dimensions {
+    pub ball_radius: f32,
+    pub pad_half_width: f32,
+    pub pad_half_height: f32,
+    pub board_width: f32,
+}
+
 #[zengine_main]
 pub fn main() {
     Engine::init_logger(Level::Info);
@@ -128,24 +129,24 @@ pub fn main() {
     let bindings: Bindings<UserInput> = serde_yaml::from_str(content).unwrap();
 
     Engine::default()
-        .add_module(WindowModule(WindowSpecs {
+        .add_module(WindowModule(WindowConfig {
             title: "PONG".to_owned(),
-            width: WIDTH as u32,
-            height: HEIGHT as u32,
+            width: 1200,
+            height: 800,
             fullscreen: false,
             vsync: false,
         }))
         .add_module(AssetModule::new("assets"))
         .add_module(GraphicModule::default())
-        //.add_module(AudioModule::default())
-        //.add_startup_system(setup)
-        // .add_system(input_system(bindings))
-        // .add_system(collision_system)
-        // .add_system(ai_pad_control)
-        // .add_system(player_pad_control)
-        // .add_system(pad_movement)
-        // .add_system(ball_movement)
-        // .add_system(collision_response)
+        .add_module(AudioModule::default())
+        .add_startup_system(setup)
+        .add_system(input_system(bindings))
+        .add_system(collision_system)
+        .add_system(ai_pad_control)
+        .add_system(player_pad_control)
+        .add_system(pad_movement)
+        .add_system(ball_movement)
+        .add_system(collision_response)
         .add_system_into_stage(timing_system(None), StageLabel::PostRender)
         .run();
 }
@@ -157,6 +158,7 @@ fn setup(
     mut textures_atlas: OptionalResMut<Assets<TextureAtlas>>,
     audio_device: Res<AudioDevice>,
     audio_instances: OptionalRes<Assets<AudioInstance>>,
+    window_specs: Res<WindowSpecs>,
 ) {
     let textures = textures.as_mut().unwrap();
     let textures_atlas = textures_atlas.as_mut().unwrap();
@@ -193,9 +195,27 @@ fn setup(
         velocity: 0.0,
     };
 
+    let camera_height = 800.0;
+    let camera_width = camera_height * window_specs.ratio;
+
+    let board_width = if window_specs.ratio > 1.0 {
+        camera_height / 1.33
+    } else {
+        camera_width
+    };
+    let board_height = board_width * 1.33;
+
+    let pad_half_width = board_width / 8.;
+    let pad_half_height = pad_half_width / 5.;
+
+    let ball_radius = board_width / 48.;
+
+    println!("camera {} {}", camera_width, camera_height);
+    println!("board {} {}", board_width, board_height);
+
     let camera = commands.spawn((
         Camera {
-            mode: CameraMode::Mode2D((WIDTH, HEIGHT)),
+            mode: CameraMode::Mode2D(Vec2::new(camera_width, camera_height)),
         },
         Transform::new(Vec3::new(0.0, 0.0, -50.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
     ));
@@ -204,8 +224,8 @@ fn setup(
 
     commands.spawn((
         Sprite {
-            width: WIDTH,
-            height: HEIGHT,
+            width: camera_height * 1.77,
+            height: camera_height,
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
             texture: SpriteTexture::Simple(bg),
@@ -213,13 +233,17 @@ fn setup(
         Transform::new(Vec3::new(0.0, 0.0, 3.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
     ));
 
-    let height = HEIGHT;
-    let width = BOARD_WIDTH;
+    commands.create_resource(Dimensions {
+        ball_radius,
+        pad_half_width,
+        pad_half_height,
+        board_width,
+    });
 
     commands.spawn((
         Sprite {
-            width,
-            height,
+            width: board_width,
+            height: board_height,
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
             texture: SpriteTexture::Atlas {
@@ -232,7 +256,7 @@ fn setup(
 
     let sx = commands.spawn((
         Transform::new(
-            Vec3::new(-width / 2., 0.0, 0.0),
+            Vec3::new(-board_width / 2., 0.0, 0.0),
             Vec3::new(0.0, 0.0, 0.0),
             1.0,
         ),
@@ -240,13 +264,13 @@ fn setup(
             origin: Vec3::new(1.0, 0.5, 0.0),
             shape_type: ShapeType::Rectangle {
                 width: 300.0,
-                height,
+                height: board_height,
             },
         },
     ));
     let dx = commands.spawn((
         Transform::new(
-            Vec3::new(width / 2., 0.0, 0.0),
+            Vec3::new(board_width / 2., 0.0, 0.0),
             Vec3::new(0.0, 0.0, 0.0),
             1.0,
         ),
@@ -254,21 +278,21 @@ fn setup(
             origin: Vec3::new(0.0, 0.5, 0.0),
             shape_type: ShapeType::Rectangle {
                 width: 300.0,
-                height: HEIGHT,
+                height: board_height,
             },
         },
     ));
 
     let top = commands.spawn((
         Transform::new(
-            Vec3::new(0.0, height / 2., 0.0),
+            Vec3::new(0.0, board_height / 2., 0.0),
             Vec3::new(0.0, 0.0, 0.0),
             1.0,
         ),
         Shape2D {
             origin: Vec3::new(0.5, 0.0, 0.0),
             shape_type: ShapeType::Rectangle {
-                width: WIDTH,
+                width: board_width,
                 height: 300.0,
             },
         },
@@ -276,14 +300,14 @@ fn setup(
 
     let bottom = commands.spawn((
         Transform::new(
-            Vec3::new(0.0, -height / 2., 0.0),
+            Vec3::new(0.0, -board_height / 2., 0.0),
             Vec3::new(0.0, 0.0, 0.0),
             1.0,
         ),
         Shape2D {
             origin: Vec3::new(0.5, 1.0, 0.0),
             shape_type: ShapeType::Rectangle {
-                width: WIDTH,
+                width: board_width,
                 height: 300.0,
             },
         },
@@ -298,8 +322,8 @@ fn setup(
 
     let pad1 = commands.spawn((
         Sprite {
-            width: PAD_HALF_WIDTH * 2.0,
-            height: PAD_HALF_HEIGHT * 2.0,
+            width: pad_half_width * 2.0,
+            height: pad_half_height * 2.0,
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
             texture: SpriteTexture::Atlas {
@@ -308,25 +332,26 @@ fn setup(
             },
         },
         Transform::new(
-            Vec3::new(0.0, -(height / 2.) + 20.0 + PAD_HALF_HEIGHT, 1.0),
+            Vec3::new(0.0, -(board_height / 2.) + 20.0 + pad_half_height, 1.0),
             Vec3::ZERO,
             1.0,
         ),
         Shape2D {
             origin: Vec3::new(0.5, 0.5, 0.0),
             shape_type: ShapeType::Rectangle {
-                width: PAD_HALF_WIDTH * 2.0,
-                height: PAD_HALF_HEIGHT * 2.0,
+                width: pad_half_width * 2.0,
+                height: pad_half_height * 2.0,
             },
         },
         pad.clone(),
+        AI {},
     ));
-    commands.create_resource(Player1 { entity: pad1 });
+    // commands.create_resource(Player1 { entity: pad1 });
 
     commands.spawn((
         Sprite {
-            width: PAD_HALF_WIDTH * 2.0,
-            height: PAD_HALF_HEIGHT * 2.0,
+            width: pad_half_width * 2.0,
+            height: pad_half_height * 2.0,
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
             texture: SpriteTexture::Atlas {
@@ -335,15 +360,15 @@ fn setup(
             },
         },
         Transform::new(
-            Vec3::new(0.0, height / 2. - 20.0 - PAD_HALF_HEIGHT, 1.0),
+            Vec3::new(0.0, board_height / 2. - 20.0 - pad_half_height, 1.0),
             Vec3::new(0., 0., 180.),
             1.0,
         ),
         Shape2D {
             origin: Vec3::new(0.5, 0.5, 0.0),
             shape_type: ShapeType::Rectangle {
-                width: PAD_HALF_WIDTH * 2.0,
-                height: PAD_HALF_HEIGHT * 2.0,
+                width: pad_half_width * 2.0,
+                height: pad_half_height * 2.0,
             },
         },
         pad,
@@ -352,8 +377,8 @@ fn setup(
 
     commands.spawn((
         Sprite {
-            width: BALL_RADIUS * 2.0,
-            height: BALL_RADIUS * 2.0,
+            width: ball_radius * 2.0,
+            height: ball_radius * 2.0,
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
             texture: SpriteTexture::Atlas {
@@ -365,7 +390,7 @@ fn setup(
         Shape2D {
             origin: Vec3::new(0.5, 0.5, 0.0),
             shape_type: ShapeType::Circle {
-                radius: BALL_RADIUS,
+                radius: ball_radius,
             },
         },
         Ball {
@@ -490,6 +515,7 @@ fn collision_response(
     audio_device: Res<AudioDevice>,
     bounce_effect: OptionalRes<BounceEffect>,
     score_effect: OptionalRes<ScoreEffect>,
+    dimensions: Res<Dimensions>,
 ) {
     fn get_collision_type(
         collision: &Collision,
@@ -603,7 +629,8 @@ fn collision_response(
                         }
                     }) {
                         pad.velocity = 0.0;
-                        transform.position.x = (-BOARD_WIDTH / 2.) + PAD_HALF_WIDTH;
+                        transform.position.x =
+                            (-dimensions.board_width / 2.) + dimensions.pad_half_width + 0.1;
                     }
                 }
                 Some(CollisionType::PadBorder {
@@ -618,7 +645,8 @@ fn collision_response(
                         }
                     }) {
                         pad.velocity = 0.0;
-                        transform.position.x = (BOARD_WIDTH / 2.) - PAD_HALF_WIDTH;
+                        transform.position.x =
+                            (dimensions.board_width / 2.) - dimensions.pad_half_width - 0.1;
                     };
                 }
                 Some(CollisionType::BallBorder {
@@ -638,9 +666,9 @@ fn collision_response(
                     }) {
                         ball.vel = Vec2::new(-ball.vel.x, ball.vel.y);
                         transform.position.x = if border_entity == field_border.sx {
-                            (-BOARD_WIDTH / 2.) + BALL_RADIUS
+                            (-dimensions.board_width / 2.) + dimensions.ball_radius + 0.1
                         } else {
-                            (BOARD_WIDTH / 2.0) - BALL_RADIUS
+                            (dimensions.board_width / 2.0) - dimensions.ball_radius - 0.1
                         }
                     }
 
@@ -702,15 +730,15 @@ fn collision_response(
                                     } * ((ball_transform.position.x
                                         - pad_transform.position.x)
                                         .abs()
-                                        / PAD_HALF_WIDTH
+                                        / dimensions.pad_half_width
                                         * 100.0)),
                                 -ball.vel.y,
                             );
                             ball_transform.position.y = pad_transform.position.y
                                 + if ball_transform.position.y > pad_transform.position.y {
-                                    PAD_HALF_HEIGHT + BALL_RADIUS
+                                    dimensions.pad_half_height + dimensions.ball_radius + 0.1
                                 } else {
-                                    -(PAD_HALF_HEIGHT + BALL_RADIUS)
+                                    -(dimensions.pad_half_height + dimensions.ball_radius + 0.1)
                                 };
 
                             audio_device.play(bounce_effect.as_ref().unwrap().0.clone());
