@@ -136,6 +136,9 @@ fn runner(mut engine: Engine) {
                     engine.startup();
                 }
             }
+            Event::Suspended => {
+                *control_flow = ControlFlow::Exit;
+            }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
