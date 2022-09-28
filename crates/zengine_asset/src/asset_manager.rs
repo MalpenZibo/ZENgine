@@ -291,7 +291,7 @@ mod tests {
 
     use zengine_ecs::{event::EventHandler, system::EventPublisher};
 
-    use crate::{io::FileAssetIo, Asset, AssetEvent, AssetLoader, AssetManager, Assets, Handle};
+    use crate::{Asset, AssetEvent, AssetLoader, AssetManager, Assets, Handle};
 
     #[derive(Debug)]
     pub struct TestAsset {
@@ -324,8 +324,14 @@ mod tests {
         asset_dir
     }
 
-    fn setup(asset_path: impl AsRef<Path>) -> AssetManager {
-        AssetManager::new(FileAssetIo::new(asset_path))
+    fn setup(_asset_path: impl AsRef<Path>) -> AssetManager {
+        cfg_if::cfg_if! {
+            if #[cfg(target_os = "android")] {
+                AssetManager::new(crate::io::AndroidAssetIo::default())
+            } else {
+                AssetManager::new(crate::io::FileAssetIo::new(_asset_path))
+            }
+        }
     }
 
     fn run_systems(

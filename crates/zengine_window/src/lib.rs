@@ -10,6 +10,9 @@ use zengine_engine::{Engine, Module};
 use zengine_input::{Axis, Input, InputEvent};
 use zengine_macro::{Resource, UnsendableResource};
 
+#[cfg(target_os = "android")]
+mod android_utils;
+
 #[derive(Resource, Debug, Clone)]
 pub struct WindowConfig {
     pub title: String,
@@ -85,6 +88,14 @@ impl Module for WindowModule {
                     Some(())
                 })
                 .expect("Couldn't append canvas to document body.");
+        }
+
+        #[cfg(target_os = "android")]
+        {
+            let result = android_utils::set_immersive_mode();
+            if let Err(error) = result {
+                log::warn!("Impossible to set the Android immersive mode: {}", error);
+            }
         }
 
         engine.world.create_resource(self.0);

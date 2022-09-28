@@ -10,6 +10,7 @@ use zengine::{
         },
         Entity,
     },
+    gamepad::GamepadModule,
     graphic::{
         ActiveCamera, Background, Camera, CameraMode, Color, GraphicModule, Sprite, SpriteTexture,
         Texture, TextureAssets, TextureAtlas, TextureAtlasAssets,
@@ -138,6 +139,7 @@ pub fn main() {
         }))
         .add_module(AssetModule::new("assets"))
         .add_module(GraphicModule::default())
+        .add_module(GamepadModule)
         .add_module(AudioModule::default())
         .add_startup_system(setup)
         .add_system(input_system(bindings))
@@ -209,9 +211,6 @@ fn setup(
     let pad_half_height = pad_half_width / 5.;
 
     let ball_radius = board_width / 48.;
-
-    println!("camera {} {}", camera_width, camera_height);
-    println!("board {} {}", board_width, board_height);
 
     let camera = commands.spawn((
         Camera {

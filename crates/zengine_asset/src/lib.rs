@@ -33,6 +33,8 @@ impl AssetModule {
 impl Module for AssetModule {
     fn init(self, engine: &mut zengine_engine::Engine) {
         if let Some(asset_base_path) = self.asset_base_path {
+            log::trace!("base asset path {:?}", asset_base_path);
+
             #[cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))]
             let asset_io = crate::io::FileAssetIo::new(asset_base_path);
 
@@ -40,7 +42,7 @@ impl Module for AssetModule {
             let asset_io = crate::io::WasmAssetIo::new(asset_base_path);
 
             #[cfg(target_os = "android")]
-            let asset_io = crate::io::AndroidAssetIo::new(asset_base_path);
+            let asset_io = crate::io::AndroidAssetIo::default();
 
             engine.world.create_resource(AssetManager::new(asset_io));
         } else {
