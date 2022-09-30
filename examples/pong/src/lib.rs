@@ -2,7 +2,7 @@ use serde::Deserialize;
 use zengine::{
     asset::{AssetManager, AssetModule, Assets, Handle},
     audio::{Audio, AudioDevice, AudioInstance, AudioModule, AudioSettings},
-    core::{timing_system, Time, Transform},
+    core::{Time, TimeModule, Transform},
     ecs::{
         system::{
             Commands, EventPublisher, EventStream, Local, OptionalRes, OptionalResMut, Query,
@@ -20,7 +20,7 @@ use zengine::{
     math::{Vec2, Vec3},
     physics::{collision_system, Collision, Shape2D, ShapeType},
     window::{WindowConfig, WindowModule, WindowSpecs},
-    zengine_main, Component, Engine, InputType, Resource, StageLabel,
+    zengine_main, Component, Engine, InputType, Resource,
 };
 
 static PAD_FORCE: f32 = 2000.0;
@@ -142,6 +142,7 @@ pub fn main() {
         .add_module(GraphicModule::default())
         .add_module(GamepadModule)
         .add_module(AudioModule::default())
+        .add_module(TimeModule(None))
         .add_startup_system(setup)
         .add_system(input_system(bindings))
         .add_system(collision_system)
@@ -150,7 +151,6 @@ pub fn main() {
         .add_system(pad_movement)
         .add_system(ball_movement)
         .add_system(collision_response)
-        .add_system_into_stage(timing_system(None), StageLabel::PostRender)
         .run();
 }
 

@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+zengine_engine = { path = "../zengine_engine" }
 zengine_ecs = { path = "../zengine_ecs" }
 zengine_macro = { path = "../zengine_macro" }
 log = "0.4"

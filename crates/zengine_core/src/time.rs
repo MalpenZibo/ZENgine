@@ -1,7 +1,8 @@
 use instant::Instant;
 use log::trace;
 use std::thread::sleep;
-use zengine_ecs::system::{Local, ResMut};
+use zengine_ecs::system::{EventStream, Local, ResMut};
+use zengine_engine::{EngineEvent, Module, StageLabel};
 
 use std::time::Duration;
 use zengine_macro::Resource;
@@ -48,8 +49,23 @@ impl Default for SystemInstant {
     }
 }
 
-pub fn timing_system(limiter: Option<FrameLimiter>) -> impl Fn(ResMut<Time>, Local<SystemInstant>) {
-    move |mut time: ResMut<Time>, last_call: Local<SystemInstant>| {
+pub struct TimeModule(pub Option<FrameLimiter>);
+impl Module for TimeModule {
+    fn init(self, engine: &mut zengine_engine::Engine) {
+        engine.add_system_into_stage(timing_system(self.0), StageLabel::PreUpdate);
+    }
+}
+
+fn timing_system(
+    limiter: Option<FrameLimiter>,
+) -> impl Fn(EventStream<EngineEvent>, ResMut<Time>, Local<SystemInstant>) {
+    move |engine_event: EventStream<EngineEvent>,
+          mut time: ResMut<Time>,
+          last_call: Local<SystemInstant>| {
+        if engine_event.read().last() == Some(&EngineEvent::Resumed) {
+            last_call.0 = Instant::now();
+        }
+
         let mut finish = Instant::now();
         let mut elapsed = finish - last_call.0;
 

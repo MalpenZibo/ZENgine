@@ -53,12 +53,13 @@ struct EventLoop(winit::event_loop::EventLoop<()>);
 enum RunnerState {
     Initializing { app_ready: bool, window_ready: bool },
     Running,
+    Suspending,
     Suspended,
 }
 
 impl RunnerState {
     pub fn is_running(&self) -> bool {
-        self == &RunnerState::Running
+        matches!(self, RunnerState::Running | RunnerState::Suspending)
     }
 
     pub fn can_start(&self) -> bool {
@@ -194,7 +195,7 @@ fn runner(mut engine: Engine) {
             Event::Suspended => {
                 info!("Supend Engine");
 
-                runner_state = RunnerState::Suspended;
+                runner_state = RunnerState::Suspending;
                 if let Some(mut engine_event) = engine.world.get_mut_event_handler::<EngineEvent>()
                 {
                     engine_event.publish(EngineEvent::Suspended);
@@ -334,6 +335,10 @@ fn runner(mut engine: Engine) {
             }
             Event::MainEventsCleared if runner_state.is_running() => {
                 engine.update();
+
+                if runner_state == RunnerState::Suspending {
+                    runner_state = RunnerState::Suspended;
+                }
 
                 if engine
                     .world
