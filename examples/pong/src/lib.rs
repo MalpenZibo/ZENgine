@@ -106,25 +106,26 @@ pub fn main() {
             - source:
                 Keyboard:
                     key: D
-              scale: 1.0
             - source:
                 Keyboard:
                     key: A
-              scale: -1.0
+              invert: true
             - source:
                 Keyboard:
                     key: Right
-              scale: 1.0
             - source: 
                 Keyboard: 
                     key: Left
-              scale: -1.0
+              invert: true
             - source:
                 ControllerStick:
                     device_id: 0
                     which: Left
                     axis: X
-              scale: 1.0
+            - source:
+                Touch:
+                    axis: X
+                    discrete_map: 0.2
     ";
 
     let bindings: Bindings<UserInput> = serde_yaml::from_str(content).unwrap();
@@ -343,9 +344,8 @@ fn setup(
             },
         },
         pad.clone(),
-        AI {},
     ));
-    // commands.create_resource(Player1 { entity: pad1 });
+    commands.create_resource(Player1 { entity: pad1 });
 
     commands.spawn((
         Sprite {

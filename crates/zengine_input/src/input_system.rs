@@ -43,29 +43,41 @@ pub fn input_system<T: InputType>(
             if let Some(axis_mappings) = &bindings.axis_mappings {
                 for axes in axis_mappings.iter() {
                     if let Some(axis) = axes.1.iter().find(|axis| axis.source == e.input) {
+                        let value = if let Some(discrete_map) = axis.discrete_map {
+                            if f32::abs(e.value) > f32::abs(discrete_map) {
+                                if e.value < 0. {
+                                    -1.
+                                } else {
+                                    1.
+                                }
+                            } else {
+                                0.
+                            }
+                        } else {
+                            e.value
+                        } * if axis.invert { -1. } else { 1. };
                         match input_handler.axes_value.get_mut(axes.0) {
                             Some(entry) => {
                                 match entry.iter().position(|value| value.0 == e.input) {
                                     Some(index) => {
                                         if e.value != 0.0 {
-                                            entry[index].1 = e.value * axis.scale;
+                                            entry[index].1 = value;
                                         } else {
                                             entry.remove(index);
                                         }
                                     }
                                     None => {
                                         if e.value != 0.0 {
-                                            entry.push((e.input.clone(), e.value * axis.scale))
+                                            entry.push((e.input.clone(), value))
                                         }
                                     }
                                 }
                             }
                             None => {
                                 if e.value != 0.0 {
-                                    input_handler.axes_value.insert(
-                                        axes.0.clone(),
-                                        vec![(e.input.clone(), e.value * axis.scale)],
-                                    );
+                                    input_handler
+                                        .axes_value
+                                        .insert(axes.0.clone(), vec![(e.input.clone(), value)]);
                                 }
                             }
                         }
@@ -163,11 +175,13 @@ mod tests {
             &vec!(
                 AxisBind {
                     source: Input::Keyboard { key: Key::D },
-                    scale: 1.0
+                    invert: false,
+                    discrete_map: None
                 },
                 AxisBind {
                     source: Input::Keyboard { key: Key::A },
-                    scale: -1.0
+                    invert: true,
+                    discrete_map: None
                 }
             )
         );
@@ -207,11 +221,13 @@ mod tests {
             &vec!(
                 AxisBind {
                     source: Input::Keyboard { key: Key::D },
-                    scale: 1.0
+                    invert: false,
+                    discrete_map: None
                 },
                 AxisBind {
                     source: Input::Keyboard { key: Key::A },
-                    scale: -1.0
+                    invert: true,
+                    discrete_map: None
                 }
             )
         );

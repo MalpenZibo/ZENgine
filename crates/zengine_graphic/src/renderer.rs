@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::Background;
-use wgpu::{Adapter, BindGroupLayout, Surface, SurfaceConfiguration};
+use wgpu::{BindGroupLayout, Surface, SurfaceConfiguration};
 use zengine_ecs::system::{Commands, OptionalRes, OptionalUnsendableRes, Res, ResMut};
 use zengine_macro::Resource;
 use zengine_window::{Window, WindowSpecs};
@@ -26,6 +26,16 @@ impl Deref for TextureBindGroupLayout {
 }
 
 #[derive(Resource, Debug)]
+pub struct Instance(wgpu::Instance);
+
+impl Deref for Instance {
+    type Target = wgpu::Instance;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[derive(Resource, Debug)]
 pub struct Queue(wgpu::Queue);
 
 impl Deref for Queue {
@@ -40,6 +50,16 @@ pub struct Device(wgpu::Device);
 
 impl Deref for Device {
     type Target = wgpu::Device;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[derive(Resource, Debug)]
+pub struct Adapter(wgpu::Adapter);
+
+impl Deref for Adapter {
+    type Target = wgpu::Adapter;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -81,7 +101,7 @@ pub fn setup_render(
     async fn create_adapter_device_queue(
         instance: &wgpu::Instance,
         surface: &Surface,
-    ) -> (Adapter, wgpu::Device, wgpu::Queue) {
+    ) -> (wgpu::Adapter, wgpu::Device, wgpu::Queue) {
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::HighPerformance,
@@ -151,8 +171,10 @@ pub fn setup_render(
         surface,
     });
     commands.create_resource(TextureBindGroupLayout(texture_bind_group_layout));
+    commands.create_resource(Instance(instance));
     commands.create_resource(Queue(queue));
     commands.create_resource(Device(device));
+    commands.create_resource(Adapter(adapter));
 }
 
 pub fn clear(

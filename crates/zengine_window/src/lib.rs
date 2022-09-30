@@ -2,7 +2,7 @@ use glam::UVec2;
 use log::info;
 use winit::{
     dpi::LogicalSize,
-    event::{ElementState, Event, MouseScrollDelta, WindowEvent},
+    event::{ElementState, Event, MouseScrollDelta, TouchPhase, WindowEvent},
     event_loop::{ControlFlow, EventLoopWindowTarget},
     window::{Fullscreen, WindowBuilder},
 };
@@ -237,6 +237,33 @@ fn runner(mut engine: Engine) {
                         0.0
                     },
                 })
+            }
+            Event::WindowEvent {
+                event:
+                    WindowEvent::Touch(winit::event::Touch {
+                        phase, location, ..
+                    }),
+                ..
+            } if initialized && window_with_size => {
+                let window_specs = engine.world.get_resource::<WindowSpecs>().unwrap();
+                let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
+
+                input.publish(InputEvent {
+                    input: Input::Touch { axis: Axis::X },
+                    value: if phase == TouchPhase::Ended {
+                        0.
+                    } else {
+                        location.x as f32 / (window_specs.size.x / 2) as f32 - 1.
+                    },
+                });
+                input.publish(InputEvent {
+                    input: Input::Touch { axis: Axis::Y },
+                    value: if phase == TouchPhase::Ended {
+                        0.
+                    } else {
+                        location.x as f32 / (window_specs.size.y / 2) as f32 - 1.
+                    },
+                });
             }
             Event::MainEventsCleared if initialized && window_with_size => {
                 if engine.update() {
