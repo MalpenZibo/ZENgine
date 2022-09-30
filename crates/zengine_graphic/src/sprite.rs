@@ -4,11 +4,11 @@ use std::ops::{Deref, DerefMut};
 use wgpu::util::DeviceExt;
 use zengine_asset::{Assets, Handle};
 use zengine_core::Transform;
-use zengine_ecs::system::{Commands, Local, OptionalRes, Query, QueryIter, ResMut};
+use zengine_ecs::system::{Commands, Local, OptionalRes, Query, QueryIter, Res, ResMut};
 use zengine_macro::{Component, Resource};
 
 use crate::{
-    vertex::Vertex, CameraBuffer, Color, Device, Image, Queue, RenderContextInstance, SurfaceData,
+    vertex::Vertex, CameraBuffer, Color, Device, Image, Queue, RenderContextInstance, Surface,
     Texture, TextureAtlas, TextureBindGroupLayout,
 };
 
@@ -182,12 +182,13 @@ fn generate_vertex_and_indexes_buffer(
 }
 
 pub fn setup_sprite_render(
-    surface: OptionalRes<SurfaceData>,
+    surface: Res<Surface>,
     texture_bind_group_layout: OptionalRes<TextureBindGroupLayout>,
     device: OptionalRes<Device>,
     camera_buffer: OptionalRes<CameraBuffer>,
     mut commands: Commands,
 ) {
+    let config = surface.get_config().unwrap();
     let device = device.unwrap();
     let camera_buffer = camera_buffer.unwrap();
 
@@ -217,7 +218,7 @@ pub fn setup_sprite_render(
             module: &shader,
             entry_point: "fs_main",
             targets: &[Some(wgpu::ColorTargetState {
-                format: surface.unwrap().surface_config.format,
+                format: config.format,
                 blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                 write_mask: wgpu::ColorWrites::ALL,
             })],
@@ -312,8 +313,7 @@ pub fn sprite_render(
         camera_buffer,
         render_pipeline,
     ) {
-        let render_context = render_context.as_mut().unwrap();
-        {
+        if let Some(render_context) = render_context.as_mut() {
             let mut render_pass =
                 render_context
                     .command_encoder

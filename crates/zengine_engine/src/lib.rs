@@ -56,6 +56,8 @@ impl Stage {
 #[derive(Debug, PartialEq, Eq)]
 pub enum EngineEvent {
     Quit,
+    Suspended,
+    Resumed,
 }
 
 pub struct Engine {
@@ -93,8 +95,17 @@ impl Default for Engine {
 }
 
 fn default_runner(mut engine: Engine) {
+    engine.startup();
+
     loop {
-        if engine.update() {
+        engine.update();
+
+        if engine
+            .world
+            .get_event_handler::<EngineEvent>()
+            .and_then(|event| event.read_last().map(|e| e == &EngineEvent::Quit))
+            .unwrap_or(false)
+        {
             break;
         }
     }
@@ -173,7 +184,7 @@ impl Engine {
         self.running_stages = stages;
     }
 
-    pub fn update(&mut self) -> bool {
+    pub fn update(&mut self) {
         for stage in self.running_stages.iter_mut() {
             stage.run(&self.world);
         }
@@ -181,18 +192,6 @@ impl Engine {
         for stage in self.running_stages.iter_mut() {
             stage.apply(&mut self.world);
         }
-
-        {
-            let engine_event = self.world.get_event_handler::<EngineEvent>().unwrap();
-            if engine_event
-                .read_last()
-                .map_or_else(|| false, |e| e == &EngineEvent::Quit)
-            {
-                return true;
-            }
-        }
-
-        false
     }
 
     pub fn run(&mut self) {

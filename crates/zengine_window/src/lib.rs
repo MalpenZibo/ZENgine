@@ -6,7 +6,7 @@ use winit::{
     event_loop::{ControlFlow, EventLoopWindowTarget},
     window::{Fullscreen, WindowBuilder},
 };
-use zengine_engine::{Engine, Module};
+use zengine_engine::{Engine, EngineEvent, Module};
 use zengine_input::{Axis, Input, InputEvent};
 use zengine_macro::{Resource, UnsendableResource};
 
@@ -43,10 +43,46 @@ pub struct Window {
 pub struct WindowSpecs {
     pub size: UVec2,
     pub ratio: f32,
+    pub surface_id: usize,
 }
 
 #[derive(UnsendableResource, Debug)]
 struct EventLoop(winit::event_loop::EventLoop<()>);
+
+#[derive(Eq, PartialEq)]
+enum RunnerState {
+    Initializing { app_ready: bool, window_ready: bool },
+    Running,
+    Suspended,
+}
+
+impl RunnerState {
+    pub fn is_running(&self) -> bool {
+        self == &RunnerState::Running
+    }
+
+    pub fn can_start(&self) -> bool {
+        matches!(
+            self,
+            RunnerState::Initializing {
+                app_ready: true,
+                window_ready: true
+            }
+        )
+    }
+
+    pub fn set_app_ready(&mut self) {
+        if let RunnerState::Initializing { app_ready, .. } = self {
+            *app_ready = true
+        }
+    }
+
+    pub fn set_window_ready(&mut self) {
+        if let RunnerState::Initializing { window_ready, .. } = self {
+            *window_ready = true
+        }
+    }
+}
 
 #[derive(Default, Debug)]
 pub struct WindowModule(pub WindowConfig);
@@ -105,6 +141,7 @@ impl Module for WindowModule {
         engine.world.create_resource(WindowSpecs {
             size: UVec2::new(window_size.0, window_size.1),
             ratio: window_size.0 as f32 / window_size.1 as f32,
+            surface_id: 0,
         });
         engine
             .world
@@ -120,8 +157,10 @@ fn runner(mut engine: Engine) {
         .remove_unsendable_resource::<EventLoop>()
         .unwrap();
 
-    let mut initialized = false;
-    let mut window_with_size = false;
+    let mut runner_state = RunnerState::Initializing {
+        app_ready: false,
+        window_ready: false,
+    };
 
     let event_handler = move |event: Event<()>,
                               _event_loop: &EventLoopWindowTarget<()>,
@@ -130,14 +169,38 @@ fn runner(mut engine: Engine) {
 
         match event {
             Event::Resumed => {
-                initialized = true;
+                if runner_state == RunnerState::Suspended {
+                    info!("Resume Engine");
 
-                if initialized && window_with_size {
-                    engine.startup();
+                    if let Some(mut engine_event) =
+                        engine.world.get_mut_event_handler::<EngineEvent>()
+                    {
+                        engine_event.publish(EngineEvent::Resumed);
+                    }
+
+                    let mut window_specs = engine.world.get_mut_resource::<WindowSpecs>().unwrap();
+                    window_specs.surface_id += 1;
+
+                    runner_state = RunnerState::Running;
+                } else {
+                    runner_state.set_app_ready();
+
+                    if runner_state.can_start() {
+                        runner_state = RunnerState::Running;
+                        engine.startup();
+                    }
                 }
             }
             Event::Suspended => {
-                *control_flow = ControlFlow::Exit;
+                info!("Supend Engine");
+
+                runner_state = RunnerState::Suspended;
+                if let Some(mut engine_event) = engine.world.get_mut_event_handler::<EngineEvent>()
+                {
+                    engine_event.publish(EngineEvent::Suspended);
+                } else {
+                    *control_flow = ControlFlow::Exit;
+                }
             }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
@@ -149,24 +212,28 @@ fn runner(mut engine: Engine) {
                 event: WindowEvent::Resized(size),
                 ..
             } => {
-                {
-                    let mut window_specs = engine.world.get_mut_resource::<WindowSpecs>().unwrap();
-                    window_specs.size = UVec2::new(size.width, size.height);
-                    window_specs.ratio = size.width as f32 / size.height as f32;
-                }
+                if matches!(runner_state, RunnerState::Initializing { .. }) {
+                    {
+                        let mut window_specs =
+                            engine.world.get_mut_resource::<WindowSpecs>().unwrap();
+                        window_specs.size = UVec2::new(size.width, size.height);
+                        window_specs.ratio = size.width as f32 / size.height as f32;
+                    }
 
-                info!("New window size {:?}", size);
+                    info!("New window size {:?}", size);
 
-                window_with_size = true;
+                    runner_state.set_window_ready();
 
-                if initialized && window_with_size {
-                    engine.startup();
+                    if runner_state.can_start() {
+                        runner_state = RunnerState::Running;
+                        engine.startup();
+                    }
                 }
             }
             Event::WindowEvent {
                 event: WindowEvent::MouseInput { state, button, .. },
                 ..
-            } if initialized && window_with_size => {
+            } if runner_state.is_running() => {
                 let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
                 input.publish(InputEvent {
                     input: Input::MouseButton { button },
@@ -180,7 +247,7 @@ fn runner(mut engine: Engine) {
             Event::WindowEvent {
                 event: WindowEvent::CursorMoved { position, .. },
                 ..
-            } if initialized && window_with_size => {
+            } if runner_state.is_running() => {
                 let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
                 input.publish(InputEvent {
                     input: Input::MouseMotion { axis: Axis::X },
@@ -194,7 +261,7 @@ fn runner(mut engine: Engine) {
             Event::WindowEvent {
                 event: WindowEvent::MouseWheel { delta, .. },
                 ..
-            } if initialized && window_with_size => match delta {
+            } if runner_state.is_running() => match delta {
                 MouseScrollDelta::LineDelta(x, y) => {
                     let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
                     input.publish(InputEvent {
@@ -225,7 +292,7 @@ fn runner(mut engine: Engine) {
                         ..
                     },
                 ..
-            } if initialized && window_with_size => {
+            } if runner_state.is_running() => {
                 let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
                 input.publish(InputEvent {
                     input: Input::Keyboard {
@@ -244,7 +311,7 @@ fn runner(mut engine: Engine) {
                         phase, location, ..
                     }),
                 ..
-            } if initialized && window_with_size => {
+            } if runner_state.is_running() => {
                 let window_specs = engine.world.get_resource::<WindowSpecs>().unwrap();
                 let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
 
@@ -265,8 +332,15 @@ fn runner(mut engine: Engine) {
                     },
                 });
             }
-            Event::MainEventsCleared if initialized && window_with_size => {
-                if engine.update() {
+            Event::MainEventsCleared if runner_state.is_running() => {
+                engine.update();
+
+                if engine
+                    .world
+                    .get_event_handler::<EngineEvent>()
+                    .and_then(|event| event.read_last().map(|e| e == &EngineEvent::Quit))
+                    .unwrap_or(false)
+                {
                     *control_flow = ControlFlow::Exit;
                 }
             }
