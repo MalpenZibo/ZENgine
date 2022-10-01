@@ -49,8 +49,8 @@ impl Module for AssetModule {
             engine.world.create_resource(AssetManager::default());
         }
 
-        engine.add_system_into_stage(destroy_unused_assets, StageLabel::PostUpdate);
         engine.add_system_into_stage(update_ref_count, StageLabel::PostUpdate);
+        engine.add_system_into_stage(destroy_unused_assets, StageLabel::PostUpdate);
     }
 }
 

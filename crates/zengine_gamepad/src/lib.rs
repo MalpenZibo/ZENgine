@@ -1,12 +1,6 @@
-use std::ops::{Deref, DerefMut};
-
 use gilrs::Gilrs;
-use zengine_ecs::system::{EventPublisher, OptionalUnsendableResMut};
+use std::ops::{Deref, DerefMut};
 use zengine_engine::Module;
-use zengine_input::{
-    device::{ControllerButton, Which},
-    Axis, Input, InputEvent,
-};
 use zengine_macro::UnsendableResource;
 
 pub struct GamepadModule;
@@ -29,24 +23,32 @@ impl DerefMut for GamepadHandler {
 }
 
 impl Module for GamepadModule {
+    #[cfg(not(target_os = "android"))]
     fn init(self, engine: &mut zengine_engine::Engine) {
-        cfg_if::cfg_if! {
-            if #[cfg(not(target_os = "android"))] {
-                let gilrs = Gilrs::new().unwrap();
+        let gilrs = Gilrs::new().unwrap();
 
-                engine
-                    .world
-                    .create_unsendable_resource(GamepadHandler(gilrs));
-                engine.add_system_into_stage(gamepad_system, zengine_engine::StageLabel::PreUpdate);
-            }
-        }
+        engine
+            .world
+            .create_unsendable_resource(GamepadHandler(gilrs));
+        engine.add_system_into_stage(gamepad_system, zengine_engine::StageLabel::PreUpdate);
+    }
+
+    #[cfg(target_os = "android")]
+    fn init(self, _engine: &mut zengine_engine::Engine) {
+        log::warn!("Gamepad not supported on android")
     }
 }
 
+#[cfg(not(target_os = "android"))]
 fn gamepad_system(
-    gamepad_handler: OptionalUnsendableResMut<GamepadHandler>,
-    mut input: EventPublisher<InputEvent>,
+    gamepad_handler: zengine_ecs::system::OptionalUnsendableResMut<GamepadHandler>,
+    mut input: zengine_ecs::system::EventPublisher<zengine_input::InputEvent>,
 ) {
+    use zengine_input::{
+        device::{ControllerButton, Which},
+        Axis, Input, InputEvent,
+    };
+
     if let Some(mut gamepad_handler) = gamepad_handler {
         while let Some(gilrs::Event { id, event, .. }) = gamepad_handler.next_event() {
             match event {
