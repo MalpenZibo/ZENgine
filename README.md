@@ -19,9 +19,38 @@ I created a small series of videos (only in Italian 😏) that cover the first i
 In the future, I plan to create a series of posts about the engine and how it works.
 
 ## Get Started
-There's a very crude implementation of `pong` in the example folder that "should" run on Windows, Mac, Linux, and every modern browser.
+There's a very crude implementation of `pong` in the example folder that "should" run on Windows, Mac, Linux, Android, and every modern browser.
 
-Simply run `cargo run` in the  `pong` folder or `trunk serve` to run the web version (it could be necessary to click on the browser page to make the input system work).
+### Desktop Env (Windows, Mac, Linux)
+Simply run `cargo run` in the  `pong` folder
+
+### Android
+
+To build the android version is mandatory to setup correctly the environment.
+
+You have to install the `Android SDK` and the `Android NDK` and correctly setup the env variables.
+
+Then install `cargo-apk` with:
+```bash
+cargo install cargo-ndk
+```
+
+and lastly, install the required toolchain:
+```bash
+rustup target add \
+    aarch64-linux-android \
+    armv7-linux-androideabi \
+    x86_64-linux-android \
+    i686-linux-android
+```
+
+Now to install the application on your device simply run: 
+```bash
+cargo apk run --lib
+``` 
+in the `pong` folder.
+
+### WASM ENV
 
 To launch the web version is mandatory to setup correctly the environment.
 Install the wasm32-unknown-unknown target with:
@@ -33,3 +62,10 @@ Then install `wasm-bindgen-cli` and [Trunk](https://trunkrs.dev/) with:
 ```bash
 cargo install trunk wasm-bindgen-cli
 ```
+
+Now you can serve the application using `trunk serve` 
+
+(it could be necessary to click on the browser page to make the input system work).
+
+
+
