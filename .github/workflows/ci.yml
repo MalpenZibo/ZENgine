@@ -61,24 +61,15 @@ jobs:
         name: Setup toolchain
         with:
           target: ${{ matrix.target }}
-          profile: minimal
+          profile: default
           toolchain: stable
           override: true
       - uses: nttld/setup-ndk@v1
         if: matrix.name == 'Android'
         with:
           ndk-version: r25b
-      - name: Install clippy
-        if: matrix.clippy
-        run: rustup component add clippy
-      - uses: actions-rs/cargo@v1
-        name: Clippy
-        if: matrix.clippy
-        with:
-          command: clippy
-          args: -- -D warnings
       - name: Install dependencies
-        if: matrix.name == 'Linux'
+        if: matrix.name == 'Linux' || matrix.name == 'Android'
         run: |
           sudo apt-get update -y -qq
 
@@ -92,10 +83,27 @@ jobs:
           sudo apt-get update
           sudo apt install -y libasound2-dev libudev-dev libegl1-mesa libgl1-mesa-dri libxcb-xfixes0-dev mesa-vulkan-drivers vulkan-sdk
       - uses: actions-rs/cargo@v1
+        name: Clippy
+        if: matrix.clippy
+        with:
+          command: clippy
+          args: -- -D warnings
+      - uses: actions-rs/cargo@v1
+        name: Install Cargo-apk
+        if: matrix.name == 'Android'
+        with:
+          command: install
+          args: cargo-apk
+      - uses: actions-rs/cargo@v1
         name: Check
+        if: matrix.name != 'Android'
         with:
           command: check
+      - name: Check apk
+        if: matrix.name == 'Android'
+        run: cargo apk check
       - uses: actions-rs/cargo@v1
+        if: matrix.name != 'Android'
         name: Test
         with:
           command: test

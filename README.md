@@ -32,7 +32,7 @@ You have to install the `Android SDK` and the `Android NDK` and correctly setup 
 
 Then install `cargo-apk` with:
 ```bash
-cargo install cargo-ndk
+cargo install cargo-apk
 ```
 
 and lastly, install the required toolchain:
