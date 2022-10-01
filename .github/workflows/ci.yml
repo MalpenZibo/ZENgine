@@ -37,15 +37,23 @@ jobs:
           - name: Windows
             os: windows-latest
             target: x86_64-pc-windows-msvc
+            clippy: true
           - name: MacOS
             os: macos-latest
             target: aarch64-apple-darwin
+            clippy: false
           - name: Linux
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            clippy: false
           - name: Web
             os: windows-latest
             target: wasm32-unknown-unknown
+            clippy: true
+          - name: Android
+            os: ubuntu-latest
+            target: aarch64-linux-android
+            clippy: true
     steps:
       - uses: actions/checkout@v2
         name: Checkout
@@ -56,12 +64,16 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+      - uses: nttld/setup-ndk@v1
+        if: matrix.name == 'Android'
+        with:
+          ndk-version: r25b
       - name: Install clippy
-        if: matrix.name == 'Windows' || matrix.name == 'Web'
+        if: matrix.clippy
         run: rustup component add clippy
       - uses: actions-rs/cargo@v1
         name: Clippy
-        if: matrix.name == 'Windows'
+        if: matrix.clippy
         with:
           command: clippy
           args: -- -D warnings
