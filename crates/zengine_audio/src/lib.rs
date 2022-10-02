@@ -270,7 +270,7 @@ fn update_instances(
             }
         }
 
-        for i in to_remove.drain(..) {
+        for i in to_remove.drain(..).rev() {
             audio_device.instances.swap_remove(i);
         }
     }
