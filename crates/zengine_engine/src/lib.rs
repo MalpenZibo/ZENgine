@@ -56,6 +56,8 @@ impl Stage {
 #[derive(Debug, PartialEq, Eq)]
 pub enum EngineEvent {
     Quit,
+    Suspended,
+    Resumed,
 }
 
 pub struct Engine {
@@ -93,8 +95,17 @@ impl Default for Engine {
 }
 
 fn default_runner(mut engine: Engine) {
+    engine.startup();
+
     loop {
-        if engine.update() {
+        engine.update();
+
+        if engine
+            .world
+            .get_event_handler::<EngineEvent>()
+            .and_then(|event| event.read_last().map(|e| e == &EngineEvent::Quit))
+            .unwrap_or(false)
+        {
             break;
         }
     }
@@ -103,12 +114,10 @@ fn default_runner(mut engine: Engine) {
 impl Engine {
     pub fn init_logger(level: log::Level) {
         cfg_if::cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
+            if #[cfg(target_arch = "wasm32")] {
                 std::panic::set_hook(Box::new(console_error_panic_hook::hook));
                 console_log::init_with_level(level).expect("Couldn't initialize logger");
-            }
-          else {
-
+            } else {
                 use simplelog::{Config, SimpleLogger, TermLogger, TerminalMode};
                 let level_filter = level.to_level_filter();
                 if TermLogger::init(level_filter, Config::default(), TerminalMode::Mixed).is_err() {
@@ -158,31 +167,7 @@ impl Engine {
         self
     }
 
-    pub fn update(&mut self) -> bool {
-        for stage in self.running_stages.iter_mut() {
-            stage.run(&self.world);
-        }
-
-        for stage in self.running_stages.iter_mut() {
-            stage.apply(&mut self.world);
-        }
-
-        {
-            let engine_event = self.world.get_event_handler::<EngineEvent>().unwrap();
-            if engine_event
-                .read_last()
-                .map_or_else(|| false, |e| e == &EngineEvent::Quit)
-            {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    pub fn run(&mut self) {
-        self.world.create_event_handler::<EngineEvent>();
-
+    pub fn startup(&mut self) {
         let mut stages: Vec<Stage> = self
             .stage_order
             .iter()
@@ -197,6 +182,20 @@ impl Engine {
         startup_stage.run_and_apply(&mut self.world);
 
         self.running_stages = stages;
+    }
+
+    pub fn update(&mut self) {
+        for stage in self.running_stages.iter_mut() {
+            stage.run(&self.world);
+        }
+
+        for stage in self.running_stages.iter_mut() {
+            stage.apply(&mut self.world);
+        }
+    }
+
+    pub fn run(&mut self) {
+        self.world.create_event_handler::<EngineEvent>();
 
         let mut app = std::mem::take(self);
         let runner = std::mem::replace(&mut app.runner, Box::new(default_runner));

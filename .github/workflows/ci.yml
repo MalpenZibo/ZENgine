@@ -37,15 +37,23 @@ jobs:
           - name: Windows
             os: windows-latest
             target: x86_64-pc-windows-msvc
+            clippy: true
           - name: MacOS
             os: macos-latest
             target: aarch64-apple-darwin
+            clippy: false
           - name: Linux
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            clippy: false
           - name: Web
             os: windows-latest
             target: wasm32-unknown-unknown
+            clippy: true
+          - name: Android
+            os: ubuntu-latest
+            target: aarch64-linux-android
+            clippy: true
     steps:
       - uses: actions/checkout@v2
         name: Checkout
@@ -53,20 +61,15 @@ jobs:
         name: Setup toolchain
         with:
           target: ${{ matrix.target }}
-          profile: minimal
+          profile: default
           toolchain: stable
           override: true
-      - name: Install clippy
-        if: matrix.name == 'Windows' || matrix.name == 'Web'
-        run: rustup component add clippy
-      - uses: actions-rs/cargo@v1
-        name: Clippy
-        if: matrix.name == 'Windows'
+      - uses: nttld/setup-ndk@v1
+        if: matrix.name == 'Android'
         with:
-          command: clippy
-          args: -- -D warnings
+          ndk-version: r25b
       - name: Install dependencies
-        if: matrix.name == 'Linux'
+        if: matrix.name == 'Linux' || matrix.name == 'Android'
         run: |
           sudo apt-get update -y -qq
 
@@ -80,10 +83,27 @@ jobs:
           sudo apt-get update
           sudo apt install -y libasound2-dev libudev-dev libegl1-mesa libgl1-mesa-dri libxcb-xfixes0-dev mesa-vulkan-drivers vulkan-sdk
       - uses: actions-rs/cargo@v1
+        name: Clippy
+        if: matrix.clippy
+        with:
+          command: clippy
+          args: -- -D warnings
+      - uses: actions-rs/cargo@v1
+        name: Install Cargo-apk
+        if: matrix.name == 'Android'
+        with:
+          command: install
+          args: cargo-apk
+      - uses: actions-rs/cargo@v1
         name: Check
+        if: matrix.name != 'Android'
         with:
           command: check
+      - name: Check apk
+        if: matrix.name == 'Android'
+        run: cargo apk check
       - uses: actions-rs/cargo@v1
+        if: matrix.name != 'Android'
         name: Test
         with:
           command: test

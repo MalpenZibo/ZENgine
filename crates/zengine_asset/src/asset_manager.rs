@@ -102,6 +102,15 @@ impl Default for AssetManager {
                     asset_handle_ref_count: FxHashMap::default(),
                     asset_io: Arc::new(crate::io::WasmAssetIo::default()),
                 }
+            } else if #[cfg(target_os = "android")] {
+                Self {
+                    loaders: Vec::default(),
+                    extension_to_loader: FxHashMap::default(),
+                    asset_channels: Arc::new(RwLock::new(FxHashMap::default())),
+                    asset_handle_ref_channel: HandleRefChannel::default(),
+                    asset_handle_ref_count: FxHashMap::default(),
+                    asset_io: Arc::new(crate::io::AndroidAssetIo::default()),
+                }
             } else {
                 Self {
                     loaders: Vec::default(),
@@ -139,7 +148,7 @@ impl AssetManager {
         let asset_channels = self.asset_channels.clone();
 
         let asset_io = self.asset_io.clone();
-        crate::io::spawn(async move {
+        crate::io_task::spawn(async move {
             let data = asset_io.load(&asset_path.path).await;
 
             let mut context = LoaderContext {
@@ -282,7 +291,7 @@ mod tests {
 
     use zengine_ecs::{event::EventHandler, system::EventPublisher};
 
-    use crate::{io::FileAssetIo, Asset, AssetEvent, AssetLoader, AssetManager, Assets, Handle};
+    use crate::{Asset, AssetEvent, AssetLoader, AssetManager, Assets, Handle};
 
     #[derive(Debug)]
     pub struct TestAsset {
@@ -315,8 +324,14 @@ mod tests {
         asset_dir
     }
 
-    fn setup(asset_path: impl AsRef<Path>) -> AssetManager {
-        AssetManager::new(FileAssetIo::new(asset_path))
+    fn setup(_asset_path: impl AsRef<Path>) -> AssetManager {
+        cfg_if::cfg_if! {
+            if #[cfg(target_os = "android")] {
+                AssetManager::new(crate::io::AndroidAssetIo::default())
+            } else {
+                AssetManager::new(crate::io::FileAssetIo::new(_asset_path))
+            }
+        }
     }
 
     fn run_systems(

@@ -2,6 +2,7 @@ mod asset_manager;
 mod assets;
 mod handle;
 mod io;
+mod io_task;
 
 use std::path::{Path, PathBuf};
 
@@ -32,19 +33,24 @@ impl AssetModule {
 impl Module for AssetModule {
     fn init(self, engine: &mut zengine_engine::Engine) {
         if let Some(asset_base_path) = self.asset_base_path {
-            #[cfg(not(target_arch = "wasm32"))]
+            log::trace!("base asset path {:?}", asset_base_path);
+
+            #[cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))]
             let asset_io = crate::io::FileAssetIo::new(asset_base_path);
 
             #[cfg(target_arch = "wasm32")]
             let asset_io = crate::io::WasmAssetIo::new(asset_base_path);
+
+            #[cfg(target_os = "android")]
+            let asset_io = crate::io::AndroidAssetIo::default();
 
             engine.world.create_resource(AssetManager::new(asset_io));
         } else {
             engine.world.create_resource(AssetManager::default());
         }
 
-        engine.add_system_into_stage(destroy_unused_assets, StageLabel::PostUpdate);
         engine.add_system_into_stage(update_ref_count, StageLabel::PostUpdate);
+        engine.add_system_into_stage(destroy_unused_assets, StageLabel::PostUpdate);
     }
 }
 

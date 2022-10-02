@@ -33,7 +33,10 @@ impl InputType for String {}
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct AxisBind {
     source: Input,
-    scale: f32,
+    #[serde(default)]
+    invert: bool,
+    #[serde(default)]
+    discrete_map: Option<f32>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]

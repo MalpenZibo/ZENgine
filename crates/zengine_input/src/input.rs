@@ -37,6 +37,9 @@ pub enum Input {
         device_id: GamepadId,
         button: ControllerButton,
     },
+    Touch {
+        axis: Axis,
+    },
 }
 
 #[derive(Debug)]

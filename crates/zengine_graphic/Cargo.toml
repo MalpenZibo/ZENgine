@@ -12,7 +12,7 @@ zengine_window = { path = "../zengine_window" }
 zengine_engine = { path = "../zengine_engine" }
 rustc-hash = "1.1.0"
 log = "0.4"
-winit = "0.27.2"
+winit = "0.27.3"
 pollster = "0.2"
 bytemuck = { version = "1.4", features = [ "derive" ] }
 glam = "0.21.3"
