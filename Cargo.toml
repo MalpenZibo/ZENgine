@@ -1,15 +1,18 @@
 [package]
 name = "zengine"
-version = "0.1.0"
-edition = "2021"
-categories = ["game-engines", "graphics", "rendering"]
 description = "A simple 2D ECS game engine"
-exclude = [".github/", "crates/", "assets/", "benches/"]
-homepage = ""
+categories = ["game-engines", "graphics", "rendering"]
 keywords = ["game", "engine", "gamedev", "graphics", "zengine"]
-license = "MIT OR Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/malpenzibo/zengine"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+documentation.workspace = true
+homepage.workspace = true
+license.workspace = true
+
+exclude = [".github/", "crates/", "assets/", "benches/"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -17,6 +20,26 @@ crate-type = ["cdylib", "rlib"]
 [workspace]
 exclude = ["benches"]
 members = ["crates/*", "examples/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Simone Camito"]
+documentation = "https://docs.rs/zengine"
+repository = "https://github.com/MalpenZibo/zengine"
+homepage = "https://malpenzibo.github.io/zengine"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+glam = "0.21.3"
+ndk-glue = { version = "0.7", features = ["logger"] }
+log = "0.4"
+rustc-hash = "1.1.0"
+cfg-if = "1"
+winit = "0.27.3"
+serde = { version = "1.0", features = ["derive"] }
+gilrs = { version = "0.9.0" }
+ahash = "0.8.0"
 
 [dependencies]
 zengine_asset = { path = "crates/zengine_asset" }
@@ -30,13 +53,18 @@ zengine_window = { path = "crates/zengine_window" }
 zengine_audio = { path = "crates/zengine_audio" }
 zengine_gamepad = { path = "crates/zengine_gamepad" }
 zengine_macro = { path = "crates/zengine_macro" }
-glam = "0.21.3"
+
+glam = { workspace = true }
 
 [target.'cfg(target_os = "android")'.dependencies]
-ndk-glue = { version = "0.7", features = ["logger"] }
+ndk-glue = { workspace = true }
 
 [dev-dependencies]
 bencher = "0.1.5"
+
+[[example]]
+name = "hello_world"
+path = "examples/hello_world.rs"
 
 [[bench]]
 name = "archetype_vs_old_system"

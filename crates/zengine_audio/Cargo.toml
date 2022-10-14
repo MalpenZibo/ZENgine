@@ -1,7 +1,14 @@
 [package]
 name = "zengine_audio"
-version = "0.1.0"
-edition = "2021"
+description = "Provides audio functionality for ZENgine"
+keywords = ["zengine"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+documentation.workspace = true
+homepage.workspace = true
+license.workspace = true
 
 [dependencies]
 zengine_asset = { path = "../zengine_asset" }
@@ -9,10 +16,19 @@ zengine_ecs = { path = "../zengine_ecs" }
 zengine_engine = { path = "../zengine_engine" }
 zengine_macro = { path = "../zengine_macro" }
 
-log = "0.4"
+log = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-rodio = { version = "0.16", default-features = false, features = ["vorbis", "flac", "wav"] }
+rodio = { version = "0.16", default-features = false, features = [
+    "vorbis",
+    "flac",
+    "wav",
+] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-rodio = { version = "0.16", default-features = false,  features = ["vorbis", "flac", "wav", "wasm-bindgen"] }
+rodio = { version = "0.16", default-features = false, features = [
+    "vorbis",
+    "flac",
+    "wav",
+    "wasm-bindgen",
+] }

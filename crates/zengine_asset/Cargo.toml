@@ -1,21 +1,29 @@
 [package]
 name = "zengine_asset"
-version = "0.1.0"
-edition = "2021"
+description = "Provides asset functionality for ZENgine"
+keywords = ["zengine"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+documentation.workspace = true
+homepage.workspace = true
+license.workspace = true
 
 [dependencies]
 zengine_ecs = { path = "../zengine_ecs" }
 zengine_engine = { path = "../zengine_engine" }
 zengine_macro = { path = "../zengine_macro" }
 
-cfg-if = "1"
-rustc-hash = "1.1.0"
+cfg-if = { workspace = true }
+rustc-hash = { workspace = true }
+log = { workspace = true }
+ahash = { workspace = true }
+
 crossbeam-channel = "0.5.6"
-ahash = "0.8.0"
 pollster = "0.2.5"
 downcast-rs = "1.2.0"
 async-trait = "0.1.57"
-log = "0.4.17"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 pollster = "0.2.5"
@@ -25,10 +33,10 @@ wasm-bindgen = { version = "0.2" }
 web-sys = { version = "0.3", features = ["Request", "Window", "Response"] }
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
-getrandom = {version = "0.2.0", features = ["js"]}
+getrandom = { version = "0.2.0", features = ["js"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
-ndk-glue = { version = "0.7", features = ["logger"] }
+ndk-glue = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3.2.0"

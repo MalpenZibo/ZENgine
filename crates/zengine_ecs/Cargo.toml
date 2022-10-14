@@ -1,9 +1,18 @@
 [package]
 name = "zengine_ecs"
-version = "0.1.0"
-edition = "2021"
+description = "ZENgine's entity component system"
+keywords = ["zengine"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+documentation.workspace = true
+homepage.workspace = true
+license.workspace = true
 
 [dependencies]
 zengine_macro = { path = "../zengine_macro" }
-rustc-hash = "1.1.0"
+
+rustc-hash = { workspace = true }
+
 nohash-hasher = "0.2.0"

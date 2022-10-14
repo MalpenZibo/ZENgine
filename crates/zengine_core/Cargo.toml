@@ -1,12 +1,21 @@
 [package]
 name = "zengine_core"
-version = "0.1.0"
-edition = "2021"
+description = "Provides generic core functionality for ZENgine"
+keywords = ["zengine"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+documentation.workspace = true
+homepage.workspace = true
+license.workspace = true
 
 [dependencies]
 zengine_engine = { path = "../zengine_engine" }
 zengine_ecs = { path = "../zengine_ecs" }
 zengine_macro = { path = "../zengine_macro" }
-log = "0.4"
+
+log = { workspace = true }
+glam = { workspace = true }
+
 instant = "0.1.12"
-glam = "0.21.3"
