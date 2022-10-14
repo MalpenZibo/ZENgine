@@ -17,6 +17,7 @@ pub(crate) fn zengine_ecs_path() -> syn::Path {
     ZENgineManifest::default().get_path("zengine_ecs")
 }
 
+/// Generates an impl of the `Component` trait.
 #[proc_macro_derive(Component)]
 pub fn component_macro_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -32,6 +33,7 @@ pub fn component_macro_derive(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+/// Generates an impl of the `Resource` trait.
 #[proc_macro_derive(Resource)]
 pub fn resource_macro_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -47,6 +49,7 @@ pub fn resource_macro_derive(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+/// Generates an impl of the `UnsendableResource` trait.
 #[proc_macro_derive(UnsendableResource)]
 pub fn unsendable_resource_macro_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -62,6 +65,7 @@ pub fn unsendable_resource_macro_derive(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+/// Generates an impl of the `Asset` trait.
 #[proc_macro_derive(Asset)]
 pub fn asset_macro_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -86,6 +90,7 @@ pub fn asset_macro_derive(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+/// Generates an impl of the `InputType` trait.
 #[proc_macro_derive(InputType)]
 pub fn input_type_macro_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -127,6 +132,7 @@ impl Parse for AllTuples {
     }
 }
 
+#[doc(hidden)]
 #[proc_macro]
 pub fn all_tuples(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as AllTuples);
@@ -153,6 +159,7 @@ pub fn all_tuples(input: TokenStream) -> TokenStream {
     })
 }
 
+#[doc(hidden)]
 #[proc_macro]
 pub fn all_tuples_with_idexes(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as AllTuples);
@@ -183,6 +190,7 @@ pub fn all_tuples_with_idexes(input: TokenStream) -> TokenStream {
     })
 }
 
+#[doc(hidden)]
 #[proc_macro]
 pub fn all_positional_tuples(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as AllTuples);
@@ -226,6 +234,7 @@ impl Parse for ZipInput {
     }
 }
 
+#[doc(hidden)]
 #[proc_macro]
 pub fn generate_zip(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ZipInput);
@@ -338,6 +347,7 @@ impl Parse for QueryIterInput {
     }
 }
 
+#[doc(hidden)]
 #[proc_macro]
 pub fn query_iter_for_tuple(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as QueryIterInput);
@@ -430,6 +440,7 @@ pub fn query_iter_for_tuple(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+#[doc(hidden)]
 #[proc_macro]
 pub fn query_iter_mut_for_tuple(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as QueryIterInput);
@@ -522,6 +533,7 @@ pub fn query_iter_mut_for_tuple(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+/// Generate the required Android boilerplate.
 #[proc_macro_attribute]
 pub fn zengine_main(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemFn);
@@ -531,7 +543,6 @@ pub fn zengine_main(_attr: TokenStream, item: TokenStream) -> TokenStream {
     );
 
     TokenStream::from(quote! {
-        // use ndk-glue macro to create an activity: https://github.com/rust-windowing/android-ndk-rs/tree/master/ndk-macro
         #[cfg(target_os = "android")]
         #[cfg_attr(target_os = "android", zengine::ndk_glue::main(backtrace = "on", ndk_glue = "zengine::ndk_glue"))]
         fn android_main() {

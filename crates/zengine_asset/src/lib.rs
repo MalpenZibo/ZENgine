@@ -11,12 +11,21 @@ pub use assets::*;
 pub use handle::*;
 use zengine_engine::{Engine, Module, StageLabel};
 
+/// Asset Events fired when an asset has been loaded or unloaded
 #[derive(Debug)]
 pub enum AssetEvent<T: Asset> {
+    /// Asset Loaded from disk, contains a weak [Handle] to the asset that
+    /// can be used to retrieve the asset from the [Assets] storage
     Loaded(Handle<T>),
+    /// Asset Unloaded from the [Assets] storage, contains a weak [Handle] to the asset.
     Unloaded(Handle<T>),
 }
 
+/// ZENgine Assets Module
+///
+/// Register the [AssetManager] resource,
+/// add the system to update the handles count and
+/// the system to destroy the unused asset to the PostUpdate stage
 #[derive(Default)]
 pub struct AssetModule {
     asset_base_path: Option<PathBuf>,
@@ -54,9 +63,19 @@ impl Module for AssetModule {
     }
 }
 
+/// Add functionalities to add new [Asset] and new [AssetLoader] to the engine
 pub trait AssetExtension {
+    /// Add an [Asset] to the engine
+    ///
+    /// This method create the [Assets] storage for the target `Asset`
+    /// register the `Asset` type to the [AssetManager]
+    /// and add a system to update the `Assets` storage when and Asset
+    /// is loaded or unloaded
     fn add_asset<T: Asset>(&mut self) -> &mut Self;
 
+    /// Add an [AssetLoader] to the engine
+    ///
+    /// This method register an asset loader to the [AssetManager]
     fn add_asset_loader<T: AssetLoader>(&mut self, loader: T) -> &mut Self;
 }
 
