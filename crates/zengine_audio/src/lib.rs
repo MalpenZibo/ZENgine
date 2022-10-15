@@ -7,7 +7,7 @@ use std::sync::RwLock;
 use zengine_asset::Asset;
 use zengine_asset::{AssetExtension, AssetLoader, Assets, Handle, HandleId};
 use zengine_ecs::system::{Local, OptionalRes, OptionalResMut, ResMut, UnsendableRes};
-use zengine_engine::{Module, StageLabel};
+use zengine_engine::{Module, Stage};
 use zengine_macro::{Asset, Resource, UnsendableResource};
 
 #[derive(Default)]
@@ -19,8 +19,8 @@ impl Module for AudioModule {
             .add_asset::<Audio>()
             .add_asset::<AudioInstance>()
             .add_asset_loader(AudioLoader)
-            .add_system_into_stage(audio_system, StageLabel::PostUpdate)
-            .add_system_into_stage(update_instances, StageLabel::PostRender);
+            .add_system_into_stage(audio_system, Stage::PostUpdate)
+            .add_system_into_stage(update_instances, Stage::PostRender);
 
         #[cfg(target_os = "android")]
         engine.add_system_into_stage(handle_resume_suspended, StageLabel::PreUpdate);

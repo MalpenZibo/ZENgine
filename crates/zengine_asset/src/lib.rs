@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 pub use asset_manager::*;
 pub use assets::*;
 pub use handle::*;
-use zengine_engine::{Engine, Module, StageLabel};
+use zengine_engine::{Engine, Module, Stage};
 
 /// Asset Events fired when an asset has been loaded or unloaded
 #[derive(Debug)]
@@ -62,8 +62,8 @@ impl Module for AssetModule {
             engine.world.create_resource(AssetManager::default());
         }
 
-        engine.add_system_into_stage(update_ref_count, StageLabel::PostUpdate);
-        engine.add_system_into_stage(destroy_unused_assets, StageLabel::PostUpdate);
+        engine.add_system_into_stage(update_ref_count, Stage::PostUpdate);
+        engine.add_system_into_stage(destroy_unused_assets, Stage::PostUpdate);
     }
 }
 
@@ -95,7 +95,7 @@ impl AssetExtension for Engine {
 
             self.world.create_resource(assets);
 
-            self.add_system_into_stage(update_asset_storage::<T>, StageLabel::PreUpdate);
+            self.add_system_into_stage(update_asset_storage::<T>, Stage::PreUpdate);
 
             self
         }

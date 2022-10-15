@@ -16,9 +16,9 @@ pub trait Module {
     fn init(self, engine: &mut Engine);
 }
 
-/// The possible stage labels in the engine pipeline
+/// The possible stages in the engine pipeline
 #[derive(Hash, Eq, PartialEq)]
-pub enum StageLabel {
+pub enum Stage {
     /// Statup stage, runs only one time when the engine start
     Startup,
     /// Run just before the main update stage
@@ -36,11 +36,11 @@ pub enum StageLabel {
 }
 
 #[derive(Default)]
-struct Stage {
+struct SystemsStage {
     systems: Vec<Box<dyn System>>,
 }
 
-impl Stage {
+impl SystemsStage {
     pub fn init(&mut self, world: &mut World) {
         for s in self.systems.iter_mut() {
             s.init(world);
@@ -102,9 +102,9 @@ pub enum EngineEvent {
 /// }
 /// ```
 pub struct Engine {
-    stages: HashMap<StageLabel, Stage>,
-    stage_order: Vec<StageLabel>,
-    running_stages: Vec<Stage>,
+    stages: HashMap<Stage, SystemsStage>,
+    stage_order: Vec<Stage>,
+    running_stages: Vec<SystemsStage>,
     /// The main ECS [`World`] of the [`Engine`].
     /// This stores and provides access to all the data of the application.
     /// The systems of the [`Engine`] will run using this [`World`].
@@ -116,20 +116,20 @@ impl Default for Engine {
     fn default() -> Self {
         Engine {
             stages: HashMap::from([
-                (StageLabel::Startup, Stage::default()),
-                (StageLabel::PreUpdate, Stage::default()),
-                (StageLabel::Update, Stage::default()),
-                (StageLabel::PostUpdate, Stage::default()),
-                (StageLabel::Render, Stage::default()),
-                (StageLabel::PostRender, Stage::default()),
+                (Stage::Startup, SystemsStage::default()),
+                (Stage::PreUpdate, SystemsStage::default()),
+                (Stage::Update, SystemsStage::default()),
+                (Stage::PostUpdate, SystemsStage::default()),
+                (Stage::Render, SystemsStage::default()),
+                (Stage::PostRender, SystemsStage::default()),
             ]),
             stage_order: vec![
-                StageLabel::Startup,
-                StageLabel::PreUpdate,
-                StageLabel::Update,
-                StageLabel::PostUpdate,
-                StageLabel::Render,
-                StageLabel::PostRender,
+                Stage::Startup,
+                Stage::PreUpdate,
+                Stage::Update,
+                Stage::PostUpdate,
+                Stage::Render,
+                Stage::PostRender,
             ],
             running_stages: Vec::default(),
             world: World::default(),
@@ -175,31 +175,31 @@ impl Engine {
         }
     }
 
-    /// Add a system to the [Engine] pipeling.
+    /// Add a system to the [Engine] pipeling
     ///
-    /// Using this funtion the system will be added to the default [Update Stage](StageLabel::Update)
+    /// Using this funtion the system will be added to the default [Update Stage](Stage::Update)
     pub fn add_system<Params: SystemParam + Any, I: IntoSystem<Params> + Any>(
         &mut self,
         system: I,
     ) -> &mut Self {
-        self.add_system_into_stage(system, StageLabel::Update)
+        self.add_system_into_stage(system, Stage::Update)
     }
 
-    /// Add a system to the [Engine] pipeling in the [Startup Stage](StageLabel::Startup).
+    /// Add a system to the [Engine] pipeling in the [Startup Stage](Stage::Startup)
     ///
     /// The system added using this function will run only one time during the engine startup phase
     pub fn add_startup_system<Params: SystemParam + Any, I: IntoSystem<Params> + Any>(
         &mut self,
         system: I,
     ) -> &mut Self {
-        self.add_system_into_stage(system, StageLabel::Startup)
+        self.add_system_into_stage(system, Stage::Startup)
     }
 
-    /// Add a system to the [Engine] pipeling in the specified [Stage](StageLabel).
+    /// Add a system to the [Engine] pipeling in the specified [Stage]
     pub fn add_system_into_stage<Params: SystemParam + Any, I: IntoSystem<Params> + Any>(
         &mut self,
         system: I,
-        stage: StageLabel,
+        stage: Stage,
     ) -> &mut Self {
         if let Some(stage) = self.stages.get_mut(&stage) {
             stage.systems.push(Box::new(system.into_system()));
@@ -208,14 +208,14 @@ impl Engine {
         self
     }
 
-    /// Add a [Module] to the engine.
+    /// Add a [Module] to the engine
     pub fn add_module(&mut self, module: impl Module) -> &mut Self {
         module.init(self);
 
         self
     }
 
-    /// Set the engine runner funtion.
+    /// Set the engine runner funtion
     ///
     /// This function is responsable of running the main event loop of the engine.
     ///
@@ -244,12 +244,12 @@ impl Engine {
         self
     }
 
-    /// Startup function of the engine. Should be called only one time before the update function.
+    /// Startup function of the engine. Should be called only one time before the update function
     pub fn startup(&mut self) {
-        let mut stages: Vec<Stage> = self
+        let mut stages: Vec<SystemsStage> = self
             .stage_order
             .iter()
-            .map(|stage_label| self.stages.remove(stage_label).unwrap())
+            .map(|stage| self.stages.remove(stage).unwrap())
             .collect();
 
         for stage in stages.iter_mut() {
@@ -262,7 +262,7 @@ impl Engine {
         self.running_stages = stages;
     }
 
-    /// Update function of the engine. Should be called only one time for each frame.
+    /// Update function of the engine. Should be called only one time for each frame
     pub fn update(&mut self) {
         for stage in self.running_stages.iter_mut() {
             stage.run(&self.world);
@@ -273,7 +273,7 @@ impl Engine {
         }
     }
 
-    /// Starts the engine by calling the engine's runner function.
+    /// Starts the engine by calling the engine's runner function
     pub fn run(&mut self) {
         self.world.create_event_handler::<EngineEvent>();
 

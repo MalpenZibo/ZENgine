@@ -124,18 +124,18 @@ impl<T: Asset> Assets<T> {
         self.assets.remove(&id)
     }
 
-    /// Gets the number of assets in the storage.
+    /// Gets the number of assets in the storage
     pub fn len(&self) -> usize {
         self.assets.len()
     }
 
-    /// Returns `true` if there are no stored assets.
+    /// Returns `true` if there are no stored assets
     pub fn is_empty(&self) -> bool {
         self.assets.is_empty()
     }
 }
 
-/// Represents a path to an asset in the file system.
+/// Represents a path to an asset in the file system
 #[derive(Debug)]
 pub struct AssetPath {
     pub(crate) path: PathBuf,

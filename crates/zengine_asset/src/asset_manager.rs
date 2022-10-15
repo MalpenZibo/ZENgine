@@ -16,7 +16,7 @@ use crate::{
     handle::Handle,
 };
 
-/// A context where an [`Asset`] is processed.
+/// A context where an [`Asset`] is processed
 ///
 /// The load context is created by the [`AssetManager`] to process an asset after loading its
 /// raw data into memory. It is then passed to the appropriate [`AssetLoader`] based on the file
@@ -38,7 +38,7 @@ impl<'a> LoaderContext<'a> {
     }
 }
 
-/// A loader for an asset.
+/// A loader for an asset
 ///
 /// Types implementing this trait are used by the [AssetManager] to load assets into their respective
 /// asset storages.
@@ -67,7 +67,7 @@ pub trait AssetLoader: Send + Sync + std::fmt::Debug + 'static {
     /// ```
     fn load(&self, data: Vec<u8>, context: &mut LoaderContext);
 
-    /// Return a list of extensions supported by this asset loader. Without the `dot`.
+    /// Return a list of extensions supported by this asset loader. Without the `dot`
     ///
     /// # Example
     /// ```
@@ -126,7 +126,7 @@ impl<T: Asset> AnyAssetCommandChannel for AssetCommandChannel<T> {
     }
 }
 
-/// Loads assets from the filesystem in the background.
+/// Loads assets from the filesystem in the background
 ///
 /// The asset manager keeps track of the load state
 /// of the assets it manages
@@ -197,7 +197,7 @@ impl Default for AssetManager {
 }
 
 impl AssetManager {
-    /// Creates a new asset manager with the provided asset I/O.
+    /// Creates a new asset manager with the provided asset I/O
     pub fn new<T: AssetIo>(asset_io: T) -> Self {
         Self {
             loaders: Vec::default(),
@@ -209,7 +209,7 @@ impl AssetManager {
         }
     }
 
-    /// Asynchronous load an [Asset] at the provided relative path.
+    /// Asynchronous load an [Asset] at the provided relative path
     ///
     /// The absolute path to the asset is `"ROOT/ASSET_BASE_PATH/file_path"` where `ASSET_BASE_PATH`
     /// is the path used during the [AssetModule](crate::AssetModule) creation.
@@ -262,7 +262,7 @@ impl AssetManager {
         Assets::new(self.asset_handle_ref_channel.sender.clone())
     }
 
-    /// Register a new asset loader to the manager.
+    /// Register a new asset loader to the manager
     ///
     /// If `loader` has one or more supported extensions in conflict with loaders that came before
     /// it, it will replace them.

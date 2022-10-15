@@ -2,7 +2,7 @@ use instant::Instant;
 use log::trace;
 use std::thread::sleep;
 use zengine_ecs::system::{EventStream, Local, ResMut};
-use zengine_engine::{EngineEvent, Module, StageLabel};
+use zengine_engine::{EngineEvent, Module, Stage};
 
 use std::time::Duration;
 use zengine_macro::Resource;
@@ -52,7 +52,7 @@ impl Default for SystemInstant {
 pub struct TimeModule(pub Option<FrameLimiter>);
 impl Module for TimeModule {
     fn init(self, engine: &mut zengine_engine::Engine) {
-        engine.add_system_into_stage(timing_system(self.0), StageLabel::PreUpdate);
+        engine.add_system_into_stage(timing_system(self.0), Stage::PreUpdate);
     }
 }
 

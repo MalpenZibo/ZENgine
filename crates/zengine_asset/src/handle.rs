@@ -13,7 +13,7 @@ use crate::{
     AssetPath,
 };
 
-/// A unique asset id.
+/// A unique asset id
 #[derive(Debug, Eq, Hash, PartialEq, Ord, PartialOrd, Clone, Copy)]
 pub enum HandleId {
     /// A handle id from a asset path
@@ -79,7 +79,7 @@ pub(crate) enum HandleType {
     Weak,
 }
 
-/// A handle into a specific [`Asset`] of type `T`.
+/// A handle into a specific [`Asset`] of type `T`
 ///
 /// Handles contain a unique id that corresponds to a specific asset in the [`Assets`] collection.
 ///

@@ -30,7 +30,7 @@ impl Module for GamepadModule {
         engine
             .world
             .create_unsendable_resource(GamepadHandler(gilrs));
-        engine.add_system_into_stage(gamepad_system, zengine_engine::StageLabel::PreUpdate);
+        engine.add_system_into_stage(gamepad_system, zengine_engine::Stage::PreUpdate);
     }
 
     #[cfg(target_os = "android")]
