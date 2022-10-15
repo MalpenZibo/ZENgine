@@ -232,7 +232,7 @@ pub fn prepare_texture_atlas_asset(
     ) {
         for e in events {
             if let AssetEvent::Loaded(handle) = e {
-                let image_handle = Handle::weak(handle.id);
+                let image_handle = Handle::weak(handle.get_id());
                 for (_, atlas) in textures_atlas
                     .iter_mut()
                     .filter(|(_, atlas)| !atlas.finalized())

@@ -115,7 +115,7 @@ pub trait TextureAssets {
 
 impl TextureAssets for Assets<Texture> {
     fn create_texture(&mut self, image_handle: &Handle<Image>) -> Handle<Texture> {
-        let handle = Handle::weak(image_handle.id.clone_with_different_type::<Texture>());
+        let handle = Handle::weak(image_handle.get_id().clone_with_different_type::<Texture>());
         self.set(handle, Texture::new(image_handle.clone()))
     }
 }
@@ -139,7 +139,7 @@ pub fn prepare_texture_asset(
     {
         for e in events {
             if let AssetEvent::Loaded(handle) = e {
-                let handle = Handle::weak(handle.id.clone_with_different_type::<Texture>());
+                let handle = Handle::weak(handle.get_id().clone_with_different_type::<Texture>());
                 if let Some(texture) = textures.get_mut(&handle) {
                     texture.convert_to_gpu_image(
                         &device,

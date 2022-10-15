@@ -13,13 +13,17 @@ use crate::{
     AssetPath,
 };
 
+/// A unique asset id.
 #[derive(Debug, Eq, Hash, PartialEq, Ord, PartialOrd, Clone, Copy)]
 pub enum HandleId {
+    /// A handle id from a asset path
     FromPath(TypeId, u64),
+    /// A handle id from an u64.
     FromU64(TypeId, u64),
 }
 
 impl HandleId {
+    /// Creates a new HandleId from a given [AssetPath]
     pub fn new_from_path<T: Asset>(asset_path: &AssetPath) -> Self {
         let type_id = TypeId::of::<T>();
 
@@ -30,12 +34,14 @@ impl HandleId {
         Self::FromPath(type_id, id)
     }
 
+    /// Creates a new HandleId from a given u64
     pub fn new_from_u64<T: Asset>(id: u64) -> Self {
         let type_id = TypeId::of::<T>();
 
         Self::FromU64(type_id, id)
     }
 
+    /// Clone and HandleId using a different [TypeId]
     pub fn clone_with_different_type<T: Asset>(&self) -> Self {
         let type_id = TypeId::of::<T>();
 
@@ -45,6 +51,7 @@ impl HandleId {
         }
     }
 
+    /// Get the [TypeId] of the HandleId
     pub fn get_type(&self) -> TypeId {
         match self {
             Self::FromPath(type_id, _) => *type_id,
@@ -72,9 +79,31 @@ pub(crate) enum HandleType {
     Weak,
 }
 
+/// A handle into a specific [`Asset`] of type `T`.
+///
+/// Handles contain a unique id that corresponds to a specific asset in the [`Assets`] collection.
+///
+/// # Accessing the Asset
+///
+/// A handle is _not_ the asset itself, it's mora like a pointer to the asset.
+/// To get the actual asset, you should use [`Assets::get`] or [`Assets::get_mut`].
+///
+/// # Strong and Weak
+///
+/// A handle can be either "Strong" or "Weak".
+/// A Strong handles keep the asset loaded.
+///
+/// A Weak handles do not affect the loaded status of assets.
+///
+/// This is due to a type of_reference counting_.
+/// When the number of Strong handles that exist for any given asset reach
+/// zero, the asset is dropped and will be unloaded.
+///
+/// If you want a reference to an asset but don't want to take the responsibility of
+/// keeping it loaded that comes with a Strong handle then you need a Weak handle.
 #[derive(Debug)]
 pub struct Handle<T> {
-    pub id: HandleId,
+    pub(crate) id: HandleId,
     handle_type: HandleType,
     _phantom: PhantomData<T>,
 }
@@ -134,6 +163,7 @@ impl<T: Asset> Handle<T> {
         }
     }
 
+    /// Creates a weak handle for the Asset identified by `id`
     pub fn weak(id: HandleId) -> Self {
         Self {
             id,
@@ -142,22 +172,34 @@ impl<T: Asset> Handle<T> {
         }
     }
 
+    /// Get the handle id
+    pub fn get_id(&self) -> HandleId {
+        self.id
+    }
+
+    /// Clone the handle producing a weak one that point to the same asset
     pub fn clone_as_weak(&self) -> Self {
         Handle::weak(self.id)
     }
 
+    /// Convert an handle to a weak one
     pub fn as_weak(&self) -> Self {
         Handle::weak(self.id)
     }
 
+    /// Checks if the handle is a strong one
     pub fn is_strong(&self) -> bool {
         matches!(self.handle_type, HandleType::Strong(_))
     }
 
+    /// Checks if the handle is a weak one
     pub fn is_weak(&self) -> bool {
         matches!(self.handle_type, HandleType::Weak)
     }
 
+    /// Makes this handle Strong if it wasn’t already
+    ///
+    /// This method requires the corresponding [Assets] storage
     pub fn make_strong(&mut self, assets: &Assets<T>) {
         if self.is_weak() {
             debug!("Create a strong handle from a weak one id: {:?}", self.id);

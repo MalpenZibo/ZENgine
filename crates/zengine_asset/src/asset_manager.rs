@@ -197,6 +197,7 @@ impl Default for AssetManager {
 }
 
 impl AssetManager {
+    /// Creates a new asset manager with the provided asset I/O.
     pub fn new<T: AssetIo>(asset_io: T) -> Self {
         Self {
             loaders: Vec::default(),
@@ -208,6 +209,19 @@ impl AssetManager {
         }
     }
 
+    /// Asynchronous load an [Asset] at the provided relative path.
+    ///
+    /// The absolute path to the asset is `"ROOT/ASSET_BASE_PATH/file_path"` where `ASSET_BASE_PATH`
+    /// is the path used during the [AssetModule](crate::AssetModule) creation.
+    /// Its extension is then extracted to search for an [AssetLoader].
+    ///
+    /// By default the `ROOT` is the directory of the Application.
+    ///
+    /// The asset is loaded asynchronously, and will generally not be available by the time
+    /// this calls returns. The engine will generate an [AssetEvent::Loaded] when the asset
+    /// will be available.
+    ///
+    /// The asset will always fail to load if the provided path doesn't contain an extension.
     pub fn load<T: Asset, P: Into<AssetPath>>(&mut self, file_path: P) -> Handle<T> {
         let asset_path = file_path.into();
         let handle_id = HandleId::new_from_path::<T>(&asset_path);
@@ -238,7 +252,7 @@ impl AssetManager {
         Handle::strong(handle_id, self.asset_handle_ref_channel.sender.clone())
     }
 
-    pub fn register_asset_type<T: Asset>(&self) -> Assets<T> {
+    pub(crate) fn register_asset_type<T: Asset>(&self) -> Assets<T> {
         let type_id = TypeId::of::<T>();
         self.asset_channels
             .write()
@@ -248,6 +262,10 @@ impl AssetManager {
         Assets::new(self.asset_handle_ref_channel.sender.clone())
     }
 
+    /// Register a new asset loader to the manager.
+    ///
+    /// If `loader` has one or more supported extensions in conflict with loaders that came before
+    /// it, it will replace them.
     pub fn register_loader<T: AssetLoader>(&mut self, loader: T) {
         let index = self.loaders.len();
         for e in loader.extension() {
@@ -338,7 +356,7 @@ impl AssetManager {
     }
 }
 
-pub fn update_asset_storage<T: Asset>(
+pub(crate) fn update_asset_storage<T: Asset>(
     asset_manager: Res<AssetManager>,
     assets: OptionalResMut<Assets<T>>,
     mut assets_event: EventPublisher<AssetEvent<T>>,
@@ -348,11 +366,11 @@ pub fn update_asset_storage<T: Asset>(
     }
 }
 
-pub fn update_ref_count(mut asset_manager: ResMut<AssetManager>) {
+pub(crate) fn update_ref_count(mut asset_manager: ResMut<AssetManager>) {
     asset_manager.update_ref_count();
 }
 
-pub fn destroy_unused_assets(mut asset_manager: ResMut<AssetManager>) {
+pub(crate) fn destroy_unused_assets(mut asset_manager: ResMut<AssetManager>) {
     asset_manager.destroy_unused_assets();
 }
 
