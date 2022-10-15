@@ -235,55 +235,59 @@ fn runner(mut engine: Engine) {
                 event: WindowEvent::MouseInput { state, button, .. },
                 ..
             } if runner_state.is_running() => {
-                let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
-                input.publish(InputEvent {
-                    input: Input::MouseButton { button },
-                    value: if state == ElementState::Pressed {
-                        1.0
-                    } else {
-                        0.0
-                    },
-                })
+                if let Some(mut input) = engine.world.get_mut_event_handler::<InputEvent>() {
+                    input.publish(InputEvent {
+                        input: Input::MouseButton { button },
+                        value: if state == ElementState::Pressed {
+                            1.0
+                        } else {
+                            0.0
+                        },
+                    });
+                }
             }
             Event::WindowEvent {
                 event: WindowEvent::CursorMoved { position, .. },
                 ..
             } if runner_state.is_running() => {
-                let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
-                input.publish(InputEvent {
-                    input: Input::MouseMotion { axis: Axis::X },
-                    value: position.x as f32,
-                });
-                input.publish(InputEvent {
-                    input: Input::MouseMotion { axis: Axis::Y },
-                    value: position.y as f32,
-                });
+                if let Some(mut input) = engine.world.get_mut_event_handler::<InputEvent>() {
+                    input.publish(InputEvent {
+                        input: Input::MouseMotion { axis: Axis::X },
+                        value: position.x as f32,
+                    });
+                    input.publish(InputEvent {
+                        input: Input::MouseMotion { axis: Axis::Y },
+                        value: position.y as f32,
+                    });
+                }
             }
             Event::WindowEvent {
                 event: WindowEvent::MouseWheel { delta, .. },
                 ..
             } if runner_state.is_running() => match delta {
                 MouseScrollDelta::LineDelta(x, y) => {
-                    let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
-                    input.publish(InputEvent {
-                        input: Input::MouseWheel { axis: Axis::X },
-                        value: x as f32,
-                    });
-                    input.publish(InputEvent {
-                        input: Input::MouseWheel { axis: Axis::Y },
-                        value: y as f32,
-                    });
+                    if let Some(mut input) = engine.world.get_mut_event_handler::<InputEvent>() {
+                        input.publish(InputEvent {
+                            input: Input::MouseWheel { axis: Axis::X },
+                            value: x as f32,
+                        });
+                        input.publish(InputEvent {
+                            input: Input::MouseWheel { axis: Axis::Y },
+                            value: y as f32,
+                        });
+                    }
                 }
                 MouseScrollDelta::PixelDelta(p) => {
-                    let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
-                    input.publish(InputEvent {
-                        input: Input::MouseWheel { axis: Axis::X },
-                        value: p.x as f32,
-                    });
-                    input.publish(InputEvent {
-                        input: Input::MouseWheel { axis: Axis::Y },
-                        value: p.y as f32,
-                    });
+                    if let Some(mut input) = engine.world.get_mut_event_handler::<InputEvent>() {
+                        input.publish(InputEvent {
+                            input: Input::MouseWheel { axis: Axis::X },
+                            value: p.x as f32,
+                        });
+                        input.publish(InputEvent {
+                            input: Input::MouseWheel { axis: Axis::Y },
+                            value: p.y as f32,
+                        });
+                    }
                 }
             },
             Event::WindowEvent {
@@ -294,17 +298,18 @@ fn runner(mut engine: Engine) {
                     },
                 ..
             } if runner_state.is_running() => {
-                let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
-                input.publish(InputEvent {
-                    input: Input::Keyboard {
-                        key: keyboard_input.virtual_keycode.unwrap(),
-                    },
-                    value: if keyboard_input.state == ElementState::Pressed {
-                        1.0
-                    } else {
-                        0.0
-                    },
-                })
+                if let Some(mut input) = engine.world.get_mut_event_handler::<InputEvent>() {
+                    input.publish(InputEvent {
+                        input: Input::Keyboard {
+                            key: keyboard_input.virtual_keycode.unwrap(),
+                        },
+                        value: if keyboard_input.state == ElementState::Pressed {
+                            1.0
+                        } else {
+                            0.0
+                        },
+                    });
+                }
             }
             Event::WindowEvent {
                 event:
@@ -314,24 +319,24 @@ fn runner(mut engine: Engine) {
                 ..
             } if runner_state.is_running() => {
                 let window_specs = engine.world.get_resource::<WindowSpecs>().unwrap();
-                let mut input = engine.world.get_mut_event_handler::<InputEvent>().unwrap();
-
-                input.publish(InputEvent {
-                    input: Input::Touch { axis: Axis::X },
-                    value: if phase == TouchPhase::Ended {
-                        0.
-                    } else {
-                        location.x as f32 / (window_specs.size.x / 2) as f32 - 1.
-                    },
-                });
-                input.publish(InputEvent {
-                    input: Input::Touch { axis: Axis::Y },
-                    value: if phase == TouchPhase::Ended {
-                        0.
-                    } else {
-                        location.x as f32 / (window_specs.size.y / 2) as f32 - 1.
-                    },
-                });
+                if let Some(mut input) = engine.world.get_mut_event_handler::<InputEvent>() {
+                    input.publish(InputEvent {
+                        input: Input::Touch { axis: Axis::X },
+                        value: if phase == TouchPhase::Ended {
+                            0.
+                        } else {
+                            location.x as f32 / (window_specs.size.x / 2) as f32 - 1.
+                        },
+                    });
+                    input.publish(InputEvent {
+                        input: Input::Touch { axis: Axis::Y },
+                        value: if phase == TouchPhase::Ended {
+                            0.
+                        } else {
+                            location.x as f32 / (window_specs.size.y / 2) as f32 - 1.
+                        },
+                    });
+                }
             }
             Event::MainEventsCleared if runner_state.is_running() => {
                 engine.update();

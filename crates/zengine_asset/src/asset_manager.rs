@@ -16,36 +16,82 @@ use crate::{
     handle::Handle,
 };
 
+/// A context where an [`Asset`] is processed.
+///
+/// The load context is created by the [`AssetManager`] to process an asset after loading its
+/// raw data into memory. It is then passed to the appropriate [`AssetLoader`] based on the file
+/// extension of the asset's path.
 pub struct LoaderContext<'a> {
     asset: Option<Box<dyn Asset>>,
-    pub path: &'a Path,
+    path: &'a Path,
 }
+
 impl<'a> LoaderContext<'a> {
+    /// Gets the source path for this load context.
+    pub fn path(&self) -> &Path {
+        self.path
+    }
+
+    /// Sets the asset loaded from the asset raw data.
     pub fn set_asset<T: Asset>(&mut self, asset: T) {
         self.asset.replace(Box::new(asset));
     }
 }
 
+/// A loader for an asset.
+///
+/// Types implementing this trait are used by the [AssetManager] to load assets into their respective
+/// asset storages.
 pub trait AssetLoader: Send + Sync + std::fmt::Debug + 'static {
+    /// Process the asset creating an instance of the `Asset` from raw data
+    ///
+    /// # Example
+    /// ```
+    /// fn load(&self, data: Vec<u8>, context: &mut zengine_asset::LoaderContext) {
+    ///     let img =
+    ///         image::load_from_memory(&data).unwrap_or_else(|e| panic!("Could not load image {}", e));
+    ///
+    ///     let (width, height) = img.dimensions();
+    ///
+    ///     let img = match img {
+    ///         DynamicImage::ImageRgba8(img) => img,
+    ///         img => img.to_rgba8(),
+    ///     };
+    ///
+    ///     context.set_asset(Image {
+    ///         width,
+    ///         height,
+    ///         data: img.into_raw(),
+    ///     })
+    /// }
+    /// ```
     fn load(&self, data: Vec<u8>, context: &mut LoaderContext);
 
+    /// Return a list of extensions supported by this asset loader. Without the `dot`.
+    ///
+    /// # Example
+    /// ```
+    /// fn extension(&self) -> &[&str] {
+    ///    &["png", "jpg", "jpeg", "bmp"]
+    /// }
+    /// ```
     fn extension(&self) -> &[&str];
 }
 
-pub struct AssetCreateCommand<T> {
+struct AssetCreateCommand<T> {
     pub id: HandleId,
     pub asset: T,
 }
 
-pub enum AssetCommand<T> {
+enum AssetCommand<T> {
     Create(AssetCreateCommand<T>),
     Destroy(HandleId),
 }
 
 #[derive(Debug)]
-pub struct AssetCommandChannel<T> {
-    pub sender: Sender<AssetCommand<T>>,
-    pub receiver: Receiver<AssetCommand<T>>,
+struct AssetCommandChannel<T> {
+    sender: Sender<AssetCommand<T>>,
+    receiver: Receiver<AssetCommand<T>>,
 }
 
 impl<T> Default for AssetCommandChannel<T> {
@@ -80,6 +126,31 @@ impl<T: Asset> AnyAssetCommandChannel for AssetCommandChannel<T> {
     }
 }
 
+/// Loads assets from the filesystem in the background.
+///
+/// The asset manager keeps track of the load state
+/// of the assets it manages
+///
+/// The asset manager is a [Resource], so in order to get a mutable reference
+/// in a system you need a [ResMut] accessor, like this:
+///
+/// ```rust,no_run
+/// use zengine_asset::{AssetManager, Handle};
+/// use zengine_ecs::system::{ResMut};
+/// use zengine_macro::Asset;
+///
+/// # #[derive(Asset, Debug)]
+/// # struct TestAsset;
+///
+/// fn my_system(asset_manager: ResMut<AssetManager>)
+/// {
+///     let asset_handle: Handle<TestAsset> = asset_manager.load("image.png");
+/// }
+/// ```
+///
+/// See the [`simple_sprite`] example for more information.
+///
+/// [`simple_sprite`]: https://github.com/MalpenZibo/ZENgine/blob/master/examples/asset/simple_sprite.rs
 #[derive(Resource, Debug)]
 pub struct AssetManager {
     loaders: Vec<Arc<dyn AssetLoader>>,

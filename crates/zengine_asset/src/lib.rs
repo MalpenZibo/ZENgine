@@ -32,6 +32,10 @@ pub struct AssetModule {
 }
 
 impl AssetModule {
+    /// Configure the [AssetModule] specifying the `asset_base_path`
+    ///
+    /// Note: The Android platform doesn't take in cosideration the
+    /// `asset_base_path`
     pub fn new<P: AsRef<Path>>(asset_base_path: P) -> Self {
         Self {
             asset_base_path: Some(asset_base_path.as_ref().to_path_buf()),
