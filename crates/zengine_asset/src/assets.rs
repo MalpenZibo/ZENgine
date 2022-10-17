@@ -44,7 +44,7 @@ pub trait Asset: Downcast + Send + Sync + std::fmt::Debug + 'static {
 }
 impl_downcast!(Asset);
 
-/// Stores Assets of a given type
+/// A [Resource](zengine_ecs::Resource) that stores Assets of a given type
 ///
 /// Each asset is mapped by an unique [`HandleId`], allowing any [`Handle`] with the same
 /// [`HandleId`] to access it.

@@ -21,11 +21,9 @@ pub enum AssetEvent<T: Asset> {
     Unloaded(Handle<T>),
 }
 
-/// ZENgine Assets Module
+/// Adds assets support to the engine
 ///
-/// Register the [AssetManager] resource,
-/// add the system to update the handles count and
-/// the system to destroy the unused asset to the PostUpdate stage
+/// Assets are typed collections, which are added as Resources.
 #[derive(Default)]
 pub struct AssetModule {
     asset_base_path: Option<PathBuf>,

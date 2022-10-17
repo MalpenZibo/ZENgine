@@ -126,12 +126,12 @@ impl<T: Asset> AnyAssetCommandChannel for AssetCommandChannel<T> {
     }
 }
 
-/// Loads assets from the filesystem in the background
+/// A [Resource](zengine_ecs::Resource) that loads assets from the filesystem in the background
 ///
 /// The asset manager keeps track of the load state
 /// of the assets it manages
 ///
-/// The asset manager is a [Resource], so in order to get a mutable reference
+/// The asset manager is a resource, so in order to get a mutable reference
 /// in a system you need a [ResMut] accessor, like this:
 ///
 /// ```rust,no_run

@@ -10,6 +10,9 @@ use zengine_ecs::system::{Local, OptionalRes, OptionalResMut, ResMut, Unsendable
 use zengine_engine::{Module, Stage};
 use zengine_macro::{Asset, Resource, UnsendableResource};
 
+/// Adds audio support to the engine
+///
+/// Use the [`AudioDevice`] resource to play audio.
 #[derive(Default)]
 pub struct AudioModule;
 
@@ -28,7 +31,7 @@ impl Module for AudioModule {
 }
 
 #[derive(Debug)]
-pub struct AudioLoader;
+struct AudioLoader;
 impl AssetLoader for AudioLoader {
     fn extension(&self) -> &[&str] {
         &["ogg", "wav", "flac"]
@@ -39,10 +42,14 @@ impl AssetLoader for AudioLoader {
     }
 }
 
+/// Initial audio playback settings
 #[derive(Debug)]
 pub struct AudioSettings {
+    /// Volume to play at
     pub volume: f32,
+    /// Speed to play at
     pub speed: f32,
+    /// Play in loop
     pub in_loop: bool,
 }
 
@@ -57,27 +64,34 @@ impl Default for AudioSettings {
 }
 
 impl AudioSettings {
+    /// Set the speed initial of playback
     pub fn with_speed(mut self, speed: f32) -> Self {
         self.speed = speed;
         self
     }
 
+    /// Set the volume initial of playback
     pub fn with_volume(mut self, volume: f32) -> Self {
         self.volume = volume;
         self
     }
 
+    /// Will play the associated audio in loop
     pub fn in_loop(mut self) -> Self {
         self.in_loop = true;
         self
     }
 }
 
+/// An asset that rappresents an audio source
+///
+/// It could be a song or an audio effect
 #[derive(Asset, Debug)]
 pub struct Audio {
     data: Vec<u8>,
 }
 
+/// An asset that represents an instance of an [Audio] queued for playback
 #[derive(Asset)]
 pub struct AudioInstance(Option<Sink>);
 impl Debug for AudioInstance {
@@ -87,54 +101,97 @@ impl Debug for AudioInstance {
 }
 
 impl AudioInstance {
+    /// Get the current audio instance volume
+    ///
+    /// The value 1.0 is the “normal” volume. Any value other than 1.0
+    /// will change the volume of the sound
     pub fn volume(&self) -> f32 {
         self.0.as_ref().unwrap().volume()
     }
 
+    /// Set the audio instance volume
+    ///
+    /// The value 1.0 is the “normal” volume. Any value other than 1.0
+    /// will change the volume of the sound
     pub fn set_volume(&self, volume: f32) {
         self.0.as_ref().unwrap().set_volume(volume);
     }
 
+    /// Get the current audio instance speed
+    ///
+    /// The value 1.0 is the “normal” speed. Any value other than 1.0
+    /// will change the speed of the sound
     pub fn speed(&self) -> f32 {
         self.0.as_ref().unwrap().speed()
     }
 
+    /// Set the audio instance speed
+    ///
+    /// The value 1.0 is the “normal” speed. Any value other than 1.0
+    /// will change the speed of the sound
     pub fn set_speed(&self, speed: f32) {
         self.0.as_ref().unwrap().set_speed(speed);
     }
 
+    /// Play the audio instance
     pub fn play(&self) {
         self.0.as_ref().unwrap().play();
     }
 
+    /// Pause the audio isntance
     pub fn pause(&self) {
         self.0.as_ref().unwrap().pause();
     }
 
+    /// Returns true if the audio instance is paused
     pub fn is_paused(&self) -> bool {
         self.0.as_ref().unwrap().is_paused()
     }
 
+    /// Returns true if the audio instance is stopped
     pub fn stop(&self) {
         self.0.as_ref().unwrap().stop();
     }
 
-    pub fn empty(&self) -> bool {
+    /// Returns true if the audio instance has finished
+    pub fn is_empty(&self) -> bool {
         self.0.as_ref().unwrap().empty()
     }
 }
 
+/// A [Resource](zengine_ecs::Resource) that rappresent an audio device
+///
+/// Use this resource to play audio
+///
+/// # Example
+/// ```
+/// fn play_audio_system(asset_manager: ResMut<AssetManager>, audio_device: Res<AudioDevice>) {
+///     audio_device.play(asset_manager.load("test_sound.ogg"));
+/// }
+/// ```
 #[derive(Resource, Default, Debug)]
 pub struct AudioDevice {
     queue: RwLock<VecDeque<(HandleId, Handle<Audio>, AudioSettings)>>,
     instances: Vec<Handle<AudioInstance>>,
+    suspended: Vec<Handle<AudioInstance>>,
 }
 
 impl AudioDevice {
+    /// Play a sound from an [Handle] to an [Audio] asset
+    ///
+    /// Returns a weak handle to an [AudioInstance].
+    /// Changing it to a strong handle allows to control
+    /// the playback through the [AudioInstance] asset.
+    ///
+    /// NB: the AudioDevice maintains a strong reference
+    /// to each AudioInstance that [is not empty](AudioInstance::is_empty).
+    /// The strong reference are dropped when the AudioInstance is empty
     pub fn play(&self, audio: Handle<Audio>) -> Handle<AudioInstance> {
         self.play_with_settings(audio, AudioSettings::default())
     }
 
+    /// Play a sound from an [Handle] to an [Audio] asset with an
+    /// [AudioSettings]
     pub fn play_with_settings(
         &self,
         audio: Handle<Audio>,
@@ -153,21 +210,27 @@ impl AudioDevice {
         Handle::weak(handle_id)
     }
 
-    pub fn suspend(&self, audio_instances: &Assets<AudioInstance>) {
+    /// Suspend the audio device pausing every [AudioInstance] that is currently playing
+    pub fn suspend(&mut self, audio_instances: &Assets<AudioInstance>) {
         for i in self.instances.iter() {
             let instance = audio_instances.get(i).unwrap();
-            instance.pause();
+            if !instance.is_paused() {
+                instance.pause();
+                self.suspended.push(i.clone_as_weak());
+            }
         }
     }
 
-    pub fn resume(&self, audio_instances: &Assets<AudioInstance>) {
-        for i in self.instances.iter() {
-            let instance = audio_instances.get(i).unwrap();
+    /// Resume the audio device starting every [AudioInstance] that were playing before the suspend
+    pub fn resume(&mut self, audio_instances: &Assets<AudioInstance>) {
+        for i in self.suspended.drain(..) {
+            let instance = audio_instances.get(&i).unwrap();
             instance.play();
         }
     }
 }
 
+/// Used internally to play audio on the platform
 #[derive(UnsendableResource)]
 pub struct AudioOutput {
     _stream: OutputStream,
@@ -190,7 +253,7 @@ impl Default for AudioOutput {
     }
 }
 
-pub fn audio_system(
+fn audio_system(
     audio_output: UnsendableRes<AudioOutput>,
     mut audio_device: ResMut<AudioDevice>,
     audio: OptionalRes<Assets<Audio>>,
@@ -240,7 +303,7 @@ pub fn audio_system(
 #[cfg(target_os = "android")]
 fn handle_resume_suspended(
     engine_event: zengine_ecs::system::EventStream<zengine_engine::EngineEvent>,
-    audio_device: zengine_ecs::system::Res<AudioDevice>,
+    mut audio_device: zengine_ecs::system::ResMut<AudioDevice>,
     audio_instances: OptionalRes<Assets<AudioInstance>>,
 ) {
     let last_event = engine_event.read().last();
@@ -265,7 +328,7 @@ fn update_instances(
     if let Some(audio_instances) = audio_instances.as_ref() {
         for (index, handle) in audio_device.instances.iter().enumerate() {
             let instance = audio_instances.get(handle).unwrap();
-            if instance.empty() {
+            if instance.is_empty() {
                 to_remove.push(index);
             }
         }
