@@ -37,7 +37,7 @@ fn setup(
     let texture = textures.create_texture(&texture);
 
     commands.create_resource(Background {
-        color: Color::WHITE,
+        color: Color::new(35, 31, 32, 255),
     });
 
     commands.spawn((
