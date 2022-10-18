@@ -4,7 +4,10 @@ use std::ops::{Deref, DerefMut};
 use wgpu::util::DeviceExt;
 use zengine_asset::{Assets, Handle};
 use zengine_core::Transform;
-use zengine_ecs::system::{Commands, Local, OptionalRes, Query, QueryIter, Res, ResMut};
+use zengine_ecs::{
+    query::{Query, QueryIter},
+    system::{Commands, Local, OptionalRes, Res, ResMut},
+};
 use zengine_macro::{Component, Resource};
 
 use crate::{

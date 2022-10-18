@@ -4,7 +4,8 @@ use glam::Vec2;
 use wgpu::{util::DeviceExt, BindGroup, BindGroupLayout};
 use zengine_core::Transform;
 use zengine_ecs::{
-    system::{Commands, OptionalRes, Query, QueryIter},
+    query::{Query, QueryIter},
+    system::{Commands, OptionalRes},
     Entity,
 };
 use zengine_macro::{Component, Resource};

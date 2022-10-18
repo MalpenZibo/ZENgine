@@ -1,26 +1,16 @@
 use std::{
     any::TypeId,
-    iter::{zip, Zip},
     sync::{RwLockReadGuard, RwLockWriteGuard},
 };
 
-use zengine_macro::{all_tuples, query_iter_for_tuple, query_iter_mut_for_tuple};
+use zengine_macro::all_tuples;
 
 use crate::{archetype::Archetype, component::Component, entity::Entity, world::World};
 
-use super::query_iterators::*;
+use super::{query_iterators::*, QueryCache};
 
 pub trait FetchableQuery<T: QueryParameters> {
     fn fetch(world: &World) -> Self;
-}
-
-pub struct Query<'a, T: QueryParameters> {
-    pub data: <T as QueryParameterFetch<'a>>::FetchItem,
-}
-
-pub struct QueryCache {
-    pub last_archetypes_count: usize,
-    matched_archetypes: Vec<(usize, Vec<Option<usize>>)>,
 }
 
 pub trait QueryParameters: for<'a> QueryParameterFetch<'a> {}
@@ -46,11 +36,13 @@ pub trait QueryParameterFetchFromArchetype<'a> {
     ) -> (Self::ArchetypeFetchItem, Option<usize>);
 }
 
+/// A query iterator over it's internal data
 pub trait QueryIter<'a> {
     type Iter: Iterator;
     fn iter(&'a self) -> Self::Iter;
 }
 
+/// A mutable query iterator over it's internal data
 pub trait QueryIterMut<'a> {
     type Iter: Iterator;
     fn iter_mut(&'a mut self) -> Self::Iter;
@@ -598,8 +590,6 @@ impl<'a, 'b, T: 'static> QueryIter<'b> for Option<RwLockWriteGuard<'a, Vec<T>>> 
     }
 }
 
-query_iter_for_tuple!(14);
-
 impl<'a, 'b> QueryIterMut<'b> for &'a Vec<Entity> {
     type Iter = std::slice::Iter<'b, Entity>;
     fn iter_mut(&'b mut self) -> Self::Iter {
@@ -638,133 +628,5 @@ impl<'a, 'b, T: 'static> QueryIterMut<'b> for Option<RwLockWriteGuard<'a, Vec<T>
             || OptionalIterator::NoneIterator,
             |value| OptionalIterator::SomeIterator(<[T]>::iter_mut(value)),
         )
-    }
-}
-
-query_iter_mut_for_tuple!(14);
-
-#[cfg(test)]
-mod tests {
-
-    use crate::{
-        component::Component,
-        system::{QueryState, SystemParamFetch},
-        world::World,
-    };
-
-    use super::QueryIterMut;
-
-    #[derive(Debug, PartialEq)]
-    struct Test1 {
-        data: u32,
-    }
-    impl Component for Test1 {}
-
-    #[derive(Debug, PartialEq)]
-    struct Test2 {
-        _data: u32,
-    }
-    impl Component for Test2 {}
-
-    #[derive(Debug, PartialEq)]
-    struct Test3 {
-        data: u32,
-    }
-    impl Component for Test3 {}
-
-    #[test]
-    fn simple_query() {
-        let mut world = World::default();
-
-        world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }));
-        world.spawn(Test1 { data: 2 });
-
-        let mut query: QueryState<(&Test1,)> = world.query::<(&Test1,)>();
-        let mut query = query.fetch(&world);
-
-        assert_eq!(query.iter_mut().count(), 2);
-    }
-
-    #[test]
-    fn tuple_query() {
-        let mut world = World::default();
-
-        world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }));
-        world.spawn(Test1 { data: 3 });
-
-        let mut query = world.query::<(&Test1, &Test2)>();
-        let mut query = query.fetch(&world);
-
-        assert_eq!(query.iter_mut().count(), 1);
-    }
-
-    #[test]
-    fn tuple_with_mutable_query() {
-        let mut world = World::default();
-
-        world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }));
-        world.spawn((Test1 { data: 3 }, Test2 { _data: 2 }));
-        world.spawn(Test1 { data: 3 });
-
-        let mut query = world.query::<(&mut Test1, &Test2)>();
-        let mut query = query.fetch(&world);
-
-        assert_eq!(query.iter_mut().count(), 2);
-
-        for (a, _b) in query.iter_mut() {
-            a.data = 5;
-        }
-
-        for (a, _b) in query.iter_mut() {
-            assert_eq!(a.data, 5);
-        }
-    }
-
-    #[test]
-    fn tuple_with_2_mutable_query() {
-        let mut world = World::default();
-
-        world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }, Test3 { data: 3 }));
-        world.spawn(Test1 { data: 3 });
-        world.spawn(Test3 { data: 3 });
-        world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }, Test3 { data: 3 }));
-
-        let mut query = world.query::<(&mut Test1, &Test2, &mut Test3)>();
-        let mut query = query.fetch(&world);
-        assert_eq!(query.iter_mut().count(), 2);
-
-        for (a, _b, c) in query.iter_mut() {
-            a.data = 5;
-            c.data = 7;
-        }
-
-        for (a, _b, c) in query.iter_mut() {
-            assert_eq!(a.data, 5);
-            assert_eq!(c.data, 7);
-        }
-    }
-
-    #[test]
-    fn optional_component_query() {
-        let mut world = World::default();
-
-        world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }, Test3 { data: 3 }));
-        world.spawn(Test1 { data: 4 });
-        world.spawn(Test3 { data: 3 });
-        world.spawn((Test1 { data: 5 }, Test2 { _data: 4 }, Test3 { data: 3 }));
-
-        let mut query = world.query::<(&Test1, Option<&Test2>)>();
-        let mut query = query.fetch(&world);
-        assert_eq!(query.iter_mut().count(), 3);
-
-        let mut iter = query.iter_mut();
-        let data1 = iter.next();
-        assert_eq!(data1, Some((&Test1 { data: 4 }, None)));
-
-        let data2 = iter.next();
-        assert_eq!(data2, Some((&Test1 { data: 3 }, Some(&Test2 { _data: 3 }))));
-
-        let data3 = iter.next();
-        assert_eq!(data3, Some((&Test1 { data: 5 }, Some(&Test2 { _data: 4 }))));
     }
 }

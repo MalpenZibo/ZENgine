@@ -3,7 +3,8 @@ use glam::Vec3;
 use rustc_hash::FxHashSet;
 use zengine_core::Transform;
 use zengine_ecs::{
-    system::{EventPublisher, Local, Query, QueryIter},
+    query::{Query, QueryIter},
+    system::{EventPublisher, Local},
     Entity,
 };
 use zengine_macro::Component;

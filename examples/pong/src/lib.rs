@@ -4,9 +4,9 @@ use zengine::{
     audio::{Audio, AudioDevice, AudioInstance, AudioModule, AudioSettings},
     core::{Time, TimeModule, Transform},
     ecs::{
+        query::{Query, QueryIter, QueryIterMut},
         system::{
-            Commands, EventPublisher, EventStream, Local, OptionalRes, OptionalResMut, Query,
-            QueryIter, QueryIterMut, Res, ResMut,
+            Commands, EventPublisher, EventStream, Local, OptionalRes, OptionalResMut, Res, ResMut,
         },
         Entity,
     },

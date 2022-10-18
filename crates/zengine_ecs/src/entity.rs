@@ -9,7 +9,7 @@ use std::{
 /// all of different types, and can dynamically acquire or lose them over its lifetime.
 ///
 /// # Usage
-/// This data type is returned by iterating a [Query](crate::system::Query) that has
+/// This data type is returned by iterating a [Query](crate::query::Query) that has
 /// Entity as part of its query fetch type parameter.
 ///
 /// ```

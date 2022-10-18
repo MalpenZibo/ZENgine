@@ -303,6 +303,7 @@ pub fn generate_zip(input: TokenStream) -> TokenStream {
         let map_constructor = quote! { |#map_constructor_args| ( #map_constructor_res ) };
 
         expanded.extend(quote! {
+            #[doc(hidden)]
             pub struct #name #generics_with_where {
                 inner: #zip_type,
             }

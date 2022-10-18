@@ -15,8 +15,8 @@ use crate::{
     component::{ComponentBundle, ComponentColumn, InsertType},
     entity::{Entity, EntityGenerator},
     event::{EventCell, EventHandler},
+    query::{QueryParameters, QueryRunner},
     resource::{Resource, ResourceCell, UnsendableResource, UnsendableResourceCell},
-    system::{QueryParameters, QueryState},
 };
 
 #[derive(PartialEq, Debug)]
@@ -449,7 +449,7 @@ impl World {
 
     /// Queries entity and components from the World
     ///
-    /// Returns a [QueryState] to fetch the data requested. A query state has an internal
+    /// Returns a [QueryRunner] to fetch the data requested. A query runner has an internal
     /// cache to improve the performance of the query with subsequent calls
     ///
     /// # Example
@@ -466,7 +466,7 @@ impl World {
     /// }
     ///
     /// let mut query = world.query::<(&ComponentA,)>();
-    /// for c_a in query.fetch(&world).iter() {
+    /// for c_a in query.run(&world).iter() {
     ///     println!("Component A: {:?}", c_a);
     /// }
     /// ```
@@ -485,7 +485,7 @@ impl World {
     /// }
     ///
     /// let mut query = world.query::<(Entity, &ComponentA, &mut ComponentB)>();
-    /// for (e, c_a, c_b) in query.fetch(&world).iter_mut() {
+    /// for (e, c_a, c_b) in query.run(&world).iter_mut() {
     ///     c_b.value = 5.;
     ///     println!(
     ///         "Entity: {:?}, Component A: {:?}, Component B: {:?}",
@@ -493,8 +493,8 @@ impl World {
     ///     );
     /// }
     /// ```
-    pub fn query<T: QueryParameters>(&self) -> QueryState<T> {
-        QueryState::default()
+    pub fn query<T: QueryParameters>(&self) -> QueryRunner<T> {
+        QueryRunner::default()
     }
 
     /// Gets a reference to the resource of the given type if it exists
