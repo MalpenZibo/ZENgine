@@ -1,32 +1,30 @@
+use crate::{archetype::Archetype, component::Component, entity::Entity, world::World};
 use std::{
     any::TypeId,
     sync::{RwLockReadGuard, RwLockWriteGuard},
 };
 
+use super::{query_iterators::*, QueryCache};
 use zengine_macro::all_tuples;
 
-use crate::{archetype::Archetype, component::Component, entity::Entity, world::World};
-
-use super::{query_iterators::*, QueryCache};
-
-pub trait FetchableQuery<T: QueryParameters> {
-    fn fetch(world: &World) -> Self;
-}
-
+#[doc(hidden)]
 pub trait QueryParameters: for<'a> QueryParameterFetch<'a> {}
 
+#[doc(hidden)]
 pub trait QueryParameter {
     type Item: for<'a> QueryParameterFetchFromArchetype<'a>;
 
     fn matches_archetype(archetype: &Archetype) -> bool;
 }
 
+#[doc(hidden)]
 pub trait QueryParameterFetch<'a> {
     type FetchItem;
 
     fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem;
 }
 
+#[doc(hidden)]
 pub trait QueryParameterFetchFromArchetype<'a> {
     type ArchetypeFetchItem;
 
@@ -36,13 +34,13 @@ pub trait QueryParameterFetchFromArchetype<'a> {
     ) -> (Self::ArchetypeFetchItem, Option<usize>);
 }
 
-/// A query iterator over it's internal data
+#[doc(hidden)]
 pub trait QueryIter<'a> {
     type Iter: Iterator;
     fn iter(&'a self) -> Self::Iter;
 }
 
-/// A mutable query iterator over it's internal data
+#[doc(hidden)]
 pub trait QueryIterMut<'a> {
     type Iter: Iterator;
     fn iter_mut(&'a mut self) -> Self::Iter;

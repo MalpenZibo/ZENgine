@@ -9,12 +9,14 @@ mod query_iterators;
 pub use query_fetch::*;
 pub use query_iterators::*;
 
+/// Provides access to Entities and components in the world
 pub struct QueryRunner<T: QueryParameters> {
     _marker: std::marker::PhantomData<T>,
     query_cache: Option<QueryCache>,
 }
 
 impl<T: QueryParameters> QueryRunner<T> {
+    /// Runs the query using a reference to the [World]
     pub fn run<'a>(&mut self, world: &'a World) -> Query<'a, T> {
         Query {
             data: T::fetch(world, &mut self.query_cache),
@@ -31,12 +33,14 @@ impl<T: QueryParameters> Default for QueryRunner<T> {
     }
 }
 
+/// Contains result of a [Query] execution
 pub struct Query<'a, T: QueryParameters> {
     pub data: <T as QueryParameterFetch<'a>>::FetchItem,
 }
 
+/// Cache query execution information
 pub struct QueryCache {
-    pub last_archetypes_count: usize,
+    last_archetypes_count: usize,
     matched_archetypes: Vec<(usize, Vec<Option<usize>>)>,
 }
 
