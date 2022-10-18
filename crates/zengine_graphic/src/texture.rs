@@ -1,6 +1,6 @@
 use std::num::NonZeroU32;
 use zengine_asset::{AssetEvent, Assets, Handle};
-use zengine_ecs::system::{EventStream, OptionalRes, OptionalResMut};
+use zengine_ecs::system::{EventStream, Res, ResMut};
 use zengine_macro::Asset;
 
 use crate::{Device, Image, Queue, TextureBindGroupLayout};
@@ -121,11 +121,11 @@ impl TextureAssets for Assets<Texture> {
 }
 
 pub fn prepare_texture_asset(
-    texture_bind_group_layout: OptionalRes<TextureBindGroupLayout>,
-    device: OptionalRes<Device>,
-    queue: OptionalRes<Queue>,
-    textures: OptionalResMut<Assets<Texture>>,
-    images: OptionalRes<Assets<Image>>,
+    texture_bind_group_layout: Option<Res<TextureBindGroupLayout>>,
+    device: Option<Res<Device>>,
+    queue: Option<Res<Queue>>,
+    textures: Option<ResMut<Assets<Texture>>>,
+    images: Option<Res<Assets<Image>>>,
     images_asset_event: EventStream<AssetEvent<Image>>,
 ) {
     let events = images_asset_event.read();

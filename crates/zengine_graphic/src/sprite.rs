@@ -6,7 +6,7 @@ use zengine_asset::{Assets, Handle};
 use zengine_core::Transform;
 use zengine_ecs::{
     query::{Query, QueryIter},
-    system::{Commands, Local, OptionalRes, Res, ResMut},
+    system::{Commands, Local, Res, ResMut},
 };
 use zengine_macro::{Component, Resource};
 
@@ -186,9 +186,9 @@ fn generate_vertex_and_indexes_buffer(
 
 pub fn setup_sprite_render(
     surface: Res<Surface>,
-    texture_bind_group_layout: OptionalRes<TextureBindGroupLayout>,
-    device: OptionalRes<Device>,
-    camera_buffer: OptionalRes<CameraBuffer>,
+    texture_bind_group_layout: Option<Res<TextureBindGroupLayout>>,
+    device: Option<Res<Device>>,
+    camera_buffer: Option<Res<CameraBuffer>>,
     mut commands: Commands,
 ) {
     let config = surface.get_config().unwrap();
@@ -291,13 +291,13 @@ impl<'a> DerefMut for Batches<'a> {
 
 #[allow(clippy::too_many_arguments)]
 pub fn sprite_render(
-    queue: OptionalRes<Queue>,
-    device: OptionalRes<Device>,
+    queue: Option<Res<Queue>>,
+    device: Option<Res<Device>>,
     mut render_context: ResMut<RenderContextInstance>,
-    render_pipeline: OptionalRes<RenderPipeline>,
-    textures: OptionalRes<Assets<Texture>>,
-    textures_atlas: OptionalRes<Assets<TextureAtlas>>,
-    camera_buffer: OptionalRes<CameraBuffer>,
+    render_pipeline: Option<Res<RenderPipeline>>,
+    textures: Option<Res<Assets<Texture>>>,
+    textures_atlas: Option<Res<Assets<TextureAtlas>>>,
+    camera_buffer: Option<Res<CameraBuffer>>,
     sprite_query: Query<(&Sprite, &Transform)>,
     sprite_buffer: Local<SpriteBuffer>,
 ) {

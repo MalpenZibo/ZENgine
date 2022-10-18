@@ -41,7 +41,7 @@ impl Module for GamepadModule {
 
 #[cfg(not(target_os = "android"))]
 fn gamepad_system(
-    gamepad_handler: zengine_ecs::system::OptionalUnsendableResMut<GamepadHandler>,
+    gamepad_handler: Option<zengine_ecs::system::UnsendableResMut<GamepadHandler>>,
     mut input: zengine_ecs::system::EventPublisher<zengine_input::InputEvent>,
 ) {
     use zengine_input::{

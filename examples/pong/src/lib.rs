@@ -5,9 +5,7 @@ use zengine::{
     core::{Time, TimeModule, Transform},
     ecs::{
         query::{Query, QueryIter, QueryIterMut},
-        system::{
-            Commands, EventPublisher, EventStream, Local, OptionalRes, OptionalResMut, Res, ResMut,
-        },
+        system::{Commands, EventPublisher, EventStream, Local, Res, ResMut},
         Entity,
     },
     gamepad::GamepadModule,
@@ -157,10 +155,10 @@ pub fn main() {
 fn setup(
     mut commands: Commands,
     mut asset_manager: ResMut<AssetManager>,
-    mut textures: OptionalResMut<Assets<Texture>>,
-    mut textures_atlas: OptionalResMut<Assets<TextureAtlas>>,
+    mut textures: Option<ResMut<Assets<Texture>>>,
+    mut textures_atlas: Option<ResMut<Assets<TextureAtlas>>>,
     audio_device: Res<AudioDevice>,
-    audio_instances: OptionalRes<Assets<AudioInstance>>,
+    audio_instances: Option<Res<Assets<AudioInstance>>>,
     window_specs: Res<WindowSpecs>,
 ) {
     let textures = textures.as_mut().unwrap();
@@ -400,7 +398,7 @@ fn setup(
 
 fn player_pad_control(
     mut pads: Query<(Entity, &mut Pad)>,
-    player1: OptionalRes<Player1>,
+    player1: Option<Res<Player1>>,
     input: Res<InputHandler<UserInput>>,
 ) {
     if let Some(pad) = player1.and_then(|player1| {
@@ -509,11 +507,11 @@ fn collision_response(
     mut query_pad: Query<(Entity, &mut Transform, &mut Pad)>,
     mut query_ball: Query<(Entity, &mut Transform, &mut Ball)>,
     collision_event: EventStream<Collision>,
-    field_border: OptionalRes<FieldBorder>,
+    field_border: Option<Res<FieldBorder>>,
     mut game_event: EventPublisher<GameEvent>,
     audio_device: Res<AudioDevice>,
-    bounce_effect: OptionalRes<BounceEffect>,
-    score_effect: OptionalRes<ScoreEffect>,
+    bounce_effect: Option<Res<BounceEffect>>,
+    score_effect: Option<Res<ScoreEffect>>,
     dimensions: Res<Dimensions>,
 ) {
     fn get_collision_type(

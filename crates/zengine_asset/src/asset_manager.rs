@@ -3,7 +3,7 @@ use downcast_rs::{impl_downcast, Downcast};
 use rustc_hash::FxHashMap;
 use std::sync::{Arc, RwLock};
 use std::{any::TypeId, path::Path};
-use zengine_ecs::system::{EventPublisher, OptionalResMut, Res, ResMut};
+use zengine_ecs::system::{EventPublisher, Res, ResMut};
 use zengine_engine::log::debug;
 use zengine_macro::Resource;
 
@@ -358,7 +358,7 @@ impl AssetManager {
 
 pub(crate) fn update_asset_storage<T: Asset>(
     asset_manager: Res<AssetManager>,
-    assets: OptionalResMut<Assets<T>>,
+    assets: Option<ResMut<Assets<T>>>,
     mut assets_event: EventPublisher<AssetEvent<T>>,
 ) {
     if let Some(mut assets) = assets {

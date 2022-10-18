@@ -6,7 +6,7 @@ use std::io::Cursor;
 use std::sync::RwLock;
 use zengine_asset::Asset;
 use zengine_asset::{AssetExtension, AssetLoader, Assets, Handle, HandleId};
-use zengine_ecs::system::{Local, OptionalRes, OptionalResMut, ResMut, UnsendableRes};
+use zengine_ecs::system::{Local, Res, ResMut, UnsendableRes};
 use zengine_engine::{Module, Stage};
 use zengine_macro::{Asset, Resource, UnsendableResource};
 
@@ -256,8 +256,8 @@ impl Default for AudioOutput {
 fn audio_system(
     audio_output: UnsendableRes<AudioOutput>,
     mut audio_device: ResMut<AudioDevice>,
-    audio: OptionalRes<Assets<Audio>>,
-    audio_instances: OptionalResMut<Assets<AudioInstance>>,
+    audio: Option<Res<Assets<Audio>>>,
+    audio_instances: Option<ResMut<Assets<AudioInstance>>>,
     to_add: Local<Vec<Handle<AudioInstance>>>,
 ) {
     if let (Some(audio), Some(mut audio_instances)) = (audio, audio_instances) {
@@ -322,7 +322,7 @@ fn handle_resume_suspended(
 
 fn update_instances(
     mut audio_device: ResMut<AudioDevice>,
-    audio_instances: OptionalRes<Assets<AudioInstance>>,
+    audio_instances: Option<Res<Assets<AudioInstance>>>,
     to_remove: Local<Vec<usize>>,
 ) {
     if let Some(audio_instances) = audio_instances.as_ref() {

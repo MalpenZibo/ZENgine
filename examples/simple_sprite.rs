@@ -1,7 +1,7 @@
 use zengine::{
     asset::{AssetManager, AssetModule, Assets},
     core::Transform,
-    ecs::system::{Commands, OptionalResMut, ResMut},
+    ecs::system::{Commands, ResMut},
     graphic::{
         Background, Camera, CameraMode, Color, GraphicModule, Sprite, SpriteTexture, Texture,
         TextureAssets,
@@ -29,7 +29,7 @@ fn main() {
 fn setup(
     mut commands: Commands,
     mut asset_manager: ResMut<AssetManager>,
-    textures: OptionalResMut<Assets<Texture>>,
+    textures: Option<ResMut<Assets<Texture>>>,
 ) {
     let mut textures = textures.unwrap();
     let texture = asset_manager.load("branding/logo_extended.png");

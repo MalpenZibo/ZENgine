@@ -4,7 +4,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 use wgpu::{BindGroupLayout, SurfaceConfiguration};
-use zengine_ecs::system::{Commands, OptionalRes, OptionalUnsendableRes, Res, ResMut};
+use zengine_ecs::system::{Commands, Res, ResMut, UnsendableRes};
 use zengine_macro::Resource;
 use zengine_window::{Window, WindowSpecs};
 
@@ -138,7 +138,7 @@ impl DerefMut for RenderContextInstance {
 }
 
 pub fn setup_render(
-    window: OptionalUnsendableRes<Window>,
+    window: Option<UnsendableRes<Window>>,
     window_specs: Res<WindowSpecs>,
     mut commands: Commands,
 ) {
@@ -225,11 +225,11 @@ pub fn setup_render(
 
 #[allow(clippy::too_many_arguments)]
 pub fn clear(
-    window: OptionalUnsendableRes<Window>,
+    window: Option<UnsendableRes<Window>>,
     window_specs: Res<WindowSpecs>,
-    device: OptionalRes<Device>,
-    instance: OptionalRes<Instance>,
-    adapter: OptionalRes<Adapter>,
+    device: Option<Res<Device>>,
+    instance: Option<Res<Instance>>,
+    adapter: Option<Res<Adapter>>,
     mut surface: ResMut<Surface>,
     mut render_context: ResMut<RenderContextInstance>,
     bg_color: Res<Background>,
@@ -285,7 +285,7 @@ pub fn clear(
     }
 }
 
-pub fn present(queue: OptionalRes<Queue>, mut render_context: ResMut<RenderContextInstance>) {
+pub fn present(queue: Option<Res<Queue>>, mut render_context: ResMut<RenderContextInstance>) {
     if let Some(render_context) = render_context.take() {
         queue
             .unwrap()

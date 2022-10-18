@@ -10,7 +10,7 @@ use rectangle_pack::{
 };
 use rustc_hash::FxHashMap;
 use zengine_asset::{AssetEvent, Assets, Handle, HandleId};
-use zengine_ecs::system::{EventStream, OptionalRes, OptionalResMut};
+use zengine_ecs::system::{EventStream, Res, ResMut};
 use zengine_macro::Asset;
 
 use crate::{Device, Image, Queue, Texture, TextureAssets, TextureBindGroupLayout};
@@ -206,12 +206,12 @@ impl TextureAtlasAssets for Assets<TextureAtlas> {
 }
 
 pub fn prepare_texture_atlas_asset(
-    texture_bind_group_layout: OptionalRes<TextureBindGroupLayout>,
-    device: OptionalRes<Device>,
-    queue: OptionalRes<Queue>,
-    textures_atlas: OptionalResMut<Assets<TextureAtlas>>,
-    textures: OptionalResMut<Assets<Texture>>,
-    images: OptionalResMut<Assets<Image>>,
+    texture_bind_group_layout: Option<Res<TextureBindGroupLayout>>,
+    device: Option<Res<Device>>,
+    queue: Option<Res<Queue>>,
+    textures_atlas: Option<ResMut<Assets<TextureAtlas>>>,
+    textures: Option<ResMut<Assets<Texture>>>,
+    images: Option<ResMut<Assets<Image>>>,
     images_asset_event: EventStream<AssetEvent<Image>>,
 ) {
     let events = images_asset_event.read();

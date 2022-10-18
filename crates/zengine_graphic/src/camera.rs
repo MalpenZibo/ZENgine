@@ -5,7 +5,7 @@ use wgpu::{util::DeviceExt, BindGroup, BindGroupLayout};
 use zengine_core::Transform;
 use zengine_ecs::{
     query::{Query, QueryIter},
-    system::{Commands, OptionalRes},
+    system::{Commands, Res},
     Entity,
 };
 use zengine_macro::{Component, Resource};
@@ -79,7 +79,7 @@ pub struct CameraBuffer {
 
 fn pick_correct_camera<'a>(
     camera_query: &'a Query<(Entity, &Camera, Option<&Transform>)>,
-    active_camera: &'a OptionalRes<ActiveCamera>,
+    active_camera: &'a Option<Res<ActiveCamera>>,
 ) -> Option<(&'a Camera, Option<&'a Transform>)> {
     active_camera
         .as_ref()
@@ -90,7 +90,7 @@ fn pick_correct_camera<'a>(
         .map(|(_, c, t)| (c, t))
 }
 
-pub fn setup_camera(device: OptionalRes<Device>, mut commands: Commands) {
+pub fn setup_camera(device: Option<Res<Device>>, mut commands: Commands) {
     let device = device.unwrap();
 
     let camera_uniform = CameraUniform::default();
@@ -131,10 +131,10 @@ pub fn setup_camera(device: OptionalRes<Device>, mut commands: Commands) {
 }
 
 pub fn camera_render(
-    queue: OptionalRes<Queue>,
+    queue: Option<Res<Queue>>,
     camera_query: Query<(Entity, &Camera, Option<&Transform>)>,
-    active_camera: OptionalRes<ActiveCamera>,
-    camera_buffer: OptionalRes<CameraBuffer>,
+    active_camera: Option<Res<ActiveCamera>>,
+    camera_buffer: Option<Res<CameraBuffer>>,
 ) {
     if let (Some(queue), Some(camera_buffer)) = (queue, camera_buffer) {
         let camera_data = pick_correct_camera(&camera_query, &active_camera);
