@@ -3,6 +3,22 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+/// Identifier of an entity
+///
+/// An entity owns zero or more [Component](crate::Component) instances,
+/// all of different types, and can dynamically acquire or lose them over its lifetime.
+///
+/// # Usage
+/// This data type is returned by iterating a [Query](crate::system::Query) that has
+/// Entity as part of its query fetch type parameter.
+///
+/// ```
+/// fn example_system(query: Query<(Entity, &TestComponent)>) {
+///     for let (entity, test_component) in query {
+///         println!("test_component: {:?} for entity: {:?}", test_component, entity);
+///     }
+/// }
+/// ```
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct Entity(usize);
 impl Deref for Entity {

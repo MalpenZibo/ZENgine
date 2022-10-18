@@ -1,6 +1,8 @@
 mod archetype;
 mod component;
 mod entity;
+
+/// Event handling types
 pub mod event;
 mod resource;
 pub mod system;

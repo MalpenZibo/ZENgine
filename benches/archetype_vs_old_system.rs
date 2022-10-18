@@ -3,7 +3,10 @@ extern crate bencher;
 
 use bencher::Bencher;
 
-use zengine_ecs::{system::QueryIter, World};
+use zengine_ecs::{
+    system::{QueryIter, SystemParamFetch},
+    World,
+};
 
 #[derive(Debug)]
 struct Component1 {
@@ -73,7 +76,8 @@ fn archetype_storage(bench: &mut Bencher) {
     populate_word(&mut world);
 
     bench.iter(|| {
-        let query = world.query::<(&Component1, &Component2, &Component4)>(None);
+        let mut query = world.query::<(&Component1, &Component2, &Component4)>();
+        let query = query.fetch(&world);
         let iter = query.iter();
         for _d in iter {}
     });

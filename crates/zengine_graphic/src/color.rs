@@ -62,7 +62,7 @@ impl Color {
     };
 
     fn to_linear_rgb(xu: u8) -> f32 {
-        let x = (xu & 0xFF) as f32 / 255.0;
+        let x = xu as f32 / 255.0;
         if x > 0.04045 {
             ((x + 0.055) / 1.055).powf(2.4)
         } else {

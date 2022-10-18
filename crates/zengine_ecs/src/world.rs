@@ -16,7 +16,7 @@ use crate::{
     entity::{Entity, EntityGenerator},
     event::{EventCell, EventHandler},
     resource::{Resource, ResourceCell, UnsendableResource, UnsendableResourceCell},
-    system::{Query, QueryCache, QueryParameters},
+    system::{QueryParameters, QueryState},
 };
 
 #[derive(PartialEq, Debug)]
@@ -25,12 +25,27 @@ struct Record {
     row: usize,
 }
 
+/// Stores and exposes operations on entities, components, resources
+///
+/// # Entity and Components
+/// Each [Entity] has a set of [Components](crate::Component) and each component can have
+/// up to one instance of each component type.
+/// Entity and components can be created, updated, removed and queried using a given World.
+///
+/// # Resources
+/// A [Resource] is an unique instance of a given type that implement the [Resource] trait
+/// and don't belong to a specific Entity.
+/// A [UnsendableResource] are a particular resource that cannot be shared between thread and
+/// can be accessed only by the main thread.
+///
+/// # Usage inside a system
+/// To see how a system can interact with the data stored inside the World see the [system module](crate::system)
 #[derive(Debug)]
 pub struct World {
     pub(crate) entity_generator: EntityGenerator,
     entity_record: FxHashMap<Entity, Record>,
     archetype_map: HashMap<u64, usize, BuildHasherDefault<NoHashHasher<u64>>>,
-    pub archetypes: Vec<Archetype>,
+    pub(crate) archetypes: Vec<Archetype>,
     resources: FxHashMap<TypeId, Box<dyn ResourceCell>>,
     unsendable_resources: FxHashMap<TypeId, Box<dyn UnsendableResourceCell>>,
     event_handlers: FxHashMap<TypeId, Box<dyn EventCell>>,
@@ -59,10 +74,28 @@ impl Default for World {
 }
 
 impl World {
+    /// Creates an [Entity] without any components
     pub fn spawn_without_component(&mut self) -> Entity {
         self.internal_spawn()
     }
 
+    /// Creates an [Entity] with a single component or with tuple of components
+    ///
+    /// # Example
+    /// ```
+    /// #[derive(Component, Debug)]
+    /// struct ComponentA {
+    ///     value: u32,
+    /// }
+    ///
+    /// #[derive(Component, Debug)]
+    /// struct ComponentB {
+    ///     value: f32,
+    /// }
+    ///
+    /// let mut world = World::default();
+    /// world.spawn((ComponentA { value: 3 }, ComponentB { value: 1.0 }));
+    /// ```
     pub fn spawn<T: ComponentBundle>(&mut self, component_bundle: T) -> Entity {
         let entity = self.internal_spawn();
 
@@ -111,6 +144,7 @@ impl World {
         entity
     }
 
+    /// Removes an Entity from the World
     pub fn despawn(&mut self, entity: Entity) {
         if let Some(record) = self.entity_record.get(&entity) {
             let archetype = self
@@ -137,6 +171,7 @@ impl World {
         }
     }
 
+    /// Adds a component or a tuple of components to an Entity
     pub fn add_component<T: ComponentBundle>(&mut self, entity: Entity, component_bundle: T) {
         let component_ids = T::get_types();
 
@@ -307,6 +342,7 @@ impl World {
         }
     }
 
+    /// Removes a component or a tuple of components from an Entity
     pub fn remove_component<T: ComponentBundle>(&mut self, entity: Entity) {
         let component_ids = T::get_types();
 
@@ -411,12 +447,57 @@ impl World {
         }
     }
 
-    pub fn query<T: QueryParameters>(&self, mut cache: Option<QueryCache>) -> Query<T> {
-        Query {
-            data: T::fetch(self, &mut cache),
-        }
+    /// Queries entity and components from the World
+    ///
+    /// Returns a [QueryState] to fetch the data requested. A query state has an internal
+    /// cache to improve the performance of the query with subsequent calls
+    ///
+    /// # Example
+    /// ## Query all entities that have at least the ComponentA
+    /// ```
+    /// #[derive(Component, Debug)]
+    /// struct ComponentA {
+    ///     value: u32,
+    /// }
+    ///
+    /// #[derive(Component, Debug)]
+    /// struct ComponentB {
+    ///     value: f32,
+    /// }
+    ///
+    /// let mut query = world.query::<(&ComponentA,)>();
+    /// for c_a in query.fetch(&world).iter() {
+    ///     println!("Component A: {:?}", c_a);
+    /// }
+    /// ```
+    ///
+    /// ## Query all entities that have at least the ComponentA and ComponentB
+    /// with a mutable access to ComponentB adding the Entity Key in the result
+    /// ```
+    /// #[derive(Component, Debug)]
+    /// struct ComponentA {
+    ///     value: u32,
+    /// }
+    ///
+    /// #[derive(Component, Debug)]
+    /// struct ComponentB {
+    ///     value: f32,
+    /// }
+    ///
+    /// let mut query = world.query::<(Entity, &ComponentA, &mut ComponentB)>();
+    /// for (e, c_a, c_b) in query.fetch(&world).iter_mut() {
+    ///     c_b.value = 5.;
+    ///     println!(
+    ///         "Entity: {:?}, Component A: {:?}, Component B: {:?}",
+    ///         e, c_a, c_b
+    ///     );
+    /// }
+    /// ```
+    pub fn query<T: QueryParameters>(&self) -> QueryState<T> {
+        QueryState::default()
     }
 
+    /// Gets a reference to the resource of the given type if it exists
     pub fn get_resource<T: Resource + 'static>(&self) -> Option<RwLockReadGuard<T>> {
         let type_id = TypeId::of::<T>();
 
@@ -429,6 +510,7 @@ impl World {
         })
     }
 
+    /// Gets a mutable reference to the resource of the given type if it exists
     pub fn get_mut_resource<T: Resource + 'static>(&self) -> Option<RwLockWriteGuard<T>> {
         let type_id = TypeId::of::<T>();
 
@@ -441,6 +523,10 @@ impl World {
         })
     }
 
+    /// Creates a new resource of the given value
+    ///
+    /// Resource are unique data of a given type so if you create a resource
+    /// of a type that already exists you will overwrite any existing data
     pub fn create_resource<T: Resource + 'static>(&mut self, resource: T) {
         let type_id = TypeId::of::<T>();
 
@@ -448,6 +534,7 @@ impl World {
             .insert(type_id, Box::new(RwLock::new(resource)));
     }
 
+    /// Removes a resource of a given type and returns it if it exists
     pub fn remove_resource<T: Resource + 'static>(&mut self) -> Option<T> {
         let type_id = TypeId::of::<T>();
 
@@ -458,6 +545,7 @@ impl World {
         Some(t.into_inner().expect("lock error"))
     }
 
+    /// Gets a reference to an unsendable resource of the given type if it exists
     pub fn get_unsendable_resource<T: UnsendableResource + 'static>(&self) -> Option<Ref<T>> {
         let type_id = TypeId::of::<T>();
 
@@ -470,6 +558,7 @@ impl World {
         })
     }
 
+    /// Gets a mutable reference to an unsendable resource of the given type if it exists
     pub fn get_mut_unsendable_resource<T: UnsendableResource + 'static>(
         &self,
     ) -> Option<RefMut<T>> {
@@ -484,6 +573,10 @@ impl World {
         })
     }
 
+    /// Creates a new unsendable resource of the given value
+    ///
+    /// Unsendable resource are unique data of a given type so if you create an unsendable resource
+    /// of a type that already exists you will overwrite any existing data
     pub fn create_unsendable_resource<T: UnsendableResource + 'static>(&mut self, resource: T) {
         let type_id = TypeId::of::<T>();
 
@@ -491,6 +584,7 @@ impl World {
             .insert(type_id, Box::new(RefCell::new(resource)));
     }
 
+    /// Removes an unsendable resource of a given type and returns it if it exists
     pub fn remove_unsendable_resource<T: UnsendableResource + 'static>(&mut self) -> Option<T> {
         let type_id = TypeId::of::<T>();
 
@@ -500,14 +594,17 @@ impl World {
         Some(t.into_inner())
     }
 
+    /// Destroy a resource using its type id
     pub fn destroy_resource_with_type_id(&mut self, id: TypeId) {
         self.resources.remove(&id);
     }
 
+    /// Destroy an unsendable resource using its type id
     pub fn destroy_unsendable_resource_with_type_id(&mut self, id: TypeId) {
         self.unsendable_resources.remove(&id);
     }
 
+    /// Gets a reference to an EventHandler of a given type
     pub fn get_event_handler<T: Any + Debug>(&self) -> Option<RwLockReadGuard<EventHandler<T>>> {
         let type_id = TypeId::of::<EventHandler<T>>();
 
@@ -520,6 +617,7 @@ impl World {
         })
     }
 
+    /// Gets a mutable reference to an EventHandler of a given type
     pub fn get_mut_event_handler<T: Any + Debug>(
         &self,
     ) -> Option<RwLockWriteGuard<EventHandler<T>>> {
@@ -534,6 +632,10 @@ impl World {
         })
     }
 
+    /// Create a new event handler of a given type
+    ///
+    /// EventHandlers are unique handler of a given type so if you create a EventHandler
+    /// of a type that already exists you will overwrite any existing handler
     pub fn create_event_handler<T: Any + Debug>(&mut self) {
         let type_id = TypeId::of::<EventHandler<T>>();
 

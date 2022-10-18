@@ -646,7 +646,11 @@ query_iter_mut_for_tuple!(14);
 #[cfg(test)]
 mod tests {
 
-    use crate::{component::Component, system::query::Query, world::World};
+    use crate::{
+        component::Component,
+        system::{QueryState, SystemParamFetch},
+        world::World,
+    };
 
     use super::QueryIterMut;
 
@@ -675,7 +679,8 @@ mod tests {
         world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }));
         world.spawn(Test1 { data: 2 });
 
-        let mut query: Query<(&Test1,)> = world.query::<(&Test1,)>(None);
+        let mut query: QueryState<(&Test1,)> = world.query::<(&Test1,)>();
+        let mut query = query.fetch(&world);
 
         assert_eq!(query.iter_mut().count(), 2);
     }
@@ -687,7 +692,8 @@ mod tests {
         world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }));
         world.spawn(Test1 { data: 3 });
 
-        let mut query = world.query::<(&Test1, &Test2)>(None);
+        let mut query = world.query::<(&Test1, &Test2)>();
+        let mut query = query.fetch(&world);
 
         assert_eq!(query.iter_mut().count(), 1);
     }
@@ -700,7 +706,8 @@ mod tests {
         world.spawn((Test1 { data: 3 }, Test2 { _data: 2 }));
         world.spawn(Test1 { data: 3 });
 
-        let mut query = world.query::<(&mut Test1, &Test2)>(None);
+        let mut query = world.query::<(&mut Test1, &Test2)>();
+        let mut query = query.fetch(&world);
 
         assert_eq!(query.iter_mut().count(), 2);
 
@@ -722,7 +729,8 @@ mod tests {
         world.spawn(Test3 { data: 3 });
         world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }, Test3 { data: 3 }));
 
-        let mut query = world.query::<(&mut Test1, &Test2, &mut Test3)>(None);
+        let mut query = world.query::<(&mut Test1, &Test2, &mut Test3)>();
+        let mut query = query.fetch(&world);
         assert_eq!(query.iter_mut().count(), 2);
 
         for (a, _b, c) in query.iter_mut() {
@@ -745,7 +753,8 @@ mod tests {
         world.spawn(Test3 { data: 3 });
         world.spawn((Test1 { data: 5 }, Test2 { _data: 4 }, Test3 { data: 3 }));
 
-        let mut query = world.query::<(&Test1, Option<&Test2>)>(None);
+        let mut query = world.query::<(&Test1, Option<&Test2>)>();
+        let mut query = query.fetch(&world);
         assert_eq!(query.iter_mut().count(), 3);
 
         let mut iter = query.iter_mut();
