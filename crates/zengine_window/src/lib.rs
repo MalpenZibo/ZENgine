@@ -13,12 +13,18 @@ use zengine_macro::{Resource, UnsendableResource};
 #[cfg(target_os = "android")]
 mod android_utils;
 
+/// A [Resource](zengine_ecs::Resource) that defines the window configuration
 #[derive(Resource, Debug, Clone)]
 pub struct WindowConfig {
+    /// Title of the window
     pub title: String,
+    /// Width of the window
     pub width: u32,
+    /// Height of the window
     pub height: u32,
+    /// Flag to activate the fullscreen
     pub fullscreen: bool,
+    /// Flag to activate the vsync
     pub vsync: bool,
 }
 
@@ -34,11 +40,13 @@ impl Default for WindowConfig {
     }
 }
 
+#[doc(hidden)]
 #[derive(UnsendableResource, Debug)]
 pub struct Window {
     pub internal: winit::window::Window,
 }
 
+/// A [Resource](zengine_ecs::Resource) that contains the active Windows settings
 #[derive(Resource, Default, Debug)]
 pub struct WindowSpecs {
     pub size: UVec2,
@@ -85,6 +93,7 @@ impl RunnerState {
     }
 }
 
+///A [Module] that defines an interface for windowing support in ZENgine.
 #[derive(Default, Debug)]
 pub struct WindowModule(pub WindowConfig);
 impl Module for WindowModule {
