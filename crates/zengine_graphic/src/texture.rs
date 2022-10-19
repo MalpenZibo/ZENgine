@@ -1,15 +1,14 @@
+use crate::{Device, Image, Queue, TextureBindGroupLayout};
 use std::num::NonZeroU32;
 use zengine_asset::{AssetEvent, Assets, Handle};
 use zengine_ecs::system::{EventStream, Res, ResMut};
 use zengine_macro::Asset;
 
-use crate::{Device, Image, Queue, TextureBindGroupLayout};
-
 #[derive(Debug)]
-pub struct GpuImage {
+pub(crate) struct GpuImage {
     pub texture: wgpu::Texture,
-    pub view: wgpu::TextureView,
-    pub sampler: wgpu::Sampler,
+    pub _view: wgpu::TextureView,
+    pub _sampler: wgpu::Sampler,
     pub diffuse_bind_group: wgpu::BindGroup,
 }
 
@@ -19,10 +18,11 @@ impl Drop for GpuImage {
     }
 }
 
+/// [Asset](zengine_asset::Asset) that rappresent a simple Texture
 #[derive(Asset, Debug)]
 pub struct Texture {
     image: Handle<Image>,
-    pub gpu_image: Option<GpuImage>,
+    pub(crate) gpu_image: Option<GpuImage>,
 }
 
 impl Texture {
@@ -33,7 +33,7 @@ impl Texture {
         }
     }
 
-    pub fn convert_to_gpu_image(
+    pub(crate) fn convert_to_gpu_image(
         &mut self,
         device: &Device,
         queue: &Queue,
@@ -101,15 +101,17 @@ impl Texture {
             self.image = self.image.as_weak();
             self.gpu_image = Some(GpuImage {
                 texture,
-                view,
-                sampler,
+                _view: view,
+                _sampler: sampler,
                 diffuse_bind_group,
             })
         }
     }
 }
 
+/// Add functionalities to create a [Texture] to the [Assets<Texture>] storage
 pub trait TextureAssets {
+    /// Creates a [Texture] asset returning a strong [Handle] to it with the given Image handle
     fn create_texture(&mut self, image: &Handle<Image>) -> Handle<Texture>;
 }
 
@@ -120,7 +122,7 @@ impl TextureAssets for Assets<Texture> {
     }
 }
 
-pub fn prepare_texture_asset(
+pub(crate) fn prepare_texture_asset(
     texture_bind_group_layout: Option<Res<TextureBindGroupLayout>>,
     device: Option<Res<Device>>,
     queue: Option<Res<Queue>>,

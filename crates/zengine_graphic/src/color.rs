@@ -1,3 +1,4 @@
+/// Describe an RGB color
 #[derive(Debug)]
 pub struct Color {
     pub r: f32,

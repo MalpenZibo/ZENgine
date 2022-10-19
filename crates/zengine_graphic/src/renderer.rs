@@ -8,6 +8,7 @@ use zengine_ecs::system::{Commands, Res, ResMut, UnsendableRes};
 use zengine_macro::Resource;
 use zengine_window::{Window, WindowSpecs};
 
+#[doc(hidden)]
 #[derive(Resource, Debug)]
 pub struct TextureBindGroupLayout(BindGroupLayout);
 
@@ -18,17 +19,18 @@ impl Deref for TextureBindGroupLayout {
     }
 }
 
+#[doc(hidden)]
 #[derive(Resource, Default, Debug)]
 pub struct Surface(Option<(SurfaceConfiguration, wgpu::Surface, usize)>);
 
 #[derive(Debug)]
-pub enum SurfaceError {
+pub(crate) enum SurfaceError {
     NotInitialize,
     NoMoreValid,
 }
 
 impl Surface {
-    pub fn get_surface_texture(
+    pub(crate) fn get_surface_texture(
         &self,
         windows_specs: &WindowSpecs,
     ) -> Result<wgpu::SurfaceTexture, SurfaceError> {
@@ -45,7 +47,7 @@ impl Surface {
             })
     }
 
-    pub fn get_config(&self) -> Option<&SurfaceConfiguration> {
+    pub(crate) fn get_config(&self) -> Option<&SurfaceConfiguration> {
         self.0.as_ref().map(|s| &s.0)
     }
 
@@ -74,6 +76,7 @@ impl Surface {
     }
 }
 
+#[doc(hidden)]
 #[derive(Resource, Debug)]
 pub struct Instance(wgpu::Instance);
 
@@ -84,6 +87,7 @@ impl Deref for Instance {
     }
 }
 
+#[doc(hidden)]
 #[derive(Resource, Debug)]
 pub struct Queue(wgpu::Queue);
 
@@ -94,6 +98,7 @@ impl Deref for Queue {
     }
 }
 
+#[doc(hidden)]
 #[derive(Resource, Debug)]
 pub struct Device(wgpu::Device);
 
@@ -104,6 +109,7 @@ impl Deref for Device {
     }
 }
 
+#[doc(hidden)]
 #[derive(Resource, Debug)]
 pub struct Adapter(wgpu::Adapter);
 
@@ -114,6 +120,7 @@ impl Deref for Adapter {
     }
 }
 
+#[doc(hidden)]
 #[derive(Debug)]
 pub struct RenderContext {
     pub surface_texture: wgpu::SurfaceTexture,
@@ -121,6 +128,7 @@ pub struct RenderContext {
     pub command_encoder: wgpu::CommandEncoder,
 }
 
+#[doc(hidden)]
 #[derive(Resource, Default, Debug)]
 pub struct RenderContextInstance(Option<RenderContext>);
 
@@ -137,7 +145,7 @@ impl DerefMut for RenderContextInstance {
     }
 }
 
-pub fn setup_render(
+pub(crate) fn setup_render(
     window: Option<UnsendableRes<Window>>,
     window_specs: Res<WindowSpecs>,
     mut commands: Commands,
@@ -224,7 +232,7 @@ pub fn setup_render(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn clear(
+pub(crate) fn clear(
     window: Option<UnsendableRes<Window>>,
     window_specs: Res<WindowSpecs>,
     device: Option<Res<Device>>,
@@ -285,7 +293,10 @@ pub fn clear(
     }
 }
 
-pub fn present(queue: Option<Res<Queue>>, mut render_context: ResMut<RenderContextInstance>) {
+pub(crate) fn present(
+    queue: Option<Res<Queue>>,
+    mut render_context: ResMut<RenderContextInstance>,
+) {
     if let Some(render_context) = render_context.take() {
         queue
             .unwrap()

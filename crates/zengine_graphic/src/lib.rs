@@ -20,11 +20,14 @@ pub use sprite::*;
 pub use texture::*;
 pub use texture_atlas::*;
 
+/// [Resource](zengine_ecs::Resource) that describe the color used
+/// to clear of the view
 #[derive(Resource, Debug, Default)]
 pub struct Background {
     pub color: Color,
 }
 
+/// Adds graphic support to the engine using a wgpu based renderer
 #[derive(Default, Debug)]
 pub struct GraphicModule;
 
