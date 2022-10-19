@@ -33,7 +33,66 @@ impl<T: QueryParameters> Default for QueryRunner<T> {
     }
 }
 
-/// Contains result of a [Query] execution
+/// Contains result of a [QueryRunner] execution providing access to
+/// entities and components in the [World]
+///
+/// Queries enable iteration over entities and their components.
+/// A query matches its parameters against the world to produce a series of results.
+/// Each query result is a tuple of components (the same components defined in the query)
+/// that belong to the same entity.
+///
+/// Computational cost of queries is reduced by the fact that they have an internal
+/// cache to avoid re-computing matches on each query run.
+///
+/// # Query as System Parameter
+/// A Query can be used as a system parameter. Internally it create a [QueryRunner]
+/// and run it on each system execution.
+///
+/// # Immutable component access
+/// The following example defines a query that gives an iterator over
+/// `(&ComponentA, &ComponentB)` tuples where ComponentA and ComponentB
+/// belong to the same entity
+/// ```
+/// query: Query<(&ComponentA, &ComponentB)>
+/// ```
+///
+/// # Mutable component access
+/// The following example is similar to the previous one, with the exception
+/// of `ComponentA` being accessed mutably here
+/// ```
+/// mut query: Query<(&mut ComponentA, &ComponentB)>
+/// ```
+///
+/// # Add Entity ID to the Query
+/// Inserting [Entity](crate::Entity) at any position in the type parameter tuple will give access
+/// to the entity ID.
+/// ```
+/// query: Query<(Entity, &ComponentA, &ComponentB)>
+/// ```
+///
+/// # Optional component access
+/// A component can be made optional in a query by wrapping it into an Option.
+/// In the following example, the query will iterate over components of both entities that contain
+/// `ComponentA` and `ComponentB`, and entities that contain `ComponentA` but not `ComponentB`.
+///
+/// # Iteration over query result
+/// The `iter` and `iter_mut` methods are used to iterate over query result.
+/// Refer to the [Iterator API docs](Iterator) for advanced iterator usage.
+///
+/// ```
+/// fn immutable_query_system(query: Query<(&ComponentA, &ComponentB)>) {
+///     for (a,b) in query.run(&world).iter() {
+///         // a and b are immutable reference to ComponentA and ComponentB
+///     }
+/// }
+///
+/// fn mutable_query_system(mut query: Query<(&mut ComponentA, &ComponentB)>) {
+///     for (mut a,b) in query.run(&world).iter_mut() {
+///         // a is a mutable reference to ComponentA
+///         // b is an immutable reference to ComponentB
+///     }
+/// }
+/// ```
 pub struct Query<'a, T: QueryParameters> {
     pub data: <T as QueryParameterFetch<'a>>::FetchItem,
 }

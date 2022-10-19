@@ -1,15 +1,23 @@
+use super::{SystemParam, SystemParamFetch};
+use crate::{
+    event::{EventHandler, SubscriptionToken},
+    world::World,
+};
 use std::{
     any::Any,
     sync::{RwLockReadGuard, RwLockWriteGuard},
 };
 
-use crate::{
-    event::{EventHandler, SubscriptionToken},
-    world::World,
-};
-
-use super::{SystemParam, SystemParamFetch};
-
+/// Shared borrow of an event with a subscription to the event queue
+///
+/// # Example
+/// ```
+/// fn my_system(event: EventStream<EventA>) {
+///     for e in event.read() {
+///         println!("Event {:?}", e);
+///     }
+/// }
+/// ```
 pub struct EventStream<'a, E: Any + std::fmt::Debug> {
     event_handler: RwLockReadGuard<'a, EventHandler<E>>,
     token: SubscriptionToken,
@@ -21,6 +29,7 @@ impl<'a, E: Any + std::fmt::Debug> EventStream<'a, E> {
     }
 }
 
+#[doc(hidden)]
 pub struct EventStreamState<E: Any + std::fmt::Debug> {
     _marker: std::marker::PhantomData<E>,
     token: Option<SubscriptionToken>,
@@ -60,6 +69,16 @@ impl<'a, E: Any + std::fmt::Debug> SystemParam for EventStream<'a, E> {
     type Fetch = EventStreamState<E>;
 }
 
+/// Shared borrow of an event without a subscription to the event queue
+///
+/// # Example
+/// ```
+/// fn my_system(event: Event<EventA>) {
+///     if let Some(e) = event.read() {
+///         println!("Event {:?}", e);
+///     }
+/// }
+/// ```
 pub struct Event<'a, E: Any + std::fmt::Debug> {
     event_handler: RwLockReadGuard<'a, EventHandler<E>>,
 }
@@ -70,6 +89,7 @@ impl<'a, E: Any + std::fmt::Debug> Event<'a, E> {
     }
 }
 
+#[doc(hidden)]
 pub struct EventState<E: Any + std::fmt::Debug> {
     _marker: std::marker::PhantomData<E>,
 }
@@ -102,6 +122,14 @@ impl<'a, E: Any + std::fmt::Debug> SystemParam for Event<'a, E> {
     type Fetch = EventState<E>;
 }
 
+/// Unique mutable borrow of an event
+///
+/// # Example
+/// ```
+/// fn my_system(mut event: EventPublisher<EventA>) {
+///    let new_event = EventA {};
+///    event.publish(new_event);
+/// }
 pub struct EventPublisher<'a, E: Any + std::fmt::Debug> {
     event_handler: RwLockWriteGuard<'a, EventHandler<E>>,
 }
@@ -116,6 +144,7 @@ impl<'a, E: Any + std::fmt::Debug> EventPublisher<'a, E> {
     }
 }
 
+#[doc(hidden)]
 pub struct EventPublisherState<E: Any + std::fmt::Debug> {
     _marker: std::marker::PhantomData<E>,
 }

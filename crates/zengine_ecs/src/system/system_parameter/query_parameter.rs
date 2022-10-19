@@ -1,10 +1,10 @@
+use super::{SystemParam, SystemParamFetch};
 use crate::{
     query::{Query, QueryParameters, QueryRunner},
     World,
 };
 
-use super::{SystemParam, SystemParamFetch};
-
+#[doc(hidden)]
 pub struct QueryState<T: QueryParameters> {
     query_runner: QueryRunner<T>,
 }

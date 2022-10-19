@@ -176,6 +176,7 @@ impl<'a, R: Resource> SystemParam for Option<ResMut<'a, R>> {
 /// ```
 pub type UnsendableRes<'a, R> = Ref<'a, R>;
 
+#[doc(hidden)]
 pub struct UnsendableResState<R: UnsendableResource + Default> {
     _marker: std::marker::PhantomData<R>,
 }
