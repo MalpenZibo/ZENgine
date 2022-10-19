@@ -1,8 +1,7 @@
+use crate::{input::InputEvent, Bindings, InputHandler, InputType};
 use zengine_ecs::system::{EventStream, ResMut};
 
-use crate::{input::InputEvent, Bindings, InputHandler, InputType};
-
-pub fn input_system<T: InputType>(
+pub(crate) fn input_system<T: InputType>(
     bindings: Bindings<T>,
 ) -> impl Fn(EventStream<InputEvent>, ResMut<InputHandler<T>>) {
     move |event_stream: EventStream<InputEvent>, mut input_handler: ResMut<InputHandler<T>>| {

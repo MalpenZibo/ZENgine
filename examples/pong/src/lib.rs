@@ -13,7 +13,10 @@ use zengine::{
         ActiveCamera, Background, Camera, CameraMode, Color, GraphicModule, Sprite, SpriteTexture,
         Texture, TextureAssets, TextureAtlas, TextureAtlasAssets,
     },
-    input::{input_system, Bindings, InputHandler},
+    input::{
+        device::{Key, Which},
+        Axis, AxisBind, Bindings, Input, InputHandler, InputModule,
+    },
     log::Level,
     math::{Vec2, Vec3},
     physics::{collision_system, Collision, Shape2D, ShapeType},
@@ -98,35 +101,35 @@ pub struct Dimensions {
 pub fn main() {
     Engine::init_logger(Level::Info);
 
-    let content = "
-        axis_mappings:
-            Player1XAxis:
-            - source:
-                Keyboard:
-                    key: D
-            - source:
-                Keyboard:
-                    key: A
-              invert: true
-            - source:
-                Keyboard:
-                    key: Right
-            - source: 
-                Keyboard: 
-                    key: Left
-              invert: true
-            - source:
-                ControllerStick:
-                    device_id: 0
-                    which: Left
-                    axis: X
-            - source:
-                Touch:
-                    axis: X
-                    discrete_map: 0.2
-    ";
-
-    let bindings: Bindings<UserInput> = serde_yaml::from_str(content).unwrap();
+    let bindings: Bindings<UserInput> = Bindings::default()
+        .add_axis(
+            UserInput::Player1XAxis,
+            AxisBind::with_source(Input::Keyboard { key: Key::D }),
+        )
+        .add_axis(
+            UserInput::Player1XAxis,
+            AxisBind::with_source(Input::Keyboard { key: Key::A }).invert_input(),
+        )
+        .add_axis(
+            UserInput::Player1XAxis,
+            AxisBind::with_source(Input::Keyboard { key: Key::Right }),
+        )
+        .add_axis(
+            UserInput::Player1XAxis,
+            AxisBind::with_source(Input::Keyboard { key: Key::Left }).invert_input(),
+        )
+        .add_axis(
+            UserInput::Player1XAxis,
+            AxisBind::with_source(Input::ControllerStick {
+                device_id: 0,
+                which: Which::Left,
+                axis: Axis::X,
+            }),
+        )
+        .add_axis(
+            UserInput::Player1XAxis,
+            AxisBind::with_source(Input::Touch { axis: Axis::X }).with_discrete_map(0.2),
+        );
 
     Engine::default()
         .add_module(WindowModule(WindowConfig {
@@ -141,8 +144,8 @@ pub fn main() {
         .add_module(GamepadModule)
         .add_module(AudioModule::default())
         .add_module(TimeModule(None))
+        .add_module(InputModule(bindings))
         .add_startup_system(setup)
-        .add_system(input_system(bindings))
         .add_system(collision_system)
         .add_system(ai_pad_control)
         .add_system(player_pad_control)
