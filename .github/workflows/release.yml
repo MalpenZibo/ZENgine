@@ -1,0 +1,72 @@
+name: Release ZENgine
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      level:
+        description: "Version Level major|minor|patch"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+jobs:
+  publish:
+    name: Release ZENgine
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Config Git
+        uses: oleksiyrudenko/gha-git-credentials@v2-latest
+        with:
+          token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Install cargo binary dependencies
+        uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-release
+
+      - name: Generate changelog
+        uses: heinrichreimer/github-changelog-generator-action@v2.3
+        id: changelog
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issues: false
+
+      - name: Commit changelog
+        run: |
+          git add CHANGELOG.md
+          git commit -m "update CHANGELOG.md for ZENgine release"
+          git push origin main
+
+      - name: Release
+        run: cargo release ${PUBLISH_LEVEL} --token ${CRATES_TOKEN} --no-tag --no-confirm --workspace --exclude pong
+        env:
+          PUBLISH_LEVEL: ${{ github.event.inputs.level }}
+          CRATES_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+
+      - name: Get New version
+        id: gettag
+        run: |
+          cd ZENgine
+          echo "::set-output name=TAG_NAME::$(cargo pkgid | cut -d# -f2 | cut -d: -f2)"
+
+      - name: Create a Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.gettag.outputs.TAG_NAME }}
+          body: ${{ steps.changelog.outputs.changelog }}
