@@ -11,7 +11,7 @@ homepage.workspace = true
 license.workspace = true
 
 [dependencies]
-zengine_macro = { path = "../zengine_macro" }
+zengine_macro = { path = "../zengine_macro", version = "*" }
 
 rustc-hash = { workspace = true }
 

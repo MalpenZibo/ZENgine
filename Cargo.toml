@@ -12,7 +12,7 @@ documentation.workspace = true
 homepage.workspace = true
 license.workspace = true
 
-exclude = [".github/", "crates/", "assets/", "benches/"]
+exclude = [".github/", "crates/", "assets/", "benches/", "examples/pong/"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -42,17 +42,17 @@ gilrs = { version = "0.9.0" }
 ahash = "0.8.0"
 
 [dependencies]
-zengine_asset = { path = "crates/zengine_asset" }
-zengine_engine = { path = "crates/zengine_engine" }
-zengine_ecs = { path = "crates/zengine_ecs" }
-zengine_core = { path = "crates/zengine_core" }
-zengine_graphic = { path = "crates/zengine_graphic" }
-zengine_input = { path = "crates/zengine_input" }
-zengine_physics = { path = "crates/zengine_physics" }
-zengine_window = { path = "crates/zengine_window" }
-zengine_audio = { path = "crates/zengine_audio" }
-zengine_gamepad = { path = "crates/zengine_gamepad" }
-zengine_macro = { path = "crates/zengine_macro" }
+zengine_asset = { path = "crates/zengine_asset", version = "*" }
+zengine_engine = { path = "crates/zengine_engine", version = "*" }
+zengine_ecs = { path = "crates/zengine_ecs", version = "*" }
+zengine_core = { path = "crates/zengine_core", version = "*" }
+zengine_graphic = { path = "crates/zengine_graphic", version = "*" }
+zengine_input = { path = "crates/zengine_input", version = "*" }
+zengine_physics = { path = "crates/zengine_physics", version = "*" }
+zengine_window = { path = "crates/zengine_window", version = "*" }
+zengine_audio = { path = "crates/zengine_audio", version = "*" }
+zengine_gamepad = { path = "crates/zengine_gamepad", version = "*" }
+zengine_macro = { path = "crates/zengine_macro", version = "*" }
 
 glam = { workspace = true }
 
