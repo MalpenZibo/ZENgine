@@ -1,5 +1,6 @@
 use zengine::Engine;
 
+#[cfg(not(target_os = "android"))]
 fn main() {
     Engine::default().add_system(hello_world_system).run();
 }

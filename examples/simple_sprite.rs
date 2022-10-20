@@ -11,6 +11,7 @@ use zengine::{
     Engine,
 };
 
+#[cfg(not(target_os = "android"))]
 fn main() {
     Engine::default()
         .add_module(WindowModule(WindowConfig {

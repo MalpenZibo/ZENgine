@@ -74,11 +74,11 @@ ndk-glue = { workspace = true }
 [dev-dependencies]
 bencher = "0.1.5"
 
-[[target.'cfg(not(target_os = "android"))'.example]]
+[[example]]
 name = "hello_world"
 path = "examples/hello_world.rs"
 
-[[target.'cfg(not(target_os = "android"))'.example]]
+[[example]]
 name = "simple_sprite"
 path = "examples/simple_sprite.rs"
 
