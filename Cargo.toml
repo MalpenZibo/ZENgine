@@ -22,7 +22,7 @@ exclude = ["benches"]
 members = ["crates/*", "examples/*"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
 authors = ["Simone Camito"]
 documentation = "https://docs.rs/zengine"
