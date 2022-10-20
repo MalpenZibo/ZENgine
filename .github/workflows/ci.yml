@@ -98,4 +98,4 @@ jobs:
         name: Test
         with:
           command: test
-          args: all
+          args: --all
