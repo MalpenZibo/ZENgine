@@ -19,7 +19,7 @@ crate-type = ["cdylib", "rlib"]
 
 [workspace]
 exclude = ["benches"]
-members = ["crates/*", "examples/*"]
+members = ["./", "crates/*", "examples/*"]
 
 [workspace.package]
 version = "0.0.1"
