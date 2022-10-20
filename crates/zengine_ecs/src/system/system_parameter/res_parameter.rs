@@ -14,11 +14,17 @@ use super::{SystemParam, SystemParamFetch};
 ///
 /// # Example
 /// ```
+/// use zengine_macro::Resource;
+/// use zengine_ecs::system::Res;
+///
+/// #[derive(Resource, Debug)]
+/// struct ResourceA {}
+///
 /// fn my_system(res: Res<ResourceA>) {
 ///     println!("ResourceA {:?}", res);
 /// }
 ///
-/// fn my_system(res: Option<Res<ResourceA>>) {
+/// fn my_system_option(res: Option<Res<ResourceA>>) {
 ///     if let Some(res) = res {
 ///         println!("ResourceA {:?}", res);
 ///     }
@@ -64,11 +70,24 @@ impl<'a, R: Resource + Default> SystemParam for Res<'a, R> {
 ///
 /// # Example
 /// ```
+/// use zengine_macro::Resource;
+/// use zengine_ecs::system::ResMut;
+///
+/// #[derive(Resource, Default, Debug)]
+/// struct ResourceA {
+///     data: u32
+/// }
+///
+/// #[derive(Resource, Debug)]
+/// struct ResourceB {
+///     data: u32
+/// }
+///
 /// fn my_system(mut res: ResMut<ResourceA>) {
 ///     res.data = 6;
 /// }
 ///
-/// fn my_system(res: Option<ResMut<ResourceA>>) {
+/// fn my_system_mut(res: Option<ResMut<ResourceB>>) {
 ///     if let Some(mut res) = res {
 ///         res.data = 6;
 ///     }
@@ -164,11 +183,20 @@ impl<'a, R: Resource> SystemParam for Option<ResMut<'a, R>> {
 ///
 /// # Example
 /// ```
+/// use zengine_macro::UnsendableResource;
+/// use zengine_ecs::system::UnsendableRes;
+///
+/// #[derive(UnsendableResource, Default, Debug)]
+/// struct ResourceA {}
+///
+/// #[derive(UnsendableResource, Debug)]
+/// struct ResourceB {}
+///
 /// fn my_system(res: UnsendableRes<ResourceA>) {
 ///     println!("Unsendable ResourceA {:?}", res);
 /// }
 ///
-/// fn my_system(res: Option<UnsendableRes<ResourceA>>) {
+/// fn my_system_mut(res: Option<UnsendableRes<ResourceB>>) {
 ///     if let Some(res) = res {
 ///         println!("Unsendable ResourceA {:?}", res);
 ///     }
@@ -214,11 +242,24 @@ impl<'a, R: UnsendableResource + Default> SystemParam for UnsendableRes<'a, R> {
 ///
 /// # Example
 /// ```
+/// use zengine_macro::UnsendableResource;
+/// use zengine_ecs::system::UnsendableResMut;
+///
+/// #[derive(UnsendableResource, Default, Debug)]
+/// struct ResourceA {
+///     data: u32
+/// }
+///
+/// #[derive(UnsendableResource, Debug)]
+/// struct ResourceB {
+///     data: u32
+/// }
+///
 /// fn my_system(mut res: UnsendableResMut<ResourceA>) {
 ///     res.data = 6;
 /// }
 ///
-/// fn my_system(res: Option<UnsendableResMut<ResourceA>>) {
+/// fn my_system_mut(res: Option<UnsendableResMut<ResourceB>>) {
 ///     if let Some(mut res) = res {
 ///         res.data = 6;
 ///     }

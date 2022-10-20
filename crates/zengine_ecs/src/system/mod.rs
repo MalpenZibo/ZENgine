@@ -11,6 +11,22 @@
 //!
 //! # Example
 //! ```
+//! use zengine_macro::{Component, Resource};
+//! use zengine_ecs::{
+//!     Entity,
+//!     system::ResMut,
+//!     query::{Query, QueryIterMut}
+//! };
+//!
+//! #[derive(Component, Debug)]
+//! struct HeathPoints(u32);
+//!
+//! #[derive(Component, Debug)]
+//! struct Life(u32);
+//!
+//! #[derive(Resource, Default, Debug)]
+//! struct DeathEntities(Vec<Entity>);
+//!
 //! fn custom_system(
 //!     mut query: Query<(Entity, &HeathPoints, &mut Life)>,
 //!     mut death: ResMut<DeathEntities>,

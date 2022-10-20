@@ -52,21 +52,21 @@ impl<T: QueryParameters> Default for QueryRunner<T> {
 /// The following example defines a query that gives an iterator over
 /// `(&ComponentA, &ComponentB)` tuples where ComponentA and ComponentB
 /// belong to the same entity
-/// ```
+/// ```ignore
 /// query: Query<(&ComponentA, &ComponentB)>
 /// ```
 ///
 /// # Mutable component access
 /// The following example is similar to the previous one, with the exception
 /// of `ComponentA` being accessed mutably here
-/// ```
+/// ```ignore
 /// mut query: Query<(&mut ComponentA, &ComponentB)>
 /// ```
 ///
 /// # Add Entity ID to the Query
 /// Inserting [Entity](crate::Entity) at any position in the type parameter tuple will give access
 /// to the entity ID.
-/// ```
+/// ```ignore
 /// query: Query<(Entity, &ComponentA, &ComponentB)>
 /// ```
 ///
@@ -80,14 +80,26 @@ impl<T: QueryParameters> Default for QueryRunner<T> {
 /// Refer to the [Iterator API docs](Iterator) for advanced iterator usage.
 ///
 /// ```
-/// fn immutable_query_system(query: Query<(&ComponentA, &ComponentB)>) {
-///     for (a,b) in query.run(&world).iter() {
+/// use zengine_macro::Component;
+/// use zengine_ecs::{
+///     World,
+///     query::{Query, QueryIter, QueryIterMut}
+/// };
+///
+/// #[derive(Component, Debug)]
+/// struct ComponentA {}
+///
+/// #[derive(Component, Debug)]
+/// struct ComponentB {}
+///
+/// fn immutable_query(query: Query<(&ComponentA, &ComponentB)>) {
+///     for (a,b) in query.iter() {
 ///         // a and b are immutable reference to ComponentA and ComponentB
 ///     }
 /// }
 ///
-/// fn mutable_query_system(mut query: Query<(&mut ComponentA, &ComponentB)>) {
-///     for (mut a,b) in query.run(&world).iter_mut() {
+/// fn mutable_query(mut query: Query<(&mut ComponentA, &ComponentB)>) {
+///     for (mut a,b) in query.iter_mut() {
 ///         // a is a mutable reference to ComponentA
 ///         // b is an immutable reference to ComponentB
 ///     }

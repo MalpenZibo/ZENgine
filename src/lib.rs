@@ -9,7 +9,7 @@
 //!
 //! ## Example
 //! Here is a simple "Hello World" ZENgine app:
-//! ```
+//! ```no_run
 //! use zengine::Engine;
 //!
 //! fn main() {

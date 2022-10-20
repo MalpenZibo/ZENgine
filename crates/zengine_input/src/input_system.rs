@@ -117,11 +117,10 @@ mod tests {
                 - source:
                     Keyboard:
                         key: D
-                  scale: 1.0
                 - source:
                     Keyboard:
                         key: A
-                  scale: -1.0
+                  invert: true
             action_mappings:
                 Jump:
                 - source: 
@@ -144,11 +143,10 @@ mod tests {
                 - source:
                     Keyboard:
                         key: D
-                  scale: 1.0
                 - source:
                     Keyboard:
                         key: A
-                  scale: -1.0
+                  invert: true
             action_mappings:
                 Jump:
                 - source: 
@@ -194,11 +192,10 @@ mod tests {
                 - source:
                     Keyboard:
                         key: D
-                  scale: 1.0
                 - source:
                     Keyboard:
                         key: A
-                  scale: -1.0
+                  invert: true
             action_mappings:
                 Jump:
                 - source: 

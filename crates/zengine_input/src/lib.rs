@@ -49,10 +49,13 @@ pub mod device {
 ///
 /// # Example
 /// ```
+/// use serde::Deserialize;
+/// use zengine_macro::InputType;
+///
 /// #[derive(Deserialize, InputType, Hash, Eq, PartialEq, Clone, Default, Debug)]
 /// pub enum UserInput {
 ///     #[default]
-///     MoveRight,
+///     MoveLeft,
 ///     MoveRight,
 ///     Jump,
 ///     Fire

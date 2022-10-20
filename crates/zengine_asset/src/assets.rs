@@ -27,7 +27,7 @@ pub trait Asset: Downcast + Send + Sync + std::fmt::Debug + 'static {
     /// The [asset derive macro](zengine_macro::Asset) implement this function
     /// in the following way
     ///
-    /// ```
+    /// ```ignore
     /// static ASSETTEST_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     /// impl Asset for AssetTest {
     ///    fn next_counter() -> u64

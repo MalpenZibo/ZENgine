@@ -13,8 +13,14 @@ use std::{
 /// Entity as part of its query fetch type parameter.
 ///
 /// ```
+/// use zengine_macro::Component;
+/// use zengine_ecs::{Entity, query::{Query, QueryIter}};
+///
+/// #[derive(Component, Debug)]
+/// struct TestComponent {}
+///
 /// fn example_system(query: Query<(Entity, &TestComponent)>) {
-///     for let (entity, test_component) in query {
+///     for (entity, test_component) in query.iter() {
 ///         println!("test_component: {:?} for entity: {:?}", test_component, entity);
 ///     }
 /// }

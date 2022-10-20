@@ -46,8 +46,8 @@ pub trait AssetLoader: Send + Sync + std::fmt::Debug + 'static {
     /// Process the asset creating an instance of the `Asset` from raw data
     ///
     /// # Example
-    /// ```
-    /// fn load(&self, data: Vec<u8>, context: &mut zengine_asset::LoaderContext) {
+    /// ```ignore
+    /// fn load(&self, data: Vec<u8>, context: &mut LoaderContext) {
     ///     let img =
     ///         image::load_from_memory(&data).unwrap_or_else(|e| panic!("Could not load image {}", e));
     ///
@@ -70,7 +70,7 @@ pub trait AssetLoader: Send + Sync + std::fmt::Debug + 'static {
     /// Return a list of extensions supported by this asset loader. Without the `dot`
     ///
     /// # Example
-    /// ```
+    /// ```ignore
     /// fn extension(&self) -> &[&str] {
     ///    &["png", "jpg", "jpeg", "bmp"]
     /// }
@@ -142,7 +142,7 @@ impl<T: Asset> AnyAssetCommandChannel for AssetCommandChannel<T> {
 /// # #[derive(Asset, Debug)]
 /// # struct TestAsset;
 ///
-/// fn my_system(asset_manager: ResMut<AssetManager>)
+/// fn my_system(mut asset_manager: ResMut<AssetManager>)
 /// {
 ///     let asset_handle: Handle<TestAsset> = asset_manager.load("image.png");
 /// }

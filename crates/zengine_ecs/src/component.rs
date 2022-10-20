@@ -22,11 +22,12 @@ use crate::archetype::Archetype;
 /// The newtype pattern is a simple workaround to this limitation:
 ///
 /// The following example gives a demonstration of this pattern.
-/// ```
+/// ```ingore
 /// use external_crate::TypeThatShouldBeAComponent;
+/// use zengine_macro::Component;
 ///
-/// #[derive(Component)]
-/// struct MyWrapper(TypeThatShouldBeAComponent)
+/// #[derive(Component, Debug)]
+/// struct MyWrapper(TypeThatShouldBeAComponent);
 /// ```
 pub trait Component: Any + Sync + Send + Debug {}
 

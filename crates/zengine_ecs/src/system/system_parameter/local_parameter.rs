@@ -11,6 +11,14 @@ use std::any::Any;
 ///
 /// /// # Example
 /// ```
+/// use zengine_macro::Resource;
+/// use zengine_ecs::system::Local;
+///
+/// #[derive(Resource, Debug)]
+/// struct Data {
+///     data: u32
+/// }
+///
 /// fn my_system(local: Local<Data>) {
 ///     local.data = 6;
 ///     println!("Local resource {:?}", local);

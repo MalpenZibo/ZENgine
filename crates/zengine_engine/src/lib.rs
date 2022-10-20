@@ -90,8 +90,8 @@ pub enum EngineEvent {
 ///
 /// Here is a simple "Hello World" ZENgine app:
 ///
-/// ```
-/// use zengine::Engine;
+/// ```no_run
+/// use zengine_engine::Engine;
 ///
 /// fn main() {
 ///     Engine::default().add_system(hello_world_system).run();
@@ -222,6 +222,8 @@ impl Engine {
     /// By default the engine use this runner implementation
     ///
     /// ```
+    /// use zengine_engine::{Engine, EngineEvent};
+    ///
     /// fn default_runner(mut engine: Engine) {
     ///     engine.startup();
     ///

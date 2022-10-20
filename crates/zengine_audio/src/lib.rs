@@ -165,7 +165,11 @@ impl AudioInstance {
 ///
 /// # Example
 /// ```
-/// fn play_audio_system(asset_manager: ResMut<AssetManager>, audio_device: Res<AudioDevice>) {
+/// use zengine_asset::AssetManager;
+/// use zengine_ecs::system::{Res, ResMut};
+/// use zengine_audio::AudioDevice;
+///
+/// fn play_audio_system(mut asset_manager: ResMut<AssetManager>, audio_device: Res<AudioDevice>) {
 ///     audio_device.play(asset_manager.load("test_sound.ogg"));
 /// }
 /// ```

@@ -12,6 +12,11 @@ use std::{
 ///
 /// # Example
 /// ```
+/// use zengine_ecs::system::EventStream;
+///
+/// #[derive(Debug)]
+/// struct EventA {}
+///
 /// fn my_system(event: EventStream<EventA>) {
 ///     for e in event.read() {
 ///         println!("Event {:?}", e);
@@ -73,6 +78,11 @@ impl<'a, E: Any + std::fmt::Debug> SystemParam for EventStream<'a, E> {
 ///
 /// # Example
 /// ```
+/// use zengine_ecs::system::Event;
+///
+/// #[derive(Debug)]
+/// struct EventA {}
+///
 /// fn my_system(event: Event<EventA>) {
 ///     if let Some(e) = event.read() {
 ///         println!("Event {:?}", e);
@@ -126,6 +136,11 @@ impl<'a, E: Any + std::fmt::Debug> SystemParam for Event<'a, E> {
 ///
 /// # Example
 /// ```
+/// use zengine_ecs::system::EventPublisher;
+///
+/// #[derive(Debug)]
+/// struct EventA {}
+///
 /// fn my_system(mut event: EventPublisher<EventA>) {
 ///    let new_event = EventA {};
 ///    event.publish(new_event);

@@ -117,6 +117,15 @@ impl Command for DestroyUnsendableResourceCommand {
 ///
 /// # Example
 /// ```
+/// use zengine_macro::Component;
+/// use zengine_ecs::system::Commands;
+///
+/// #[derive(Component, Debug)]
+/// struct ComponentA {}
+///
+/// #[derive(Component, Debug)]
+/// struct ComponentB {}
+///
 /// fn my_system(mut commands: Commands) {
 ///     commands.spawn((ComponentA {}, ComponentB {}));
 /// }

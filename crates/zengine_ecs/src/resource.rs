@@ -16,10 +16,10 @@ use std::{any::Any, cell::RefCell, sync::RwLock};
 ///
 /// The following example gives a demonstration of this pattern.
 /// ```
-/// use external_crate::TypeThatShouldBeAResource;
+/// use zengine_macro::Resource;
 ///
-/// #[derive(Resource)]
-/// struct MyWrapper(TypeThatShouldBeAResource)
+/// #[derive(Resource, Debug)]
+/// struct MyWrapper(Vec<usize>);
 /// ```
 pub trait Resource: Any + Sync + Send + Debug {}
 
@@ -53,10 +53,10 @@ impl<T: Resource> ResourceCell for RwLock<T> {
 ///
 /// The following example gives a demonstration of this pattern.
 /// ```
-/// use external_crate::TypeThatShouldBeAUnsendableResource;
+/// use zengine_macro::UnsendableResource;
 ///
-/// #[derive(UnsendableResource)]
-/// struct MyWrapper(TypeThatShouldBeAUnsendableResource)
+/// #[derive(UnsendableResource, Debug)]
+/// struct MyWrapper(Vec<usize>);
 /// ```
 pub trait UnsendableResource: Any + Debug {}
 

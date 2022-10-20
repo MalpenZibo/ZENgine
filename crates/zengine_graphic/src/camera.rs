@@ -54,6 +54,10 @@ pub enum CameraMode {
 ///
 /// # Example
 /// ```
+/// use zengine_ecs::system::Commands;
+/// use zengine_graphic::{Camera, CameraMode};
+/// use glam::Vec2;
+///
 /// fn setup(mut commands: Commands) {
 ///     commands.spawn(
 ///         Camera {

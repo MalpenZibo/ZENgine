@@ -83,6 +83,9 @@ impl World {
     ///
     /// # Example
     /// ```
+    /// use zengine_macro::Component;
+    /// use zengine_ecs::{Entity, World, query::QueryIter};
+    ///
     /// #[derive(Component, Debug)]
     /// struct ComponentA {
     ///     value: u32,
@@ -455,6 +458,11 @@ impl World {
     /// # Example
     /// ## Query all entities that have at least the ComponentA
     /// ```
+    /// use zengine_macro::Component;
+    /// use zengine_ecs::{World, query::QueryIter};
+    ///
+    /// let world = World::default();
+    ///
     /// #[derive(Component, Debug)]
     /// struct ComponentA {
     ///     value: u32,
@@ -474,6 +482,11 @@ impl World {
     /// ## Query all entities that have at least the ComponentA and ComponentB
     /// with a mutable access to ComponentB adding the Entity Key in the result
     /// ```
+    /// use zengine_macro::Component;
+    /// use zengine_ecs::{Entity, World, query::QueryIterMut};
+    ///
+    /// let world = World::default();
+    ///
     /// #[derive(Component, Debug)]
     /// struct ComponentA {
     ///     value: u32,
