@@ -11,10 +11,10 @@ homepage.workspace = true
 license.workspace = true
 
 [dependencies]
-zengine_asset = { path = "../zengine_asset", version = "*" }
-zengine_ecs = { path = "../zengine_ecs", version = "*" }
-zengine_engine = { path = "../zengine_engine", version = "*" }
-zengine_macro = { path = "../zengine_macro", version = "*" }
+zengine_asset = { workspace = true }
+zengine_ecs = { workspace = true }
+zengine_engine = { workspace = true }
+zengine_macro = { workspace = true }
 
 log = { workspace = true }
 

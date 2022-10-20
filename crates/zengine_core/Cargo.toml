@@ -11,9 +11,9 @@ homepage.workspace = true
 license.workspace = true
 
 [dependencies]
-zengine_engine = { path = "../zengine_engine", version = "0.0.1" }
-zengine_ecs = { path = "../zengine_ecs", version = "0.0.1" }
-zengine_macro = { path = "../zengine_macro", version = "0.0.1" }
+zengine_engine = { workspace = true }
+zengine_ecs = { workspace = true }
+zengine_macro = { workspace = true }
 
 log = { workspace = true }
 glam = { workspace = true }

@@ -11,7 +11,7 @@ homepage.workspace = true
 license.workspace = true
 
 [dependencies]
-zengine_ecs = { path = "../zengine_ecs", version = "*" }
+zengine_ecs = { workspace = true }
 
 cfg-if = { workspace = true }
 log = { workspace = true }

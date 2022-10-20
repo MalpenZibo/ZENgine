@@ -41,7 +41,6 @@ serde = { version = "1.0", features = ["derive"] }
 gilrs = { version = "0.9.0" }
 ahash = "0.8.0"
 
-[dependencies]
 zengine_asset = { path = "crates/zengine_asset", version = "0.0.1" }
 zengine_engine = { path = "crates/zengine_engine", version = "0.0.1" }
 zengine_ecs = { path = "crates/zengine_ecs", version = "0.0.1" }
@@ -53,6 +52,19 @@ zengine_window = { path = "crates/zengine_window", version = "0.0.1" }
 zengine_audio = { path = "crates/zengine_audio", version = "0.0.1" }
 zengine_gamepad = { path = "crates/zengine_gamepad", version = "0.0.1" }
 zengine_macro = { path = "crates/zengine_macro", version = "0.0.1" }
+
+[dependencies]
+zengine_asset = { workspace = true }
+zengine_engine = { workspace = true }
+zengine_ecs = { workspace = true }
+zengine_core = { workspace = true }
+zengine_graphic = { workspace = true }
+zengine_input = { workspace = true }
+zengine_physics = { workspace = true }
+zengine_window = { workspace = true }
+zengine_audio = { workspace = true }
+zengine_gamepad = { workspace = true }
+zengine_macro = { workspace = true }
 
 glam = { workspace = true }
 

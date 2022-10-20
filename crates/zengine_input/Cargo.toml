@@ -11,9 +11,9 @@ homepage.workspace = true
 license.workspace = true
 
 [dependencies]
-zengine_ecs = { path = "../zengine_ecs", version = "*" }
-zengine_engine = { path = "../zengine_engine", version = "*" }
-zengine_macro = { path = "../zengine_macro", version = "*" }
+zengine_ecs = { workspace = true }
+zengine_engine = { workspace = true }
+zengine_macro = { workspace = true }
 
 winit = { workspace = true, features = ["serde"] }
 log = { workspace = true }
