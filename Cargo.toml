@@ -19,7 +19,7 @@ crate-type = ["cdylib", "rlib"]
 
 [workspace]
 exclude = ["benches"]
-members = ["./", "crates/*", "examples/*"]
+members = ["crates/*", "examples/*"]
 
 [workspace.package]
 version = "0.0.1"
@@ -83,6 +83,6 @@ name = "simple_sprite"
 path = "examples/simple_sprite.rs"
 
 [[bench]]
-name = "archetype_vs_old_system"
-path = "benches/archetype_vs_old_system.rs"
+name = "archetype"
+path = "benches/archetype.rs"
 harness = false

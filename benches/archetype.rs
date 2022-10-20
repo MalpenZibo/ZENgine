@@ -2,7 +2,6 @@
 extern crate bencher;
 
 use bencher::Bencher;
-
 use zengine_ecs::{query::QueryIter, World};
 
 #[derive(Debug)]
