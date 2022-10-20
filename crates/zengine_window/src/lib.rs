@@ -259,14 +259,15 @@ fn runner(mut engine: Engine) {
                 event: WindowEvent::CursorMoved { position, .. },
                 ..
             } if runner_state.is_running() => {
+                let window_specs = engine.world.get_resource::<WindowSpecs>().unwrap();
                 if let Some(mut input) = engine.world.get_mut_event_handler::<InputEvent>() {
                     input.publish(InputEvent {
                         input: Input::MouseMotion { axis: Axis::X },
-                        value: position.x as f32,
+                        value: position.x as f32 / (window_specs.size.x / 2) as f32 - 1.,
                     });
                     input.publish(InputEvent {
                         input: Input::MouseMotion { axis: Axis::Y },
-                        value: position.y as f32,
+                        value: position.y as f32 / (window_specs.size.y / 2) as f32 - 1.,
                     });
                 }
             }
@@ -342,7 +343,7 @@ fn runner(mut engine: Engine) {
                         value: if phase == TouchPhase::Ended {
                             0.
                         } else {
-                            location.x as f32 / (window_specs.size.y / 2) as f32 - 1.
+                            location.y as f32 / (window_specs.size.y / 2) as f32 - 1.
                         },
                     });
                 }
