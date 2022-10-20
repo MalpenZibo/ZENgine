@@ -1,9 +1,9 @@
 #![doc(
-    html_logo_url = "https://raw.githubusercontent.com/MalpenZibo/ZENgine/master/assets/branding/logo.svg",
-    html_favicon_url = "https://raw.githubusercontent.com/MalpenZibo/ZENgine/master/assets/branding/logo.svg"
+    html_logo_url = "https://raw.githubusercontent.com/MalpenZibo/ZENgine/main/assets/branding/logo.svg",
+    html_favicon_url = "https://raw.githubusercontent.com/MalpenZibo/ZENgine/main/assets/branding/logo.svg"
 )]
 
-//! [<img src="https://raw.githubusercontent.com/MalpenZibo/ZENgine/master/assets/branding/logo_extended.svg" height="200" />](https://malpenzibo.github.io/ZENgine/)
+//! [<img src="https://raw.githubusercontent.com/MalpenZibo/ZENgine/main/assets/branding/logo_extended.svg" height="200" />](https://malpenzibo.github.io/ZENgine/)
 //!
 //! ZENgine is a simple open-source modular game engine built in Rust for didactical purpose
 //!

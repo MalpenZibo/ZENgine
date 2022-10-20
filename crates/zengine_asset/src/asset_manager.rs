@@ -150,7 +150,7 @@ impl<T: Asset> AnyAssetCommandChannel for AssetCommandChannel<T> {
 ///
 /// See the [`simple_sprite`] example for more information.
 ///
-/// [`simple_sprite`]: https://github.com/MalpenZibo/ZENgine/blob/master/examples/asset/simple_sprite.rs
+/// [`simple_sprite`]: https://github.com/MalpenZibo/ZENgine/blob/main/examples/asset/simple_sprite.rs
 #[derive(Resource, Debug)]
 pub struct AssetManager {
     loaders: Vec<Arc<dyn AssetLoader>>,
