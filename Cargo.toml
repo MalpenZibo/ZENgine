@@ -42,17 +42,17 @@ gilrs = { version = "0.9.0" }
 ahash = "0.8.0"
 
 [dependencies]
-zengine_asset = { path = "crates/zengine_asset", version = "*" }
-zengine_engine = { path = "crates/zengine_engine", version = "*" }
-zengine_ecs = { path = "crates/zengine_ecs", version = "*" }
-zengine_core = { path = "crates/zengine_core", version = "*" }
-zengine_graphic = { path = "crates/zengine_graphic", version = "*" }
-zengine_input = { path = "crates/zengine_input", version = "*" }
-zengine_physics = { path = "crates/zengine_physics", version = "*" }
-zengine_window = { path = "crates/zengine_window", version = "*" }
-zengine_audio = { path = "crates/zengine_audio", version = "*" }
-zengine_gamepad = { path = "crates/zengine_gamepad", version = "*" }
-zengine_macro = { path = "crates/zengine_macro", version = "*" }
+zengine_asset = { path = "crates/zengine_asset", version = "0.0.1" }
+zengine_engine = { path = "crates/zengine_engine", version = "0.0.1" }
+zengine_ecs = { path = "crates/zengine_ecs", version = "0.0.1" }
+zengine_core = { path = "crates/zengine_core", version = "0.0.1" }
+zengine_graphic = { path = "crates/zengine_graphic", version = "0.0.1" }
+zengine_input = { path = "crates/zengine_input", version = "0.0.1" }
+zengine_physics = { path = "crates/zengine_physics", version = "0.0.1" }
+zengine_window = { path = "crates/zengine_window", version = "0.0.1" }
+zengine_audio = { path = "crates/zengine_audio", version = "0.0.1" }
+zengine_gamepad = { path = "crates/zengine_gamepad", version = "0.0.1" }
+zengine_macro = { path = "crates/zengine_macro", version = "0.0.1" }
 
 glam = { workspace = true }
 
