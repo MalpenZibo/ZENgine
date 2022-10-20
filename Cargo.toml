@@ -74,14 +74,6 @@ ndk-glue = { workspace = true }
 [dev-dependencies]
 bencher = "0.1.5"
 
-[[example]]
-name = "hello_world"
-path = "examples/hello_world.rs"
-
-[[example]]
-name = "simple_sprite"
-path = "examples/simple_sprite.rs"
-
 [[bench]]
 name = "archetype"
 path = "benches/archetype.rs"
