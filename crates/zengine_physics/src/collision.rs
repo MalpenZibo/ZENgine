@@ -3,23 +3,33 @@ use glam::Vec3;
 use rustc_hash::FxHashSet;
 use zengine_core::Transform;
 use zengine_ecs::{
-    system::{EventPublisher, Local, Query, QueryIter},
+    query::{Query, QueryIter},
+    system::{EventPublisher, Local},
     Entity,
 };
 use zengine_macro::Component;
 
+/// types of Shape
 #[derive(Debug)]
 pub enum ShapeType {
+    /// A circle with the given radius
     Circle { radius: f32 },
+    /// A rectangle with the given width and height
     Rectangle { width: f32, height: f32 },
 }
 
+/// [Component](zengine_ecs::Component) that rappresent a 2D collision shape
+///
+/// A collision shape has an origin and a type
+/// that could be a [circle](ShapeType::Circle) or a [rectagle](ShapeType::Rectangle)
 #[derive(Component, Debug)]
 pub struct Shape2D {
     pub origin: Vec3,
     pub shape_type: ShapeType,
 }
 
+/// An event that rappresent a collision between two entities
+/// with a [Shape2D]
 #[derive(Debug)]
 pub struct Collision {
     pub entity_a: Entity,
@@ -51,6 +61,10 @@ fn check_rectangle_and_circle(
     delta_x * delta_x + delta_y * delta_y < (b_radius * b_radius)
 }
 
+/// A simple collision system between [Shape2D]
+///
+/// This system doesn't take in consideration the entity transform
+/// rotation for rectangular shape
 pub fn collision_system(
     query: Query<(Entity, &Shape2D, &Transform)>,
     mut collision_event: EventPublisher<Collision>,

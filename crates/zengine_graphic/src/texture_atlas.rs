@@ -1,31 +1,29 @@
-use std::{
-    collections::BTreeMap,
-    hash::{Hash, Hasher},
-};
-
+use crate::{Device, Image, Queue, Texture, TextureAssets, TextureBindGroupLayout};
 use glam::Vec2;
 use rectangle_pack::{
     contains_smallest_box, pack_rects, volume_heuristic, GroupedRectsToPlace, PackedLocation,
     RectToInsert, RectanglePackError, TargetBin,
 };
 use rustc_hash::FxHashMap;
+use std::{
+    collections::BTreeMap,
+    hash::{Hash, Hasher},
+};
 use zengine_asset::{AssetEvent, Assets, Handle, HandleId};
-use zengine_ecs::system::{EventStream, OptionalRes, OptionalResMut};
+use zengine_ecs::system::{EventStream, Res, ResMut};
 use zengine_macro::Asset;
-
-use crate::{Device, Image, Queue, Texture, TextureAssets, TextureBindGroupLayout};
 
 const BYTE_PER_PIXEL: usize = 4;
 const PADDING: u32 = 1;
 
 #[derive(Debug)]
-pub struct ImageRect {
-    pub min: Vec2,
-    pub max: Vec2,
-    pub relative_min: Vec2,
-    pub relative_max: Vec2,
+pub(crate) struct ImageRect {
+    pub(crate) relative_min: Vec2,
+    pub(crate) relative_max: Vec2,
 }
 
+/// [Asset](zengine_asset::Asset) that rappresent a Texture Atlas,
+/// a Texture that contains many images
 #[derive(Asset, Debug)]
 pub struct TextureAtlas {
     width: u32,
@@ -33,11 +31,11 @@ pub struct TextureAtlas {
     images: FxHashMap<Handle<Image>, bool>,
     image_handles: FxHashMap<Handle<Image>, usize>,
     image_rects: Vec<ImageRect>,
-    pub texture: Option<Handle<Texture>>,
+    pub(crate) texture: Option<Handle<Texture>>,
 }
 
 impl TextureAtlas {
-    pub fn get_rect(&self, image_handle: &Handle<Image>) -> &ImageRect {
+    pub(crate) fn get_rect(&self, image_handle: &Handle<Image>) -> &ImageRect {
         self.image_rects
             .get(*self.image_handles.get(image_handle).unwrap())
             .unwrap()
@@ -135,8 +133,6 @@ impl TextureAtlas {
             let relative_max = Vec2::new(max.x / width as f32, max.y / height as f32);
 
             self.image_rects.push(ImageRect {
-                min,
-                max,
                 relative_min,
                 relative_max,
             });
@@ -179,7 +175,9 @@ impl TextureAtlas {
     }
 }
 
+/// Add functionalities to create a [TextureAtlas] to the [Assets<TextureAtlas>] storage
 pub trait TextureAtlasAssets {
+    /// Creates a [TextureAtlas] asset returning a strong [Handle] to it with the given Images handle
     fn create_texture_atlas(&mut self, images: &[&Handle<Image>]) -> Handle<TextureAtlas>;
 }
 
@@ -205,13 +203,13 @@ impl TextureAtlasAssets for Assets<TextureAtlas> {
     }
 }
 
-pub fn prepare_texture_atlas_asset(
-    texture_bind_group_layout: OptionalRes<TextureBindGroupLayout>,
-    device: OptionalRes<Device>,
-    queue: OptionalRes<Queue>,
-    textures_atlas: OptionalResMut<Assets<TextureAtlas>>,
-    textures: OptionalResMut<Assets<Texture>>,
-    images: OptionalResMut<Assets<Image>>,
+pub(crate) fn prepare_texture_atlas_asset(
+    texture_bind_group_layout: Option<Res<TextureBindGroupLayout>>,
+    device: Option<Res<Device>>,
+    queue: Option<Res<Queue>>,
+    textures_atlas: Option<ResMut<Assets<TextureAtlas>>>,
+    textures: Option<ResMut<Assets<Texture>>>,
+    images: Option<ResMut<Assets<Image>>>,
     images_asset_event: EventStream<AssetEvent<Image>>,
 ) {
     let events = images_asset_event.read();
@@ -232,7 +230,7 @@ pub fn prepare_texture_atlas_asset(
     ) {
         for e in events {
             if let AssetEvent::Loaded(handle) = e {
-                let image_handle = Handle::weak(handle.id);
+                let image_handle = Handle::weak(handle.get_id());
                 for (_, atlas) in textures_atlas
                     .iter_mut()
                     .filter(|(_, atlas)| !atlas.finalized())

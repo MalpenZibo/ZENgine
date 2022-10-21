@@ -4,10 +4,8 @@ use zengine::{
     audio::{Audio, AudioDevice, AudioInstance, AudioModule, AudioSettings},
     core::{Time, TimeModule, Transform},
     ecs::{
-        system::{
-            Commands, EventPublisher, EventStream, Local, OptionalRes, OptionalResMut, Query,
-            QueryIter, QueryIterMut, Res, ResMut,
-        },
+        query::{Query, QueryIter, QueryIterMut},
+        system::{Commands, EventPublisher, EventStream, Local, Res, ResMut},
         Entity,
     },
     gamepad::GamepadModule,
@@ -15,7 +13,10 @@ use zengine::{
         ActiveCamera, Background, Camera, CameraMode, Color, GraphicModule, Sprite, SpriteTexture,
         Texture, TextureAssets, TextureAtlas, TextureAtlasAssets,
     },
-    input::{input_system, Bindings, InputHandler},
+    input::{
+        device::{Key, Which},
+        Axis, AxisBind, Bindings, Input, InputHandler, InputModule,
+    },
     log::Level,
     math::{Vec2, Vec3},
     physics::{collision_system, Collision, Shape2D, ShapeType},
@@ -100,35 +101,35 @@ pub struct Dimensions {
 pub fn main() {
     Engine::init_logger(Level::Info);
 
-    let content = "
-        axis_mappings:
-            Player1XAxis:
-            - source:
-                Keyboard:
-                    key: D
-            - source:
-                Keyboard:
-                    key: A
-              invert: true
-            - source:
-                Keyboard:
-                    key: Right
-            - source: 
-                Keyboard: 
-                    key: Left
-              invert: true
-            - source:
-                ControllerStick:
-                    device_id: 0
-                    which: Left
-                    axis: X
-            - source:
-                Touch:
-                    axis: X
-                    discrete_map: 0.2
-    ";
-
-    let bindings: Bindings<UserInput> = serde_yaml::from_str(content).unwrap();
+    let bindings: Bindings<UserInput> = Bindings::default()
+        .add_axis(
+            UserInput::Player1XAxis,
+            AxisBind::with_source(Input::Keyboard { key: Key::D }),
+        )
+        .add_axis(
+            UserInput::Player1XAxis,
+            AxisBind::with_source(Input::Keyboard { key: Key::A }).invert_input(),
+        )
+        .add_axis(
+            UserInput::Player1XAxis,
+            AxisBind::with_source(Input::Keyboard { key: Key::Right }),
+        )
+        .add_axis(
+            UserInput::Player1XAxis,
+            AxisBind::with_source(Input::Keyboard { key: Key::Left }).invert_input(),
+        )
+        .add_axis(
+            UserInput::Player1XAxis,
+            AxisBind::with_source(Input::ControllerStick {
+                device_id: 0,
+                which: Which::Left,
+                axis: Axis::X,
+            }),
+        )
+        .add_axis(
+            UserInput::Player1XAxis,
+            AxisBind::with_source(Input::Touch { axis: Axis::X }).with_discrete_map(0.2),
+        );
 
     Engine::default()
         .add_module(WindowModule(WindowConfig {
@@ -143,8 +144,8 @@ pub fn main() {
         .add_module(GamepadModule)
         .add_module(AudioModule::default())
         .add_module(TimeModule(None))
+        .add_module(InputModule(bindings))
         .add_startup_system(setup)
-        .add_system(input_system(bindings))
         .add_system(collision_system)
         .add_system(ai_pad_control)
         .add_system(player_pad_control)
@@ -157,10 +158,10 @@ pub fn main() {
 fn setup(
     mut commands: Commands,
     mut asset_manager: ResMut<AssetManager>,
-    mut textures: OptionalResMut<Assets<Texture>>,
-    mut textures_atlas: OptionalResMut<Assets<TextureAtlas>>,
+    mut textures: Option<ResMut<Assets<Texture>>>,
+    mut textures_atlas: Option<ResMut<Assets<TextureAtlas>>>,
     audio_device: Res<AudioDevice>,
-    audio_instances: OptionalRes<Assets<AudioInstance>>,
+    audio_instances: Option<Res<Assets<AudioInstance>>>,
     window_specs: Res<WindowSpecs>,
 ) {
     let textures = textures.as_mut().unwrap();
@@ -400,7 +401,7 @@ fn setup(
 
 fn player_pad_control(
     mut pads: Query<(Entity, &mut Pad)>,
-    player1: OptionalRes<Player1>,
+    player1: Option<Res<Player1>>,
     input: Res<InputHandler<UserInput>>,
 ) {
     if let Some(pad) = player1.and_then(|player1| {
@@ -509,11 +510,11 @@ fn collision_response(
     mut query_pad: Query<(Entity, &mut Transform, &mut Pad)>,
     mut query_ball: Query<(Entity, &mut Transform, &mut Ball)>,
     collision_event: EventStream<Collision>,
-    field_border: OptionalRes<FieldBorder>,
+    field_border: Option<Res<FieldBorder>>,
     mut game_event: EventPublisher<GameEvent>,
     audio_device: Res<AudioDevice>,
-    bounce_effect: OptionalRes<BounceEffect>,
-    score_effect: OptionalRes<ScoreEffect>,
+    bounce_effect: Option<Res<BounceEffect>>,
+    score_effect: Option<Res<ScoreEffect>>,
     dimensions: Res<Dimensions>,
 ) {
     fn get_collision_type(

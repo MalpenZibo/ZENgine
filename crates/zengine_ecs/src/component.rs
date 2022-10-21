@@ -8,13 +8,36 @@ use zengine_macro::all_positional_tuples;
 
 use crate::archetype::Archetype;
 
+/// A data type that can be used to store data for an [Entity](crate::Entity)
+///
+/// Component is a [derivable trait](https://doc.rust-lang.org/book/appendix-03-derivable-traits.html):
+/// you could implement it by applying a `#[derive(Component)]` attribute to your data type.
+/// To correctly implement this trait your data must satisfy the `Sync + Send + Debug` trait bounds.
+///
+/// # Implementing the trait for foreign types
+/// As a consequence of the [orphan rule](https://doc.rust-lang.org/book/ch10-02-traits.html#implementing-a-trait-on-a-type),
+/// it is not possible to separate into two different crates the implementation of Component
+/// from the definition of a type.
+/// For this reason is not possible to implement the Component trat for a type defined in a third party library.
+/// The newtype pattern is a simple workaround to this limitation:
+///
+/// The following example gives a demonstration of this pattern.
+/// ```ingore
+/// use external_crate::TypeThatShouldBeAComponent;
+/// use zengine_macro::Component;
+///
+/// #[derive(Component, Debug)]
+/// struct MyWrapper(TypeThatShouldBeAComponent);
+/// ```
 pub trait Component: Any + Sync + Send + Debug {}
 
+#[doc(hidden)]
 pub enum InsertType {
     Add,
     Replace(usize),
 }
 
+#[doc(hidden)]
 pub trait ComponentBundle {
     fn get_types() -> Vec<TypeId>;
 
@@ -75,6 +98,7 @@ macro_rules! impl_component_bundle_for_tuple {
 }
 all_positional_tuples!(impl_component_bundle_for_tuple, 0, 14, C);
 
+#[doc(hidden)]
 pub trait ComponentColumn: Debug {
     fn to_any(&self) -> &dyn Any;
     fn to_any_mut(&mut self) -> &mut dyn Any;
@@ -105,7 +129,7 @@ impl<T: Component> ComponentColumn for RwLock<Vec<T>> {
     }
 }
 
-pub fn component_vec_to_mut<T: Component>(c: &mut dyn ComponentColumn) -> &mut Vec<T> {
+pub(crate) fn component_vec_to_mut<T: Component>(c: &mut dyn ComponentColumn) -> &mut Vec<T> {
     c.to_any_mut()
         .downcast_mut::<RwLock<Vec<T>>>()
         .expect("donwcasting error")

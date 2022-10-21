@@ -1,7 +1,8 @@
 use zengine_macro::generate_zip;
 
-generate_zip!(26);
+generate_zip!(14);
 
+#[doc(hidden)]
 pub enum OptionalIterator<I: Iterator> {
     NoneIterator,
     SomeIterator(I),
@@ -19,7 +20,6 @@ impl<I: Iterator> Iterator for OptionalIterator<I> {
     }
 }
 
-#[doc(hidden)]
 /// A series of iterators of the same type that are traversed in a row.
 pub struct QueryIterator<I: Iterator> {
     current_iter: Option<I>,

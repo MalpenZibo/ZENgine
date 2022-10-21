@@ -1,19 +1,18 @@
-use std::ops::MulAssign;
-
+use crate::{Device, Queue};
 use glam::Vec2;
+use std::ops::MulAssign;
 use wgpu::{util::DeviceExt, BindGroup, BindGroupLayout};
 use zengine_core::Transform;
 use zengine_ecs::{
-    system::{Commands, OptionalRes, Query, QueryIter},
+    query::{Query, QueryIter},
+    system::{Commands, Res},
     Entity,
 };
 use zengine_macro::{Component, Resource};
 
-use crate::{Device, Queue};
-
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct CameraUniform {
+struct CameraUniform {
     view_proj: [[f32; 4]; 4],
 }
 
@@ -33,23 +32,47 @@ impl CameraUniform {
     }
 }
 
+/// [Resource](zengine_ecs::Resource) that defines the current used camera
 #[derive(Resource, Debug)]
 pub struct ActiveCamera {
+    /// Entity that have the active component camera attached
     pub entity: Entity,
 }
 
+/// Type of camera
 #[derive(Debug)]
 pub enum CameraMode {
+    /// Defines an orthographic 2D projection using
+    /// the given Vec2 to set the viewbox width and height
     Mode2D(Vec2),
 }
 
+/// [Component](zengine_ecs::Component) that rappresent a Camera
+///
+/// Contains a [CameraMode] that define the type of projection
+/// (currently only a 2D camera could be defined)
+///
+/// # Example
+/// ```
+/// use zengine_ecs::system::Commands;
+/// use zengine_graphic::{Camera, CameraMode};
+/// use glam::Vec2;
+///
+/// fn setup(mut commands: Commands) {
+///     commands.spawn(
+///         Camera {
+///             mode: CameraMode::Mode2D(Vec2::new(3.55, 2.0))
+///         }
+///     );
+/// }
+/// ```
 #[derive(Component, Debug)]
 pub struct Camera {
     pub mode: CameraMode,
 }
 
 impl Camera {
-    pub fn get_projection(&self, transform: Option<&Transform>) -> glam::Mat4 {
+    pub(crate) fn get_projection(&self, transform: Option<&Transform>) -> glam::Mat4 {
         let mut proj = match self.mode {
             CameraMode::Mode2D(size) => glam::Mat4::orthographic_lh(
                 -size.x / 2.0,
@@ -70,7 +93,7 @@ impl Camera {
 }
 
 #[derive(Resource, Debug)]
-pub struct CameraBuffer {
+pub(crate) struct CameraBuffer {
     pub buffer: wgpu::Buffer,
     pub bind_group_layout: BindGroupLayout,
     pub bind_group: BindGroup,
@@ -78,7 +101,7 @@ pub struct CameraBuffer {
 
 fn pick_correct_camera<'a>(
     camera_query: &'a Query<(Entity, &Camera, Option<&Transform>)>,
-    active_camera: &'a OptionalRes<ActiveCamera>,
+    active_camera: &'a Option<Res<ActiveCamera>>,
 ) -> Option<(&'a Camera, Option<&'a Transform>)> {
     active_camera
         .as_ref()
@@ -89,7 +112,7 @@ fn pick_correct_camera<'a>(
         .map(|(_, c, t)| (c, t))
 }
 
-pub fn setup_camera(device: OptionalRes<Device>, mut commands: Commands) {
+pub(crate) fn setup_camera(device: Option<Res<Device>>, mut commands: Commands) {
     let device = device.unwrap();
 
     let camera_uniform = CameraUniform::default();
@@ -129,11 +152,11 @@ pub fn setup_camera(device: OptionalRes<Device>, mut commands: Commands) {
     })
 }
 
-pub fn camera_render(
-    queue: OptionalRes<Queue>,
+pub(crate) fn camera_render(
+    queue: Option<Res<Queue>>,
     camera_query: Query<(Entity, &Camera, Option<&Transform>)>,
-    active_camera: OptionalRes<ActiveCamera>,
-    camera_buffer: OptionalRes<CameraBuffer>,
+    active_camera: Option<Res<ActiveCamera>>,
+    camera_buffer: Option<Res<CameraBuffer>>,
 ) {
     if let (Some(queue), Some(camera_buffer)) = (queue, camera_buffer) {
         let camera_data = pick_correct_camera(&camera_query, &active_camera);

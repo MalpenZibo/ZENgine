@@ -7,6 +7,7 @@ use std::sync::{RwLock, RwLockWriteGuard};
 
 const STREAM_SIZE_BLOCK: usize = 10;
 
+#[doc(hidden)]
 pub trait EventCell: Debug {
     fn to_any(&self) -> &dyn Any;
     fn to_any_mut(&mut self) -> &mut dyn Any;
@@ -21,6 +22,14 @@ impl<T: Any + Debug> EventCell for RwLock<EventHandler<T>> {
     }
 }
 
+/// Handle event of a specific type
+///
+/// An EventHandler stores in a circular buffer all the event of a specific type published.
+/// A reader could subscribe to the event and it will receive a [SubscriptionToken].
+/// Then it can use this SubscriptionToken to get all the published events
+/// from the last time that the subscriber read the event queue
+///
+/// A non subscribed reader can only read the last published event
 #[derive(Debug)]
 pub struct EventHandler<E: Any + Debug> {
     buffer: Vec<E>,
@@ -41,6 +50,15 @@ impl<E: Any + Debug> Default for EventHandler<E> {
 }
 
 impl<E: Any + Debug> EventHandler<E> {
+    /// Subscribes to the event queue
+    ///
+    /// Returns a SubscriptionToken that can be use to retrive
+    /// the all the published events from the last call to the [read method](EventHandler::read)
+    ///
+    /// # NB:
+    /// A subscriber should read the event queue regularly to avoid an unmanaged increase
+    /// of the event buffer otherwise the subscriber should call
+    /// the [unsubscribe method](EventHandler::unsubscribe)
     pub fn subscribe(&mut self) -> SubscriptionToken {
         let token = self.generate_token();
         self.subscriptions.insert(
@@ -53,10 +71,12 @@ impl<E: Any + Debug> EventHandler<E> {
         token
     }
 
+    /// Unsubscribe to the event queue
     pub fn unsubscribe(&mut self, token: SubscriptionToken) {
         self.subscriptions.remove(&token);
     }
 
+    /// Publish a new event to the event queue
     pub fn publish(&mut self, event: E) {
         if let Some(mut head) = self.head {
             head += 1;
@@ -82,6 +102,7 @@ impl<E: Any + Debug> EventHandler<E> {
         }
     }
 
+    /// Reads the last event published on the queue
     pub fn read_last(&self) -> Option<&E> {
         match self.head {
             Some(head) => self.buffer.get(head),
@@ -89,6 +110,9 @@ impl<E: Any + Debug> EventHandler<E> {
         }
     }
 
+    /// Reads every event that has been published
+    /// from the last time that this method has been invoked
+    /// with the given SubscriptionToken
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn read(&self, token: &SubscriptionToken) -> impl Iterator<Item = &E> {
         let head = self.head.unwrap_or(0);
@@ -170,17 +194,21 @@ impl<E: Any + Debug> EventHandler<E> {
 }
 
 #[derive(Hash, Eq, PartialEq, Debug)]
-pub struct SubscriptionKey {
-    pub event_id: TypeId,
-    pub token: SubscriptionToken,
+struct SubscriptionKey {
+    event_id: TypeId,
+    token: SubscriptionToken,
 }
 
+/// Token that rappresent a subscription to the event queue
+///
+/// It's used by a subscriber to retrieve all the published events
+/// from the last time that the subscriber read the event queue
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Copy)]
 pub struct SubscriptionToken(u64);
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Subscription {
-    pub position: Option<usize>,
+struct Subscription {
+    position: Option<usize>,
 }
 
 impl Ord for Subscription {

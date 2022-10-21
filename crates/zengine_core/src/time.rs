@@ -2,17 +2,19 @@ use instant::Instant;
 use log::trace;
 use std::thread::sleep;
 use zengine_ecs::system::{EventStream, Local, ResMut};
-use zengine_engine::{EngineEvent, Module, StageLabel};
+use zengine_engine::{EngineEvent, Module, Stage};
 
 use std::time::Duration;
 use zengine_macro::Resource;
 
+/// A struct that rappresent a frame limiter
 #[derive(Debug)]
 pub struct FrameLimiter {
     frame_duration: Duration,
 }
 
 impl FrameLimiter {
+    /// Create a framelimiter from a target frame per second
     pub fn new(fps: u32) -> Self {
         FrameLimiter {
             frame_duration: Duration::from_secs(1) / fps,
@@ -21,6 +23,7 @@ impl FrameLimiter {
 }
 
 impl Default for FrameLimiter {
+    /// Returns a default frame limiter of 60 frames per second
     fn default() -> Self {
         FrameLimiter {
             frame_duration: Duration::from_secs(1) / 60,
@@ -28,8 +31,10 @@ impl Default for FrameLimiter {
     }
 }
 
+/// A [Resource](zengine_ecs::Resource) that contains the time elapsed between frames
 #[derive(Resource, Debug)]
 pub struct Time {
+    /// Delta time between each frame
     pub delta: Duration,
 }
 
@@ -42,17 +47,24 @@ impl Default for Time {
 }
 
 #[derive(Debug)]
-pub struct SystemInstant(Instant);
+struct SystemInstant(Instant);
 impl Default for SystemInstant {
     fn default() -> Self {
         SystemInstant(Instant::now())
     }
 }
 
-pub struct TimeModule(pub Option<FrameLimiter>);
+/// Adds timing suport to the engine
+///
+/// This module add a [Time] resource that measure
+/// the time passed between each frame
+pub struct TimeModule(
+    /// Optional [FrameLimiter] to add to the engine
+    pub Option<FrameLimiter>,
+);
 impl Module for TimeModule {
     fn init(self, engine: &mut zengine_engine::Engine) {
-        engine.add_system_into_stage(timing_system(self.0), StageLabel::PreUpdate);
+        engine.add_system_into_stage(timing_system(self.0), Stage::PreUpdate);
     }
 }
 

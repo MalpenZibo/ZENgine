@@ -2,6 +2,7 @@ use image::{DynamicImage, GenericImageView};
 use zengine_asset::AssetLoader;
 use zengine_macro::Asset;
 
+/// [Asset](zengine_asset::Asset) that rappresent an Image
 #[derive(Asset, Default, Debug)]
 pub struct Image {
     pub width: u32,
@@ -21,7 +22,7 @@ impl Image {
 }
 
 #[derive(Debug)]
-pub struct ImageLoader;
+pub(crate) struct ImageLoader;
 
 impl AssetLoader for ImageLoader {
     fn extension(&self) -> &[&str] {

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="800"
+   height="450"
+   viewBox="0 0 211.66666 119.0625"
+   version="1.1"
+   id="svg8"
+   inkscape:version="1.2.1 (9c6d41e4, 2022-07-14)"
+   sodipodi:docname="logo_extended.svg"
+   inkscape:export-filename="logo_extended.png"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <defs
+     id="defs2" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.7"
+     inkscape:cx="717.85714"
+     inkscape:cy="212.14286"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     units="px"
+     inkscape:window-width="1792"
+     inkscape:window-height="1067"
+     inkscape:window-x="0"
+     inkscape:window-y="25"
+     inkscape:window-maximized="1"
+     inkscape:showpageshadow="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,-127.66665)">
+    <path
+       sodipodi:nodetypes="czzzzczzzzzc"
+       inkscape:connector-curvature="0"
+       id="path831"
+       d="m 171.07736,181.03289 c 0,0 20.15024,-8.82903 15.13332,-16.60322 -5.01691,-7.7742 -22.05305,-9.84579 -36.29321,3.41831 -14.24017,13.26408 -4.05288,25.92064 4.68733,30.52064 8.74019,4.59999 26.89238,10.0724 30.5345,22.46316 3.64213,12.39082 -11.24955,25.27113 -11.24955,25.27113 0,0 12.76056,-16.82924 0.53569,-29.66608 -12.22487,-12.83686 -46.33747,-22.33625 -46.33747,-39.06642 0,-16.73017 18.63371,-49.07719 39.90915,-49.07719 21.27545,0 43.04297,12.75321 43.04297,31.66849 0,18.91529 -4.26485,25.02541 -14.86549,27.61472 -10.60063,2.58928 -25.09724,-6.54354 -25.09724,-6.54354 z"
+       style="display:inline;fill:#e83a00;fill-opacity:1;stroke:#000000;stroke-width:1.25316;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:normal" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:10.5378px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#e83a00;fill-opacity:1;stroke:#000000;stroke-width:1.31723;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:normal"
+       x="0.36511302"
+       y="239.3455"
+       id="text5107"
+       transform="scale(0.99565497,1.004364)"><tspan
+         sodipodi:role="line"
+         id="tspan5105"
+         x="0.36511302"
+         y="239.3455"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50.5815px;font-family:Impact;-inkscape-font-specification:Impact;fill:#e83a00;fill-opacity:1;stroke:#000000;stroke-width:1.31723;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:normal">ZENgine</tspan></text>
+  </g>
+</svg>

@@ -1,3 +1,65 @@
+//! Tools for controlling behavior in an ECS application
+//!
+//! Systems define how an ECS application behaves.
+//! A system is added to a `Stage` to be able to run.
+//! A function that use only system parameters can be converted into a system.
+//! Usually this conversion is done automatically.
+//!
+//! System functions can query and mutate the ZENgine state using its parameters.
+//! Only types that implement [SystemParam]
+//! can be used, automatically fetching data from the World.
+//!
+//! # Example
+//! ```
+//! use zengine_macro::{Component, Resource};
+//! use zengine_ecs::{
+//!     Entity,
+//!     system::ResMut,
+//!     query::{Query, QueryIterMut}
+//! };
+//!
+//! #[derive(Component, Debug)]
+//! struct HeathPoints(u32);
+//!
+//! #[derive(Component, Debug)]
+//! struct Life(u32);
+//!
+//! #[derive(Resource, Default, Debug)]
+//! struct DeathEntities(Vec<Entity>);
+//!
+//! fn custom_system(
+//!     mut query: Query<(Entity, &HeathPoints, &mut Life)>,
+//!     mut death: ResMut<DeathEntities>,
+//! ) {
+//!     for (entity, hp, life) in query.iter_mut() {
+//!         if hp.0 == 0 {
+//!             life.0 -= 1;
+//!             if life.0 == 0 {
+//!                 death.0.push(*entity);
+//!             }
+//!         }
+//!     }
+//! }
+//! ```
+//!
+//! # System ordering
+//! Systems inside a Stage are executed sequentially based on the insertion order
+//!
+//! # System Parameters
+//! Following is the complete list of accepted types as system parameters:
+//! - [Query](crate::query::Query) to query over entities and components
+//! - [Res] and `Option<Res>` to get immutable access to a resource (or an optional resource)
+//! - [ResMut] and `Option<ResMut>` to get mutable access to a resource (or an optional resource)
+//! - [UnsendableRes] and `Option<UnsendableRes>` to get immutable access to
+//! an unsendable resource (or an optional unsendable resource)
+//! - [UnsendableResMut] and `Option<UnsendableResMut>` to get mutable access to
+//! an unsendable resource (or an optional unsendable resource)
+//! - [Event] to get access to an event without subscribing
+//! - [EventStream] to get access to an event with a subscription
+//! - [EventPublisher] to publish an event
+//! - [Commands] to send command to the [World]
+//! - [Local] to get access to data owned by the system
+
 use zengine_macro::all_tuples;
 
 use crate::world::World;
@@ -5,12 +67,16 @@ use crate::world::World;
 mod system_parameter;
 pub use system_parameter::*;
 
-mod query;
-mod query_iterators;
-pub use query::*;
-
+/// A trait implemented for all functions that can be used as a [System]
 pub trait SystemFunction<P: SystemParam> {
     fn run_function(&self, parameter: SystemParamItem<P>);
+}
+
+/// Conversion trait to turn something into a [System]
+pub trait IntoSystem<P: SystemParam> {
+    type System: SystemFunction<P>;
+
+    fn into_system(self) -> SystemWrapper<Self::System, P>;
 }
 
 impl<Param: SystemParam, F> IntoSystem<Param> for F
@@ -27,18 +93,14 @@ where
     }
 }
 
-pub trait IntoSystem<P: SystemParam> {
-    type System: SystemFunction<P>;
-
-    fn into_system(self) -> SystemWrapper<Self::System, P>;
-}
-
+/// Wraps a function that implements the [SystemFunction] trait
 pub struct SystemWrapper<F: SystemFunction<P>, P: SystemParam> {
     _marker: std::marker::PhantomData<P>,
     function: F,
     param_state: P::Fetch,
 }
 
+/// System trait
 pub trait System {
     fn init(&mut self, world: &mut World);
 
@@ -144,11 +206,11 @@ all_tuples!(impl_system_function, 0, 12, F);
 #[cfg(test)]
 mod tests {
 
-    use crate::{world::World, Component, Resource};
+    use crate::{query::Query, world::World, Component, Resource};
 
     use super::{
         system_parameter::{Local, Res},
-        IntoSystem, Query, System, SystemParam,
+        IntoSystem, System, SystemParam,
     };
 
     #[derive(Default)]

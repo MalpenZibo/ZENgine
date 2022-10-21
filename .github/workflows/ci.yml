@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
-    branches: [master]
+    branches: [main]
 
 jobs:
   fmt:
@@ -89,21 +89,13 @@ jobs:
           command: clippy
           args: -- -D warnings
       - uses: actions-rs/cargo@v1
-        name: Install Cargo-apk
-        if: matrix.name == 'Android'
-        with:
-          command: install
-          args: cargo-apk
-      - uses: actions-rs/cargo@v1
         name: Check
         if: matrix.name != 'Android'
         with:
           command: check
-      - name: Check apk
-        if: matrix.name == 'Android'
-        run: cargo apk check
       - uses: actions-rs/cargo@v1
         if: matrix.name != 'Android'
         name: Test
         with:
           command: test
+          args: --all

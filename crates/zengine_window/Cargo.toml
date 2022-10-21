@@ -1,27 +1,31 @@
 [package]
 name = "zengine_window"
-version = "0.1.0"
-edition = "2021"
+description = "Provides windowing functionality for ZENgine"
+keywords = ["zengine"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+documentation.workspace = true
+homepage.workspace = true
+license.workspace = true
 
 [dependencies]
-zengine_ecs = { path = "../zengine_ecs" }
-zengine_engine = { path = "../zengine_engine" }
-zengine_input = { path = "../zengine_input" }
-zengine_macro = { path = "../zengine_macro" }
-serde = { version = "1.0", features = ["derive"] }
-cfg-if = "1"
-log = "0.4"
-rustc-hash = "1.1.0"
-winit = "0.27.3"
-glam = "0.21.3"
+zengine_ecs = { workspace = true }
+zengine_engine = { workspace = true }
+zengine_input = { workspace = true }
+zengine_macro = { workspace = true }
+
+rustc-hash = { workspace = true }
+log = { workspace = true }
+glam = { workspace = true }
+cfg-if = { workspace = true }
+winit = { workspace = true }
+serde = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"
-web-sys = { version = "0.3", features = [
-    "Document",
-    "Window",
-    "Element",
-]}
+web-sys = { version = "0.3", features = ["Document", "Window", "Element"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 ndk-context = "0.1.1"

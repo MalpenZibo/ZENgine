@@ -1,12 +1,20 @@
 [package]
 name = "zengine_physics"
-version = "0.1.0"
-edition = "2021"
+description = "Provides physics functionality for ZENgine"
+keywords = ["zengine"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+documentation.workspace = true
+homepage.workspace = true
+license.workspace = true
 
 [dependencies]
-zengine_ecs = { path = "../zengine_ecs" }
-zengine_core = { path = "../zengine_core" }
-zengine_macro = { path = "../zengine_macro" }
-log = "0.4"
-rustc-hash = "1.1.0"
-glam = "0.21.3"
+zengine_ecs = { workspace = true }
+zengine_core = { workspace = true }
+zengine_macro = { workspace = true }
+
+log = { workspace = true }
+rustc-hash = { workspace = true }
+glam = { workspace = true }

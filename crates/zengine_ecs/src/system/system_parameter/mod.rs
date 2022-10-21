@@ -12,10 +12,12 @@ pub use local_parameter::*;
 pub use query_parameter::*;
 pub use res_parameter::*;
 
+#[doc(hidden)]
 pub trait SystemParam: Sized {
     type Fetch: for<'a> SystemParamFetch<'a> + Default;
 }
 
+#[doc(hidden)]
 pub trait SystemParamFetch<'a> {
     type Item;
 
@@ -26,4 +28,5 @@ pub trait SystemParamFetch<'a> {
     fn apply(&mut self, _world: &mut World) {}
 }
 
+#[doc(hidden)]
 pub type SystemParamItem<'a, P> = <<P as SystemParam>::Fetch as SystemParamFetch<'a>>::Item;

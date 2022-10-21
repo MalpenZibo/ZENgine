@@ -3,6 +3,9 @@ use std::ops::{Deref, DerefMut};
 use zengine_engine::Module;
 use zengine_macro::UnsendableResource;
 
+/// Adds gamepad support to the engine
+///
+/// NB: currently the gamepad support is not provided for Android platform
 pub struct GamepadModule;
 
 #[derive(UnsendableResource, Debug)]
@@ -30,7 +33,7 @@ impl Module for GamepadModule {
         engine
             .world
             .create_unsendable_resource(GamepadHandler(gilrs));
-        engine.add_system_into_stage(gamepad_system, zengine_engine::StageLabel::PreUpdate);
+        engine.add_system_into_stage(gamepad_system, zengine_engine::Stage::PreUpdate);
     }
 
     #[cfg(target_os = "android")]
@@ -41,7 +44,7 @@ impl Module for GamepadModule {
 
 #[cfg(not(target_os = "android"))]
 fn gamepad_system(
-    gamepad_handler: zengine_ecs::system::OptionalUnsendableResMut<GamepadHandler>,
+    gamepad_handler: Option<zengine_ecs::system::UnsendableResMut<GamepadHandler>>,
     mut input: zengine_ecs::system::EventPublisher<zengine_input::InputEvent>,
 ) {
     use zengine_input::{
@@ -54,14 +57,14 @@ fn gamepad_system(
             match event {
                 gilrs::EventType::ButtonPressed(button, ..) => input.publish(InputEvent {
                     input: Input::ControllerButton {
-                        device_id: id,
+                        device_id: id.into(),
                         button,
                     },
                     value: 1.0,
                 }),
                 gilrs::EventType::ButtonReleased(button, ..) => input.publish(InputEvent {
                     input: Input::ControllerButton {
-                        device_id: id,
+                        device_id: id.into(),
                         button,
                     },
                     value: 0.0,
@@ -69,7 +72,7 @@ fn gamepad_system(
                 gilrs::EventType::AxisChanged(axis, value, ..) => match axis {
                     gilrs::Axis::LeftStickX => input.publish(InputEvent {
                         input: Input::ControllerStick {
-                            device_id: id,
+                            device_id: id.into(),
                             which: Which::Left,
                             axis: Axis::X,
                         },
@@ -77,7 +80,7 @@ fn gamepad_system(
                     }),
                     gilrs::Axis::LeftStickY => input.publish(InputEvent {
                         input: Input::ControllerStick {
-                            device_id: id,
+                            device_id: id.into(),
                             which: Which::Left,
                             axis: Axis::Y,
                         },
@@ -85,7 +88,7 @@ fn gamepad_system(
                     }),
                     gilrs::Axis::RightStickX => input.publish(InputEvent {
                         input: Input::ControllerStick {
-                            device_id: id,
+                            device_id: id.into(),
                             which: Which::Right,
                             axis: Axis::X,
                         },
@@ -93,7 +96,7 @@ fn gamepad_system(
                     }),
                     gilrs::Axis::RightStickY => input.publish(InputEvent {
                         input: Input::ControllerStick {
-                            device_id: id,
+                            device_id: id.into(),
                             which: Which::Right,
                             axis: Axis::Y,
                         },
@@ -101,21 +104,21 @@ fn gamepad_system(
                     }),
                     gilrs::Axis::LeftZ => input.publish(InputEvent {
                         input: Input::ControllerTrigger {
-                            device_id: id,
+                            device_id: id.into(),
                             which: Which::Left,
                         },
                         value,
                     }),
                     gilrs::Axis::RightZ => input.publish(InputEvent {
                         input: Input::ControllerTrigger {
-                            device_id: id,
+                            device_id: id.into(),
                             which: Which::Right,
                         },
                         value,
                     }),
                     gilrs::Axis::DPadX => input.publish(InputEvent {
                         input: Input::ControllerButton {
-                            device_id: id,
+                            device_id: id.into(),
                             button: if value < 0.0 {
                                 ControllerButton::DPadLeft
                             } else {
@@ -126,7 +129,7 @@ fn gamepad_system(
                     }),
                     gilrs::Axis::DPadY => input.publish(InputEvent {
                         input: Input::ControllerButton {
-                            device_id: id,
+                            device_id: id.into(),
                             button: if value < 0.0 {
                                 ControllerButton::DPadDown
                             } else {

@@ -1,6 +1,6 @@
 use sprite::{setup_sprite_render, sprite_render};
 use zengine_asset::AssetExtension;
-use zengine_engine::{Module, StageLabel};
+use zengine_engine::{Module, Stage};
 use zengine_macro::Resource;
 
 mod camera;
@@ -20,11 +20,14 @@ pub use sprite::*;
 pub use texture::*;
 pub use texture_atlas::*;
 
+/// [Resource](zengine_ecs::Resource) that describe the color used
+/// to clear of the view
 #[derive(Resource, Debug, Default)]
 pub struct Background {
     pub color: Color,
 }
 
+/// Adds graphic support to the engine using a wgpu based renderer
 #[derive(Default, Debug)]
 pub struct GraphicModule;
 
@@ -38,11 +41,11 @@ impl Module for GraphicModule {
             .add_startup_system(setup_render)
             .add_startup_system(setup_camera)
             .add_startup_system(setup_sprite_render)
-            .add_system_into_stage(prepare_texture_asset, StageLabel::Render)
-            .add_system_into_stage(prepare_texture_atlas_asset, StageLabel::Render)
-            .add_system_into_stage(clear, StageLabel::Render)
-            .add_system_into_stage(camera_render, StageLabel::Render)
-            .add_system_into_stage(sprite_render, StageLabel::Render)
-            .add_system_into_stage(present, StageLabel::Render);
+            .add_system_into_stage(prepare_texture_asset, Stage::Render)
+            .add_system_into_stage(prepare_texture_atlas_asset, Stage::Render)
+            .add_system_into_stage(clear, Stage::Render)
+            .add_system_into_stage(camera_render, Stage::Render)
+            .add_system_into_stage(sprite_render, Stage::Render)
+            .add_system_into_stage(present, Stage::Render);
     }
 }

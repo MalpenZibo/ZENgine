@@ -1,13 +1,20 @@
 [package]
 name = "zengine_macro"
-version = "0.1.0"
-edition = "2021"
+description = "Macro for ZENgine"
+keywords = ["zengine"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+documentation.workspace = true
+homepage.workspace = true
+license.workspace = true
 
 [lib]
 proc-macro = true
 
 [dependencies]
-syn = "1.0"
+syn = { version = "1", features = ["full", "extra-traits", "visit-mut"] }
 quote = "1.0"
 proc-macro2 = "1.0"
 toml = "0.5.8"

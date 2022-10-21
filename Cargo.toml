@@ -1,15 +1,18 @@
 [package]
 name = "zengine"
-version = "0.1.0"
-edition = "2021"
-categories = ["game-engines", "graphics", "rendering"]
 description = "A simple 2D ECS game engine"
-exclude = [".github/", "crates/", "assets/", "benches/"]
-homepage = ""
+categories = ["game-engines", "graphics", "rendering"]
 keywords = ["game", "engine", "gamedev", "graphics", "zengine"]
-license = "MIT OR Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/malpenzibo/zengine"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+documentation.workspace = true
+homepage.workspace = true
+license.workspace = true
+
+exclude = [".github/", "crates/", "assets/", "benches/", "examples/pong/"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -18,27 +21,68 @@ crate-type = ["cdylib", "rlib"]
 exclude = ["benches"]
 members = ["crates/*", "examples/*"]
 
-[dependencies]
-zengine_asset = { path = "crates/zengine_asset" }
-zengine_engine = { path = "crates/zengine_engine" }
-zengine_ecs = { path = "crates/zengine_ecs" }
-zengine_core = { path = "crates/zengine_core" }
-zengine_graphic = { path = "crates/zengine_graphic" }
-zengine_input = { path = "crates/zengine_input" }
-zengine_physics = { path = "crates/zengine_physics" }
-zengine_window = { path = "crates/zengine_window" }
-zengine_audio = { path = "crates/zengine_audio" }
-zengine_gamepad = { path = "crates/zengine_gamepad" }
-zengine_macro = { path = "crates/zengine_macro" }
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+authors = ["Simone Camito"]
+documentation = "https://docs.rs/zengine"
+repository = "https://github.com/MalpenZibo/zengine"
+homepage = "https://malpenzibo.github.io/zengine"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
 glam = "0.21.3"
+ndk-glue = { version = "0.7", features = ["logger"] }
+log = "0.4"
+rustc-hash = "1.1.0"
+cfg-if = "1"
+winit = "0.27.3"
+serde = { version = "1.0", features = ["derive"] }
+gilrs = { version = "0.9.0" }
+ahash = "0.8.0"
+
+zengine_asset = { path = "crates/zengine_asset", version = "0.0.1" }
+zengine_engine = { path = "crates/zengine_engine", version = "0.0.1" }
+zengine_ecs = { path = "crates/zengine_ecs", version = "0.0.1" }
+zengine_core = { path = "crates/zengine_core", version = "0.0.1" }
+zengine_graphic = { path = "crates/zengine_graphic", version = "0.0.1" }
+zengine_input = { path = "crates/zengine_input", version = "0.0.1" }
+zengine_physics = { path = "crates/zengine_physics", version = "0.0.1" }
+zengine_window = { path = "crates/zengine_window", version = "0.0.1" }
+zengine_audio = { path = "crates/zengine_audio", version = "0.0.1" }
+zengine_gamepad = { path = "crates/zengine_gamepad", version = "0.0.1" }
+zengine_macro = { path = "crates/zengine_macro", version = "0.0.1" }
+
+[dependencies]
+zengine_asset = { workspace = true }
+zengine_engine = { workspace = true }
+zengine_ecs = { workspace = true }
+zengine_core = { workspace = true }
+zengine_graphic = { workspace = true }
+zengine_input = { workspace = true }
+zengine_physics = { workspace = true }
+zengine_window = { workspace = true }
+zengine_audio = { workspace = true }
+zengine_gamepad = { workspace = true }
+zengine_macro = { workspace = true }
+
+glam = { workspace = true }
 
 [target.'cfg(target_os = "android")'.dependencies]
-ndk-glue = { version = "0.7", features = ["logger"] }
+ndk-glue = { workspace = true }
 
 [dev-dependencies]
 bencher = "0.1.5"
 
+[[example]]
+name = "hello_world"
+path = "examples/hello_world.rs"
+
+[[example]]
+name = "simple_sprite"
+path = "examples/simple_sprite.rs"
+
 [[bench]]
-name = "archetype_vs_old_system"
-path = "benches/archetype_vs_old_system.rs"
+name = "archetype"
+path = "benches/archetype.rs"
 harness = false

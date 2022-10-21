@@ -1,34 +1,39 @@
+use crate::{
+    vertex::Vertex, CameraBuffer, Color, Device, Image, Queue, RenderContextInstance, Surface,
+    Texture, TextureAtlas, TextureBindGroupLayout,
+};
 use glam::{Mat4, Vec2, Vec3, Vec4};
 use rustc_hash::FxHashMap;
 use std::ops::{Deref, DerefMut};
 use wgpu::util::DeviceExt;
 use zengine_asset::{Assets, Handle};
 use zengine_core::Transform;
-use zengine_ecs::system::{Commands, Local, OptionalRes, Query, QueryIter, Res, ResMut};
+use zengine_ecs::{
+    query::{Query, QueryIter},
+    system::{Commands, Local, Res, ResMut},
+};
 use zengine_macro::{Component, Resource};
 
-use crate::{
-    vertex::Vertex, CameraBuffer, Color, Device, Image, Queue, RenderContextInstance, Surface,
-    Texture, TextureAtlas, TextureBindGroupLayout,
-};
+const INDICES: &[u16] = &[0, 1, 2, 2, 3, 0];
 
-pub const INDICES: &[u16] = &[0, 1, 2, 2, 3, 0];
-
+/// A sprite texture
+///
+/// It could be a simple texture
+/// or it could be an Atlas texture
 #[derive(Debug)]
 pub enum SpriteTexture {
+    /// Handle to the [Texture] asset
     Simple(Handle<Texture>),
     Atlas {
+        /// handle to the [TextureAtlas] asset
         texture_handle: Handle<TextureAtlas>,
+        /// optional handle to the [Image] asset contained in the Atlas
         target_image: Option<Handle<Image>>,
     },
 }
 
 impl SpriteTexture {
-    pub fn is_ready(
-        &self,
-        textures: &Assets<Texture>,
-        textures_atlas: &Assets<TextureAtlas>,
-    ) -> bool {
+    fn is_ready(&self, textures: &Assets<Texture>, textures_atlas: &Assets<TextureAtlas>) -> bool {
         match self {
             Self::Simple(handle) => textures
                 .get(handle)
@@ -41,7 +46,7 @@ impl SpriteTexture {
         }
     }
 
-    pub fn get_handle(&self, textures_atlas: &Assets<TextureAtlas>) -> Handle<Texture> {
+    fn get_handle(&self, textures_atlas: &Assets<TextureAtlas>) -> Handle<Texture> {
         match self {
             Self::Simple(handle) => handle.clone_as_weak(),
             Self::Atlas { texture_handle, .. } => textures_atlas
@@ -52,7 +57,7 @@ impl SpriteTexture {
         }
     }
 
-    pub fn get_relative_coord(&self, textures_atlas: &Assets<TextureAtlas>) -> (Vec2, Vec2) {
+    fn get_relative_coord(&self, textures_atlas: &Assets<TextureAtlas>) -> (Vec2, Vec2) {
         match self {
             Self::Simple(_) => (Vec2::ZERO, Vec2::ONE),
             Self::Atlas {
@@ -70,16 +75,22 @@ impl SpriteTexture {
         }
     }
 }
-
+/// [Component](zengine_ecs::Component) that rappresent a Sprite
 #[derive(Component, Debug)]
 pub struct Sprite {
+    /// width of the sprite
     pub width: f32,
+    /// height of the sprite
     pub height: f32,
+    /// origin of the sprite, indicate the center of the sprite
     pub origin: glam::Vec3,
+    /// color to apply to the sprite texture
     pub color: Color,
+    /// texture to use with this sprite
     pub texture: SpriteTexture,
 }
 
+#[doc(hidden)]
 #[derive(Resource, Default, Debug)]
 pub struct SpriteBuffer {
     vertex_buffer: Option<wgpu::Buffer>,
@@ -89,11 +100,12 @@ pub struct SpriteBuffer {
 
 type BatchLayerData<'a> = FxHashMap<Handle<Texture>, Vec<(&'a Sprite, &'a Transform)>>;
 
-pub struct BatchLayer<'a> {
+struct BatchLayer<'a> {
     pub z: f32,
     pub data: BatchLayerData<'a>,
 }
 
+#[doc(hidden)]
 #[derive(Resource, Debug)]
 pub struct RenderPipeline(wgpu::RenderPipeline);
 
@@ -181,11 +193,11 @@ fn generate_vertex_and_indexes_buffer(
     (vertex_buffer, index_buffer)
 }
 
-pub fn setup_sprite_render(
+pub(crate) fn setup_sprite_render(
     surface: Res<Surface>,
-    texture_bind_group_layout: OptionalRes<TextureBindGroupLayout>,
-    device: OptionalRes<Device>,
-    camera_buffer: OptionalRes<CameraBuffer>,
+    texture_bind_group_layout: Option<Res<TextureBindGroupLayout>>,
+    device: Option<Res<Device>>,
+    camera_buffer: Option<Res<CameraBuffer>>,
     mut commands: Commands,
 ) {
     let config = surface.get_config().unwrap();
@@ -287,14 +299,14 @@ impl<'a> DerefMut for Batches<'a> {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn sprite_render(
-    queue: OptionalRes<Queue>,
-    device: OptionalRes<Device>,
+pub(crate) fn sprite_render(
+    queue: Option<Res<Queue>>,
+    device: Option<Res<Device>>,
     mut render_context: ResMut<RenderContextInstance>,
-    render_pipeline: OptionalRes<RenderPipeline>,
-    textures: OptionalRes<Assets<Texture>>,
-    textures_atlas: OptionalRes<Assets<TextureAtlas>>,
-    camera_buffer: OptionalRes<CameraBuffer>,
+    render_pipeline: Option<Res<RenderPipeline>>,
+    textures: Option<Res<Assets<Texture>>>,
+    textures_atlas: Option<Res<Assets<TextureAtlas>>>,
+    camera_buffer: Option<Res<CameraBuffer>>,
     sprite_query: Query<(&Sprite, &Transform)>,
     sprite_buffer: Local<SpriteBuffer>,
 ) {
