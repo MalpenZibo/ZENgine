@@ -54,7 +54,7 @@ jobs:
           git push origin main
 
       - name: Release
-        run: cargo release ${PUBLISH_LEVEL} --token ${CRATES_TOKEN} --no-tag --no-confirm --workspace --exclude pong
+        run: cargo release ${PUBLISH_LEVEL} --token ${CRATES_TOKEN} --execute --no-tag --no-confirm --workspace --exclude pong
         env:
           PUBLISH_LEVEL: ${{ github.event.inputs.level }}
           CRATES_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
