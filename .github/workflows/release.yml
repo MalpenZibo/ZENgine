@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -54,10 +54,10 @@ jobs:
           git push origin main
 
       - name: Release
-        run: cargo release ${PUBLISH_LEVEL} --token ${CRATES_TOKEN} --execute --no-tag --no-confirm --workspace --exclude pong
+        run: cargo release ${PUBLISH_LEVEL} --execute --no-tag --no-confirm --workspace --exclude pong
         env:
           PUBLISH_LEVEL: ${{ github.event.inputs.level }}
-          CRATES_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
 
       - name: Get New version
         id: gettag
