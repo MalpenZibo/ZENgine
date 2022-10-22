@@ -76,7 +76,6 @@ jobs:
       - name: Get New version
         id: gettag
         run: |
-          cd ZENgine
           echo "::set-output name=TAG_NAME::$(cargo pkgid | cut -d# -f2 | cut -d: -f2)"
 
       - name: Create a Release
