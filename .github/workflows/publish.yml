@@ -52,7 +52,7 @@ jobs:
       - name: Get New version
         id: gettag
         run: |
-          echo "::set-output name=TAG_NAME::$(cargo pkgid | cut -d# -f2 | cut -d: -f2)"
+          echo "{TAG_NAME}={$(cargo pkgid | cut -d# -f2 | cut -d@ -f2)}" >> $GITHUB_OUTPUT
 
       - name: Get Changelog Entry
         id: changelog_reader
