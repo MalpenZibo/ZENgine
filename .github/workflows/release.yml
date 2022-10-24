@@ -63,4 +63,5 @@ jobs:
         with:
           title: Release ${{ steps.gettag.outputs.TAG_NAME }}
           branch: release-${{ steps.gettag.outputs.TAG_NAME }}
+          token: ${{ secrets.GIT_TOKEN_PAT }}
           delete-branch: true
