@@ -1,0 +1,74 @@
+name: Publish
+
+on:
+  pull_request:
+    types:
+      - closed
+
+jobs:
+  if_publish:
+    if: |
+      github.event.pull_request.merged == true 
+      && startsWith(github.event.pull_request.head.ref, 'release-')
+      && startsWith(github.event.pull_request.title, 'Release')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Config Git
+        uses: oleksiyrudenko/gha-git-credentials@v2-latest
+        with:
+          token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Install cargo binary dependencies
+        uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-release
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -y -qq
+
+          # llvmpipe/lavapipe
+          sudo add-apt-repository ppa:oibaf/graphics-drivers -y
+
+          # vulkan sdk
+          wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-focal.list https://packages.lunarg.com/vulkan/lunarg-vulkan-focal.list
+
+          sudo apt-get update
+          sudo apt install -y libasound2-dev libudev-dev libegl1-mesa libgl1-mesa-dri libxcb-xfixes0-dev mesa-vulkan-drivers vulkan-sdk
+
+      - name: Get New version
+        id: gettag
+        run: |
+          echo "TAG_NAME=$(cargo pkgid | cut -d# -f2 | cut -d@ -f2)" >> $GITHUB_OUTPUT
+
+      - name: Get Changelog Entry
+        id: changelog_reader
+        uses: mindsers/changelog-reader-action@v2
+        with:
+          validation_level: warn
+          version: ${{ steps.gettag.outputs.TAG_NAME }}
+          path: ./CHANGELOG.md
+
+      - name: Release
+        run: cargo release --execute --no-tag --no-confirm --workspace --no-push --exclude pong
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+
+      - name: Create a Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.gettag.outputs.TAG_NAME }}
+          body: ${{ steps.changelog_reader.outputs.changes }}
