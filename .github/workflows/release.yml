@@ -1,4 +1,4 @@
-name: Release ZENgine
+name: Release
 permissions:
   contents: write
 
@@ -15,13 +15,11 @@ on:
           - major
 jobs:
   publish:
-    name: Release ZENgine
+    name: Release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
       - name: Config Git
         uses: oleksiyrudenko/gha-git-credentials@v2-latest
@@ -46,25 +44,37 @@ jobs:
           PUBLISH_LEVEL: ${{ github.event.inputs.level }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
 
-      - name: Generate changelog
-        uses: heinrichreimer/github-changelog-generator-action@v2.3
-        id: changelog
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          issues: false
-
-      - name: Commit changelog
-        run: |
-          git add CHANGELOG.md
-          git commit -m "update CHANGELOG.md"
-
       - name: Get New version
         id: gettag
         run: |
-          echo "::set-output name=TAG_NAME::$(cargo pkgid | cut -d# -f2 | cut -d: -f2)"
+          echo "TAG_NAME=$(cargo pkgid | cut -d# -f2 | cut -d@ -f2)" >> $GITHUB_OUTPUT
+
+      - name: Update Changelog
+        run: |
+          date=$(date '+%Y-%m-%d')
+          sed -i "s/\[Unreleased\]/\[${{ steps.gettag.outputs.TAG_NAME }}\] - $(date '+%Y-%m-%d')/" ./CHANGELOG.md
+          git add CHANGELOG.md
+          git commit -m "update CHANGELOG.md"
+
+      - name: Get Changelog Entry
+        id: changelog_reader
+        uses: mindsers/changelog-reader-action@v2
+        with:
+          validation_level: warn
+          version: ${{ steps.gettag.outputs.TAG_NAME }}
+          path: ./CHANGELOG.md
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v4
         with:
           title: Release ${{ steps.gettag.outputs.TAG_NAME }}
+          body: |
+            # New version ${{ steps.gettag.outputs.TAG_NAME }}
+
+            The new version will be published after merging this PR
+
+            ## Changelog
+            ${{ steps.changelog_reader.outputs.changes }}
+          branch: release-${{ steps.gettag.outputs.TAG_NAME }}
+          token: ${{ secrets.GIT_TOKEN_PAT }}
           delete-branch: true
