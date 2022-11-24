@@ -267,7 +267,7 @@ fn runner(mut engine: Engine) {
                     });
                     input.publish(InputEvent {
                         input: Input::MouseMotion { axis: Axis::Y },
-                        value: position.y as f32 / (window_specs.size.y / 2) as f32 - 1.,
+                        value: -1. * (position.y as f32 / (window_specs.size.y / 2) as f32 - 1.),
                     });
                 }
             }
@@ -279,11 +279,11 @@ fn runner(mut engine: Engine) {
                     if let Some(mut input) = engine.world.get_mut_event_handler::<InputEvent>() {
                         input.publish(InputEvent {
                             input: Input::MouseWheel { axis: Axis::X },
-                            value: x as f32,
+                            value: x,
                         });
                         input.publish(InputEvent {
                             input: Input::MouseWheel { axis: Axis::Y },
-                            value: y as f32,
+                            value: y,
                         });
                     }
                 }
@@ -331,20 +331,18 @@ fn runner(mut engine: Engine) {
                 let window_specs = engine.world.get_resource::<WindowSpecs>().unwrap();
                 if let Some(mut input) = engine.world.get_mut_event_handler::<InputEvent>() {
                     input.publish(InputEvent {
-                        input: Input::Touch { axis: Axis::X },
-                        value: if phase == TouchPhase::Ended {
-                            0.
-                        } else {
-                            location.x as f32 / (window_specs.size.x / 2) as f32 - 1.
+                        input: Input::Touch {
+                            axis: Axis::X,
+                            phase,
                         },
+                        value: location.x as f32 / (window_specs.size.x / 2) as f32 - 1.,
                     });
                     input.publish(InputEvent {
-                        input: Input::Touch { axis: Axis::Y },
-                        value: if phase == TouchPhase::Ended {
-                            0.
-                        } else {
-                            location.y as f32 / (window_specs.size.y / 2) as f32 - 1.
+                        input: Input::Touch {
+                            axis: Axis::Y,
+                            phase,
                         },
+                        value: -1. * (location.y as f32 / (window_specs.size.y / 2) as f32 - 1.),
                     });
                 }
             }

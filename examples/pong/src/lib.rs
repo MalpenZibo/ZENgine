@@ -14,7 +14,7 @@ use zengine::{
         Texture, TextureAssets, TextureAtlas, TextureAtlasAssets,
     },
     input::{
-        device::{Key, Which},
+        device::{Key, TouchPhase, Which},
         Axis, AxisBind, Bindings, Input, InputHandler, InputModule,
     },
     log::Level,
@@ -128,7 +128,11 @@ pub fn main() {
         )
         .add_axis(
             UserInput::Player1XAxis,
-            AxisBind::with_source(Input::Touch { axis: Axis::X }).with_discrete_map(0.2),
+            AxisBind::with_source(Input::Touch {
+                axis: Axis::X,
+                phase: TouchPhase::Started,
+            })
+            .with_discrete_map(0.2),
         );
 
     Engine::default()

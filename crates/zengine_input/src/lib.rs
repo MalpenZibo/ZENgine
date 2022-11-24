@@ -39,6 +39,9 @@ pub mod device {
         Left,
         Right,
     }
+
+    /// enum that rappresent touch-screen input state.
+    pub type TouchPhase = winit::event::TouchPhase;
 }
 
 /// Rappresent a possible input key binding.
