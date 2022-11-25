@@ -2,7 +2,7 @@ use glam::UVec2;
 use log::info;
 use winit::{
     dpi::LogicalSize,
-    event::{ElementState, Event, MouseScrollDelta, TouchPhase, WindowEvent},
+    event::{ElementState, Event, MouseScrollDelta, WindowEvent},
     event_loop::{ControlFlow, EventLoopWindowTarget},
     window::{Fullscreen, WindowBuilder},
 };

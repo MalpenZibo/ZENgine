@@ -17,5 +17,4 @@ zengine_input = { workspace = true }
 zengine_macro = { workspace = true }
 
 log = { workspace = true }
-cfg-if = { workspace = true }
 gilrs = { workspace = true }

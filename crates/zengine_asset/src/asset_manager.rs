@@ -163,36 +163,35 @@ pub struct AssetManager {
 
 impl Default for AssetManager {
     fn default() -> Self {
-        cfg_if::cfg_if! {
-            if #[cfg(target_arch = "wasm32")] {
-                Self {
-                    loaders: Vec::default(),
-                    extension_to_loader: FxHashMap::default(),
-                    asset_channels: Arc::new(RwLock::new(FxHashMap::default())),
-                    asset_handle_ref_channel: HandleRefChannel::default(),
-                    asset_handle_ref_count: FxHashMap::default(),
-                    asset_io: Arc::new(crate::io::WasmAssetIo::default()),
-                }
-            } else if #[cfg(target_os = "android")] {
-                Self {
-                    loaders: Vec::default(),
-                    extension_to_loader: FxHashMap::default(),
-                    asset_channels: Arc::new(RwLock::new(FxHashMap::default())),
-                    asset_handle_ref_channel: HandleRefChannel::default(),
-                    asset_handle_ref_count: FxHashMap::default(),
-                    asset_io: Arc::new(crate::io::AndroidAssetIo::default()),
-                }
-            } else {
-                Self {
-                    loaders: Vec::default(),
-                    extension_to_loader: FxHashMap::default(),
-                    asset_channels: Arc::new(RwLock::new(FxHashMap::default())),
-                    asset_handle_ref_channel: HandleRefChannel::default(),
-                    asset_handle_ref_count: FxHashMap::default(),
-                    asset_io: Arc::new(crate::io::FileAssetIo::default()),
-                }
-            }
-        }
+        #[cfg(target_arch = "wasm32")]
+        return Self {
+            loaders: Vec::default(),
+            extension_to_loader: FxHashMap::default(),
+            asset_channels: Arc::new(RwLock::new(FxHashMap::default())),
+            asset_handle_ref_channel: HandleRefChannel::default(),
+            asset_handle_ref_count: FxHashMap::default(),
+            asset_io: Arc::new(crate::io::WasmAssetIo::default()),
+        };
+
+        #[cfg(target_os = "android")]
+        return Self {
+            loaders: Vec::default(),
+            extension_to_loader: FxHashMap::default(),
+            asset_channels: Arc::new(RwLock::new(FxHashMap::default())),
+            asset_handle_ref_channel: HandleRefChannel::default(),
+            asset_handle_ref_count: FxHashMap::default(),
+            asset_io: Arc::new(crate::io::AndroidAssetIo::default()),
+        };
+
+        #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
+        return Self {
+            loaders: Vec::default(),
+            extension_to_loader: FxHashMap::default(),
+            asset_channels: Arc::new(RwLock::new(FxHashMap::default())),
+            asset_handle_ref_channel: HandleRefChannel::default(),
+            asset_handle_ref_count: FxHashMap::default(),
+            asset_io: Arc::new(crate::io::FileAssetIo::default()),
+        };
     }
 }
 
@@ -414,13 +413,11 @@ mod tests {
     }
 
     fn setup(_asset_path: impl AsRef<Path>) -> AssetManager {
-        cfg_if::cfg_if! {
-            if #[cfg(target_os = "android")] {
-                AssetManager::new(crate::io::AndroidAssetIo::default())
-            } else {
-                AssetManager::new(crate::io::FileAssetIo::new(_asset_path))
-            }
-        }
+        #[cfg(target_os = "android")]
+        return AssetManager::new(crate::io::AndroidAssetIo::default());
+
+        #[cfg(not(target_os = "android"))]
+        return AssetManager::new(crate::io::FileAssetIo::new(_asset_path));
     }
 
     fn run_systems(

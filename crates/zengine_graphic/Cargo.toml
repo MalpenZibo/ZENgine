@@ -19,7 +19,6 @@ zengine_window = { workspace = true }
 zengine_engine = { workspace = true }
 
 rustc-hash = { workspace = true }
-cfg-if = { workspace = true }
 log = { workspace = true }
 glam = { workspace = true }
 winit = { workspace = true }
