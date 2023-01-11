@@ -195,6 +195,11 @@ fn runner(mut engine: Engine) {
                 } else {
                     runner_state.set_app_ready();
 
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        runner_state.set_window_ready();
+                    }
+
                     if runner_state.can_start() {
                         runner_state = RunnerState::Running;
                         engine.startup();

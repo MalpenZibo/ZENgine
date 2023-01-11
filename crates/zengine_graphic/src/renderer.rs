@@ -153,7 +153,7 @@ pub(crate) fn setup_render(
     let window = window.expect("Cannot find a Window");
     let internal_window = &window.internal;
 
-    let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
+    let instance = wgpu::Instance::new(wgpu::Backends::all());
     let surface = unsafe { instance.create_surface(internal_window) };
     async fn create_adapter_device_queue(
         instance: &wgpu::Instance,
