@@ -449,15 +449,15 @@ fn pad_movement(
     for (transform, pad) in query.iter_mut() {
         let drag_acc = -game_settings.drag_constant * pad.velocity / pad.mass;
         pad.velocity +=
-            pad.cur_acc * time.delta.as_secs_f32() + drag_acc * time.delta.as_secs_f32();
-        transform.position.x += pad.velocity * time.delta.as_secs_f32();
+            pad.cur_acc * time.delta().as_secs_f32() + drag_acc * time.delta().as_secs_f32();
+        transform.position.x += pad.velocity * time.delta().as_secs_f32();
     }
 
     for (transform, pad) in query.iter_mut() {
         let drag_acc = -game_settings.drag_constant * pad.velocity / pad.mass;
         pad.velocity +=
-            pad.cur_acc * time.delta.as_secs_f32() + drag_acc * time.delta.as_secs_f32();
-        transform.position.x += pad.velocity * time.delta.as_secs_f32();
+            pad.cur_acc * time.delta().as_secs_f32() + drag_acc * time.delta().as_secs_f32();
+        transform.position.x += pad.velocity * time.delta().as_secs_f32();
     }
 }
 
@@ -478,11 +478,11 @@ fn ball_movement(
     }
     if ball_movement.launched {
         for (transform, ball) in query.iter_mut() {
-            transform.position.x += ball.vel.x * time.delta.as_secs_f32();
-            transform.position.y += ball.vel.y * time.delta.as_secs_f32();
+            transform.position.x += ball.vel.x * time.delta().as_secs_f32();
+            transform.position.y += ball.vel.y * time.delta().as_secs_f32();
         }
     } else {
-        ball_movement.respawn += time.delta.as_secs_f32();
+        ball_movement.respawn += time.delta().as_secs_f32();
         if ball_movement.respawn > 5.0 {
             ball_movement.launched = true;
             ball_movement.respawn = 0.0;
