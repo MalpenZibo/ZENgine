@@ -1,4 +1,5 @@
 use crate::{Device, Image, Queue, TextureBindGroupLayout};
+use glam::Vec2;
 use std::num::NonZeroU32;
 use zengine_asset::{AssetEvent, Assets, Handle};
 use zengine_ecs::system::{EventStream, Res, ResMut};
@@ -23,6 +24,8 @@ impl Drop for GpuImage {
 pub struct Texture {
     image: Handle<Image>,
     pub(crate) gpu_image: Option<GpuImage>,
+    pub size: Vec2,
+    pub ratio: f32,
 }
 
 impl Texture {
@@ -30,6 +33,8 @@ impl Texture {
         Self {
             image,
             gpu_image: None,
+            size: Vec2::ZERO,
+            ratio: 1.,
         }
     }
 
@@ -104,12 +109,14 @@ impl Texture {
                 _view: view,
                 _sampler: sampler,
                 diffuse_bind_group,
-            })
+            });
+            self.size = Vec2::new(image.width as f32, image.height as f32);
+            self.ratio = image.width as f32 / image.height as f32;
         }
     }
 }
 
-/// Add functionalities to create a [Texture] to the [Assets<Texture>] storage
+/// Add functionalities to create a [Texture] to the [`Assets<Texture>`] storage
 pub trait TextureAssets {
     /// Creates a [Texture] asset returning a strong [Handle] to it with the given Image handle
     fn create_texture(&mut self, image: &Handle<Image>) -> Handle<Texture>;

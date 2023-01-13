@@ -16,6 +16,13 @@ use zengine_macro::{Component, Resource};
 
 const INDICES: &[u16] = &[0, 1, 2, 2, 3, 0];
 
+struct SpriteTextureInfo {
+    size: Vec2,
+    ratio: f32,
+    min: Vec2,
+    max: Vec2,
+}
+
 /// A sprite texture
 ///
 /// It could be a simple texture
@@ -57,9 +64,18 @@ impl SpriteTexture {
         }
     }
 
-    fn get_relative_coord(&self, textures_atlas: &Assets<TextureAtlas>) -> (Vec2, Vec2) {
+    fn get_info(
+        &self,
+        texture: &Texture,
+        textures_atlas: &Assets<TextureAtlas>,
+    ) -> SpriteTextureInfo {
         match self {
-            Self::Simple(_) => (Vec2::ZERO, Vec2::ONE),
+            Self::Simple(_) => SpriteTextureInfo {
+                size: texture.size,
+                ratio: texture.ratio,
+                min: Vec2::ZERO,
+                max: Vec2::ONE,
+            },
             Self::Atlas {
                 texture_handle,
                 target_image,
@@ -70,18 +86,40 @@ impl SpriteTexture {
                         .as_ref()
                         .map(|target_image| t.get_rect(target_image))
                 })
-                .map(|rect| (rect.relative_min, rect.relative_max))
-                .unwrap_or_else(|| (Vec2::ZERO, Vec2::ONE)),
+                .map(|rect| SpriteTextureInfo {
+                    size: rect.size,
+                    ratio: rect.ratio,
+                    min: rect.relative_min,
+                    max: rect.relative_max,
+                })
+                .unwrap_or_else(|| SpriteTextureInfo {
+                    size: Vec2::ZERO,
+                    ratio: 1.,
+                    min: Vec2::ZERO,
+                    max: Vec2::ONE,
+                }),
         }
     }
 }
+
+/// Rappresent a Sprite size
+#[derive(Debug)]
+pub enum SpriteSize {
+    /// Use the image size as sprite size
+    None,
+    /// Set the sprite width, the height is automatically calculated based on texture ratio
+    Width(f32),
+    /// Set the sprite height, the width is automatically calculated based on texture ratio
+    Height(f32),
+    /// Set the sprite size specifying both the width and height
+    Size(Vec2),
+}
+
 /// [Component](zengine_ecs::Component) that rappresent a Sprite
 #[derive(Component, Debug)]
 pub struct Sprite {
-    /// width of the sprite
-    pub width: f32,
-    /// height of the sprite
-    pub height: f32,
+    /// The sprite size
+    pub size: SpriteSize,
     /// origin of the sprite, indicate the center of the sprite
     pub origin: glam::Vec3,
     /// color to apply to the sprite texture
@@ -117,25 +155,32 @@ impl Deref for RenderPipeline {
 }
 
 fn calculate_vertices(
-    width: f32,
-    height: f32,
+    size: &SpriteSize,
     origin: Vec3,
-    relative_min: Vec2,
-    relative_max: Vec2,
+    info: SpriteTextureInfo,
     color: &Color,
     transform: Mat4,
 ) -> [Vertex; 4] {
+    let (width, height) = {
+        match size {
+            SpriteSize::Width(w) => (*w, w / info.ratio),
+            SpriteSize::Height(h) => (h * info.ratio, *h),
+            SpriteSize::Size(size) => (size.x, size.y),
+            SpriteSize::None => (info.size.x, info.size.y),
+        }
+    };
+
     let min_x = -(width * origin.x);
     let max_x = width * (1.0 - origin.x);
 
     let min_y = -(height * origin.y);
     let max_y = height * (1.0 - origin.y);
 
-    let min_u = relative_min.x;
-    let max_u = relative_max.x;
+    let min_u = info.min.x;
+    let max_u = info.max.x;
 
-    let min_v = relative_min.y;
-    let max_v = relative_max.y;
+    let min_v = info.min.y;
+    let max_v = info.max.y;
 
     [
         Vertex {
@@ -259,21 +304,24 @@ pub(crate) fn setup_sprite_render(
 #[derive(Default)]
 struct Batches<'a>(Vec<BatchLayer<'a>>);
 impl<'a> Batches<'a> {
-    fn to_vertex(&self, textures_atlas: &Assets<TextureAtlas>) -> Vec<Vertex> {
+    fn to_vertex(
+        &self,
+        textures: &Assets<Texture>,
+        textures_atlas: &Assets<TextureAtlas>,
+    ) -> Vec<Vertex> {
         self.0
             .iter()
             .rev()
             .flat_map(|b| {
-                b.data.values().flat_map(|v| {
+                b.data.iter().flat_map(|(t, v)| {
+                    let texture = textures.get(t).unwrap();
                     v.iter().flat_map(|(s, t)| {
-                        let rect = s.texture.get_relative_coord(textures_atlas);
+                        let info = s.texture.get_info(texture, textures_atlas);
 
                         calculate_vertices(
-                            s.width,
-                            s.height,
+                            &s.size,
                             s.origin,
-                            rect.0,
-                            rect.1,
+                            info,
                             &s.color,
                             t.get_transformation_matrix(),
                         )
@@ -385,7 +433,7 @@ pub(crate) fn sprite_render(
                 queue.write_buffer(
                     sprite_buffer.vertex_buffer.as_ref().unwrap(),
                     0,
-                    bytemuck::cast_slice(&batches.to_vertex(&textures_atlas)),
+                    bytemuck::cast_slice(&batches.to_vertex(&textures, &textures_atlas)),
                 );
                 let mut indices = Vec::default();
                 for index in 0..num_of_sprite {
@@ -400,7 +448,7 @@ pub(crate) fn sprite_render(
             } else {
                 let (v_buffer, i_buffer) = generate_vertex_and_indexes_buffer(
                     &device,
-                    &batches.to_vertex(&textures_atlas),
+                    &batches.to_vertex(&textures, &textures_atlas),
                 );
                 if let Some(buffer) = &sprite_buffer.vertex_buffer {
                     buffer.destroy();

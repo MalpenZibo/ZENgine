@@ -20,6 +20,8 @@ const PADDING: u32 = 1;
 pub(crate) struct ImageRect {
     pub(crate) relative_min: Vec2,
     pub(crate) relative_max: Vec2,
+    pub size: Vec2,
+    pub ratio: f32,
 }
 
 /// [Asset](zengine_asset::Asset) that rappresent a Texture Atlas,
@@ -135,6 +137,8 @@ impl TextureAtlas {
             self.image_rects.push(ImageRect {
                 relative_min,
                 relative_max,
+                size: Vec2::new(image.width as f32, image.height as f32),
+                ratio: image.width as f32 / image.height as f32,
             });
 
             Self::copy_image_to_atlas(&mut final_image, image, location);
@@ -175,7 +179,7 @@ impl TextureAtlas {
     }
 }
 
-/// Add functionalities to create a [TextureAtlas] to the [Assets<TextureAtlas>] storage
+/// Add functionalities to create a [TextureAtlas] to the [`Assets<TextureAtlas>`] storage
 pub trait TextureAtlasAssets {
     /// Creates a [TextureAtlas] asset returning a strong [Handle] to it with the given Images handle
     fn create_texture_atlas(&mut self, images: &[&Handle<Image>]) -> Handle<TextureAtlas>;
