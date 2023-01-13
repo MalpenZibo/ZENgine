@@ -26,7 +26,7 @@ pub trait QueryParameterFetch<'a> {
 
 #[doc(hidden)]
 pub trait QueryParameterFetchFromArchetype<'a> {
-    type ArchetypeFetchItem;
+    type ArchetypeFetchItem: std::fmt::Debug;
 
     fn fetch_from_archetype(
         archetype: &'a Archetype,
@@ -63,12 +63,6 @@ impl<'a> QueryParameterFetch<'a> for ReadQueryParameterFetch<Entity> {
     type FetchItem = Vec<&'a Vec<Entity>>;
 
     fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem {
-        if let Some(some_cache) = cache {
-            if some_cache.last_archetypes_count != world.archetypes.len() {
-                cache.take();
-            }
-        }
-
         let mut result: Self::FetchItem = Vec::default();
         if let Some(cache) = cache {
             for (archetype, _) in cache
@@ -76,7 +70,9 @@ impl<'a> QueryParameterFetch<'a> for ReadQueryParameterFetch<Entity> {
                 .iter()
                 .map(|(i, column_indexes)| (world.archetypes.get(*i).unwrap(), column_indexes))
             {
-                result.push(&archetype.entities);
+                if !archetype.entities.is_empty() {
+                    result.push(&archetype.entities);
+                }
             }
         } else {
             let mut new_cache = QueryCache {
@@ -85,7 +81,9 @@ impl<'a> QueryParameterFetch<'a> for ReadQueryParameterFetch<Entity> {
             };
             for (archetype_index, a) in world.archetypes.iter().enumerate() {
                 new_cache.matched_archetypes.push((archetype_index, vec![]));
-                result.push(&a.entities);
+                if !a.entities.is_empty() {
+                    result.push(&a.entities);
+                }
             }
             cache.replace(new_cache);
         }
@@ -118,12 +116,6 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for ReadQueryParameterF
     type FetchItem = Vec<RwLockReadGuard<'a, Vec<T>>>;
 
     fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem {
-        if let Some(some_cache) = cache {
-            if some_cache.last_archetypes_count != world.archetypes.len() {
-                cache.take();
-            }
-        }
-
         let mut result: Self::FetchItem = Vec::default();
         if let Some(cache) = cache {
             for (archetype, columns_vector) in cache
@@ -131,16 +123,16 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for ReadQueryParameterF
                 .iter()
                 .map(|(i, column_indexes)| (world.archetypes.get(*i).unwrap(), column_indexes))
             {
-                result.push(
-                    archetype
-                        .get(
-                            columns_vector[0].expect(
+                if !archetype.entities.is_empty() {
+                    result.push(
+                        archetype
+                            .get(columns_vector[0].expect(
                                 "Cache column for non Optional Parameter should not be None",
-                            ),
-                        )
-                        .try_read()
-                        .unwrap(),
-                );
+                            ))
+                            .try_read()
+                            .unwrap(),
+                    );
+                }
             }
         } else {
             let mut new_cache = QueryCache {
@@ -153,7 +145,9 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for ReadQueryParameterF
                     new_cache
                         .matched_archetypes
                         .push((archetype_index, vec![Some(index)]));
-                    result.push(a.get(index).try_read().unwrap());
+                    if !a.entities.is_empty() {
+                        result.push(a.get(index).try_read().unwrap());
+                    }
                 }
             }
             cache.replace(new_cache);
@@ -214,16 +208,16 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for WriteQueryParameter
                 .iter()
                 .map(|(i, column_indexes)| (world.archetypes.get(*i).unwrap(), column_indexes))
             {
-                result.push(
-                    archetype
-                        .get(
-                            columns_vector[0].expect(
+                if !archetype.entities.is_empty() {
+                    result.push(
+                        archetype
+                            .get(columns_vector[0].expect(
                                 "Cache column for non Optional Parameter should not be None",
-                            ),
-                        )
-                        .try_write()
-                        .unwrap(),
-                );
+                            ))
+                            .try_write()
+                            .unwrap(),
+                    );
+                }
             }
         } else {
             let mut new_cache = QueryCache {
@@ -236,7 +230,9 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for WriteQueryParameter
                     new_cache
                         .matched_archetypes
                         .push((archetype_index, vec![Some(index)]));
-                    result.push(a.get(index).try_write().unwrap());
+                    if !a.entities.is_empty() {
+                        result.push(a.get(index).try_write().unwrap());
+                    }
                 }
             }
             cache.replace(new_cache);
@@ -284,12 +280,6 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for Option<ReadQueryPar
     type FetchItem = Vec<Option<RwLockReadGuard<'a, Vec<T>>>>;
 
     fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem {
-        if let Some(some_cache) = cache {
-            if some_cache.last_archetypes_count != world.archetypes.len() {
-                cache.take();
-            }
-        }
-
         let mut result: Self::FetchItem = Vec::default();
         if let Some(cache) = cache {
             for (archetype, columns_vector) in cache
@@ -297,12 +287,14 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for Option<ReadQueryPar
                 .iter()
                 .map(|(i, column_indexes)| (world.archetypes.get(*i).unwrap(), column_indexes))
             {
-                match columns_vector[0] {
-                    Some(column) => {
-                        result.push(Some(archetype.get(column).try_read().unwrap()));
-                    }
-                    None => {
-                        result.push(None);
+                if !archetype.entities.is_empty() {
+                    match columns_vector[0] {
+                        Some(column) => {
+                            result.push(Some(archetype.get(column).try_read().unwrap()));
+                        }
+                        None => {
+                            result.push(None);
+                        }
                     }
                 }
             }
@@ -318,13 +310,17 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for Option<ReadQueryPar
                         new_cache
                             .matched_archetypes
                             .push((archetype_index, vec![Some(column)]));
-                        result.push(Some(a.get(column).try_read().unwrap()));
+                        if !a.entities.is_empty() {
+                            result.push(Some(a.get(column).try_read().unwrap()));
+                        }
                     }
                     None => {
                         new_cache
                             .matched_archetypes
                             .push((archetype_index, vec![None]));
-                        result.push(None);
+                        if !a.entities.is_empty() {
+                            result.push(None);
+                        }
                     }
                 }
             }
@@ -377,12 +373,6 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for Option<WriteQueryPa
     type FetchItem = Vec<Option<RwLockWriteGuard<'a, Vec<T>>>>;
 
     fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem {
-        if let Some(some_cache) = cache {
-            if some_cache.last_archetypes_count != world.archetypes.len() {
-                cache.take();
-            }
-        }
-
         let mut result: Self::FetchItem = Vec::default();
         if let Some(cache) = cache {
             for (archetype, columns_vector) in cache
@@ -390,12 +380,14 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for Option<WriteQueryPa
                 .iter()
                 .map(|(i, column_indexes)| (world.archetypes.get(*i).unwrap(), column_indexes))
             {
-                match columns_vector[0] {
-                    Some(column) => {
-                        result.push(Some(archetype.get(column).try_write().unwrap()));
-                    }
-                    None => {
-                        result.push(None);
+                if !archetype.entities.is_empty() {
+                    match columns_vector[0] {
+                        Some(column) => {
+                            result.push(Some(archetype.get(column).try_write().unwrap()));
+                        }
+                        None => {
+                            result.push(None);
+                        }
                     }
                 }
             }
@@ -411,13 +403,17 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for Option<WriteQueryPa
                         new_cache
                             .matched_archetypes
                             .push((archetype_index, vec![Some(column)]));
-                        result.push(Some(a.get(column).try_write().unwrap()));
+                        if !a.entities.is_empty() {
+                            result.push(Some(a.get(column).try_write().unwrap()));
+                        }
                     }
                     None => {
                         new_cache
                             .matched_archetypes
                             .push((archetype_index, vec![None]));
-                        result.push(None);
+                        if !a.entities.is_empty() {
+                            result.push(None);
+                        }
                     }
                 }
             }
@@ -474,7 +470,9 @@ macro_rules! impl_query_parameters {
                         .iter()
                         .map(|(i, column_indexes)| (world.archetypes.get(*i).unwrap(), column_indexes)) {
                         for c in columns_vector {
-                            result.push( <$ty::Item as QueryParameterFetchFromArchetype<'a>>::fetch_from_archetype(archetype, Some(*c)).0);
+                            if !archetype.entities.is_empty() {
+                                result.push(<$ty::Item as QueryParameterFetchFromArchetype<'a>>::fetch_from_archetype(archetype, Some(*c)).0);
+                            }
                         }
                     }
                 } else {
@@ -486,7 +484,9 @@ macro_rules! impl_query_parameters {
                         if $ty::matches_archetype(&a) {
                             let (column, column_index) = <$ty::Item as QueryParameterFetchFromArchetype<'a>>::fetch_from_archetype(a, None);
                             new_cache.matched_archetypes.push((archetype_index, vec!(column_index)));
-                            result.push(column);
+                            if !a.entities.is_empty() {
+                                result.push(column);
+                            }
                         }
                     }
                     cache.replace(new_cache);
@@ -510,14 +510,16 @@ macro_rules! impl_query_parameters {
                         .iter()
                         .map(|(i, column_indexes)| (world.archetypes.get(*i).unwrap(), column_indexes)) {
 
-                    let mut column_index_iter = columns_vector.iter();
+                    if !archetype.entities.is_empty() {
+                        let mut column_index_iter = columns_vector.iter();
 
-                    let data = ($( {
-                        let column_index = column_index_iter.next().unwrap();
-                        <$ty::Item as QueryParameterFetchFromArchetype<'a>>::fetch_from_archetype(archetype, Some(*column_index)).0
-                    }),*);
+                        let data = ($( {
+                            let column_index = column_index_iter.next().unwrap();
+                            <$ty::Item as QueryParameterFetchFromArchetype<'a>>::fetch_from_archetype(archetype, Some(*column_index)).0
+                        }),*);
 
-                    result.push(data);
+                        result.push(data);
+                    }
                 }
                 } else {
                     let mut new_cache = QueryCache {
@@ -528,14 +530,17 @@ macro_rules! impl_query_parameters {
                         if $($ty::matches_archetype(&a))&&* {
                             let mut column_indexes = Vec::default();
                             let data = ($( {
-                                let (column, column_index) = <$ty::Item as QueryParameterFetchFromArchetype<'a>>::fetch_from_archetype(a, None);
-                                column_indexes.push(column_index);
+                                    let (column, column_index) = <$ty::Item as QueryParameterFetchFromArchetype<'a>>::fetch_from_archetype(a, None);
+                                    column_indexes.push(column_index);
 
-                                column}
+                                    column
+                                }
                             ),*);
 
                             new_cache.matched_archetypes.push((archetype_index, column_indexes));
-                            result.push(data);
+                            if !a.entities.is_empty() {
+                                result.push(data);
+                            }
                         }
                     }
                 }

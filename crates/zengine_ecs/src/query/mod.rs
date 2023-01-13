@@ -18,6 +18,12 @@ pub struct QueryRunner<T: QueryParameters> {
 impl<T: QueryParameters> QueryRunner<T> {
     /// Runs the query using a reference to the [World]
     pub fn run<'a>(&mut self, world: &'a World) -> Query<'a, T> {
+        if let Some(some_cache) = &self.query_cache {
+            if some_cache.last_archetypes_count != world.archetypes.len() {
+                self.query_cache.take();
+            }
+        }
+
         Query {
             data: T::fetch(world, &mut self.query_cache),
         }
@@ -106,7 +112,7 @@ impl<T: QueryParameters> Default for QueryRunner<T> {
 /// }
 /// ```
 pub struct Query<'a, T: QueryParameters> {
-    pub data: <T as QueryParameterFetch<'a>>::FetchItem,
+    data: <T as QueryParameterFetch<'a>>::FetchItem,
 }
 
 /// Cache query execution information
