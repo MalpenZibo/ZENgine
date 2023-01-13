@@ -256,7 +256,7 @@ impl AssetManager {
         self.asset_channels
             .write()
             .unwrap()
-            .insert(type_id, Box::new(AssetCommandChannel::<T>::default()));
+            .insert(type_id, Box::<AssetCommandChannel<T>>::default());
 
         Assets::new(self.asset_handle_ref_channel.sender.clone())
     }
@@ -408,7 +408,7 @@ mod tests {
 
     fn create_dir_and_file(file: impl AsRef<Path>) -> tempfile::TempDir {
         let asset_dir = tempfile::tempdir().unwrap();
-        std::fs::write(asset_dir.path().join(file), &[]).unwrap();
+        std::fs::write(asset_dir.path().join(file), []).unwrap();
         asset_dir
     }
 
