@@ -15,7 +15,6 @@ zengine_ecs = { workspace = true }
 zengine_engine = { workspace = true }
 zengine_macro = { workspace = true }
 
-cfg-if = { workspace = true }
 rustc-hash = { workspace = true }
 log = { workspace = true }
 ahash = { workspace = true }

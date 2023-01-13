@@ -158,20 +158,28 @@ fn default_runner(mut engine: Engine) {
 impl Engine {
     /// Initialize the logging utilities setting minimum log level
     pub fn init_logger(level: log::Level) {
-        cfg_if::cfg_if! {
-            if #[cfg(target_arch = "wasm32")] {
-                std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-                console_log::init_with_level(level).expect("Couldn't initialize logger");
-            } else {
-                use simplelog::{Config, SimpleLogger, TermLogger, TerminalMode};
-                let level_filter = level.to_level_filter();
-                if TermLogger::init(level_filter, Config::default(), TerminalMode::Mixed).is_err() {
-                    SimpleLogger::init(level_filter, Config::default())
-                        .expect("Couldn't initialize logger")
-                }
+        #[cfg(target_arch = "wasm32")]
+        {
+            std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+            console_log::init_with_level(level).expect("Couldn't initialize logger");
+        }
 
-                log_panics::init();
+        #[cfg(target_os = "android")]
+        {
+            android_logger::init_once(android_logger::Config::default().with_min_level(level));
+            log_panics::init();
+        }
+
+        #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
+        {
+            use simplelog::{Config, SimpleLogger, TermLogger, TerminalMode};
+            let level_filter = level.to_level_filter();
+            if TermLogger::init(level_filter, Config::default(), TerminalMode::Mixed).is_err() {
+                SimpleLogger::init(level_filter, Config::default())
+                    .expect("Couldn't initialize logger")
             }
+
+            log_panics::init();
         }
     }
 

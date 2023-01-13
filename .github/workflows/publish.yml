@@ -35,19 +35,19 @@ jobs:
         with:
           crate: cargo-release
 
+      - name: Prepare Vulkan SDK
+        uses: humbletim/setup-vulkan-sdk@v1.2.0
+        if: matrix.name == 'Linux' || matrix.name == 'Android'
+        with:
+          vulkan-query-version: 1.3.204.0
+          vulkan-components: Vulkan-Headers, Vulkan-Loader
+          vulkan-use-cache: true
+
       - name: Install dependencies
+        if: matrix.name == 'Linux' || matrix.name == 'Android'
         run: |
           sudo apt-get update -y -qq
-
-          # llvmpipe/lavapipe
-          sudo add-apt-repository ppa:oibaf/graphics-drivers -y
-
-          # vulkan sdk
-          wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
-          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-focal.list https://packages.lunarg.com/vulkan/lunarg-vulkan-focal.list
-
-          sudo apt-get update
-          sudo apt install -y libasound2-dev libudev-dev libegl1-mesa libgl1-mesa-dri libxcb-xfixes0-dev mesa-vulkan-drivers vulkan-sdk
+          sudo apt install -y libasound2-dev libudev-dev
 
       - name: Generate Cargo lock
         run: cargo generate-lockfile

@@ -163,36 +163,35 @@ pub struct AssetManager {
 
 impl Default for AssetManager {
     fn default() -> Self {
-        cfg_if::cfg_if! {
-            if #[cfg(target_arch = "wasm32")] {
-                Self {
-                    loaders: Vec::default(),
-                    extension_to_loader: FxHashMap::default(),
-                    asset_channels: Arc::new(RwLock::new(FxHashMap::default())),
-                    asset_handle_ref_channel: HandleRefChannel::default(),
-                    asset_handle_ref_count: FxHashMap::default(),
-                    asset_io: Arc::new(crate::io::WasmAssetIo::default()),
-                }
-            } else if #[cfg(target_os = "android")] {
-                Self {
-                    loaders: Vec::default(),
-                    extension_to_loader: FxHashMap::default(),
-                    asset_channels: Arc::new(RwLock::new(FxHashMap::default())),
-                    asset_handle_ref_channel: HandleRefChannel::default(),
-                    asset_handle_ref_count: FxHashMap::default(),
-                    asset_io: Arc::new(crate::io::AndroidAssetIo::default()),
-                }
-            } else {
-                Self {
-                    loaders: Vec::default(),
-                    extension_to_loader: FxHashMap::default(),
-                    asset_channels: Arc::new(RwLock::new(FxHashMap::default())),
-                    asset_handle_ref_channel: HandleRefChannel::default(),
-                    asset_handle_ref_count: FxHashMap::default(),
-                    asset_io: Arc::new(crate::io::FileAssetIo::default()),
-                }
-            }
-        }
+        #[cfg(target_arch = "wasm32")]
+        return Self {
+            loaders: Vec::default(),
+            extension_to_loader: FxHashMap::default(),
+            asset_channels: Arc::new(RwLock::new(FxHashMap::default())),
+            asset_handle_ref_channel: HandleRefChannel::default(),
+            asset_handle_ref_count: FxHashMap::default(),
+            asset_io: Arc::new(crate::io::WasmAssetIo::default()),
+        };
+
+        #[cfg(target_os = "android")]
+        return Self {
+            loaders: Vec::default(),
+            extension_to_loader: FxHashMap::default(),
+            asset_channels: Arc::new(RwLock::new(FxHashMap::default())),
+            asset_handle_ref_channel: HandleRefChannel::default(),
+            asset_handle_ref_count: FxHashMap::default(),
+            asset_io: Arc::new(crate::io::AndroidAssetIo::default()),
+        };
+
+        #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
+        return Self {
+            loaders: Vec::default(),
+            extension_to_loader: FxHashMap::default(),
+            asset_channels: Arc::new(RwLock::new(FxHashMap::default())),
+            asset_handle_ref_channel: HandleRefChannel::default(),
+            asset_handle_ref_count: FxHashMap::default(),
+            asset_io: Arc::new(crate::io::FileAssetIo::default()),
+        };
     }
 }
 
@@ -257,7 +256,7 @@ impl AssetManager {
         self.asset_channels
             .write()
             .unwrap()
-            .insert(type_id, Box::new(AssetCommandChannel::<T>::default()));
+            .insert(type_id, Box::<AssetCommandChannel<T>>::default());
 
         Assets::new(self.asset_handle_ref_channel.sender.clone())
     }
@@ -409,18 +408,16 @@ mod tests {
 
     fn create_dir_and_file(file: impl AsRef<Path>) -> tempfile::TempDir {
         let asset_dir = tempfile::tempdir().unwrap();
-        std::fs::write(asset_dir.path().join(file), &[]).unwrap();
+        std::fs::write(asset_dir.path().join(file), []).unwrap();
         asset_dir
     }
 
     fn setup(_asset_path: impl AsRef<Path>) -> AssetManager {
-        cfg_if::cfg_if! {
-            if #[cfg(target_os = "android")] {
-                AssetManager::new(crate::io::AndroidAssetIo::default())
-            } else {
-                AssetManager::new(crate::io::FileAssetIo::new(_asset_path))
-            }
-        }
+        #[cfg(target_os = "android")]
+        return AssetManager::new(crate::io::AndroidAssetIo::default());
+
+        #[cfg(not(target_os = "android"))]
+        return AssetManager::new(crate::io::FileAssetIo::new(_asset_path));
     }
 
     fn run_systems(

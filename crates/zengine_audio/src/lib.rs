@@ -26,7 +26,7 @@ impl Module for AudioModule {
             .add_system_into_stage(update_instances, Stage::PostRender);
 
         #[cfg(target_os = "android")]
-        engine.add_system_into_stage(handle_resume_suspended, StageLabel::PreUpdate);
+        engine.add_system_into_stage(handle_resume_suspended, Stage::PreUpdate);
     }
 }
 
@@ -308,7 +308,7 @@ fn audio_system(
 fn handle_resume_suspended(
     engine_event: zengine_ecs::system::EventStream<zengine_engine::EngineEvent>,
     mut audio_device: zengine_ecs::system::ResMut<AudioDevice>,
-    audio_instances: OptionalRes<Assets<AudioInstance>>,
+    audio_instances: Option<Res<Assets<AudioInstance>>>,
 ) {
     let last_event = engine_event.read().last();
     if last_event == Some(&zengine_engine::EngineEvent::Suspended) {

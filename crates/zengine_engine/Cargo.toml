@@ -13,7 +13,6 @@ license.workspace = true
 [dependencies]
 zengine_ecs = { workspace = true }
 
-cfg-if = { workspace = true }
 log = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -23,3 +22,6 @@ console_log = "0.2.0"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 simplelog = "^0.7.6"
 log-panics = "2.0.0"
+
+[target.'cfg(target_os = "android")'.dependencies]
+android_logger = "0.11"

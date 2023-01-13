@@ -10,11 +10,11 @@ use zengine::{
     },
     gamepad::GamepadModule,
     graphic::{
-        ActiveCamera, Background, Camera, CameraMode, Color, GraphicModule, Sprite, SpriteTexture,
-        Texture, TextureAssets, TextureAtlas, TextureAtlasAssets,
+        ActiveCamera, Background, Camera, CameraMode, Color, GraphicModule, Sprite, SpriteSize,
+        SpriteTexture, Texture, TextureAssets, TextureAtlas, TextureAtlasAssets,
     },
     input::{
-        device::{Key, Which},
+        device::{Key, TouchPhase, Which},
         Axis, AxisBind, Bindings, Input, InputHandler, InputModule,
     },
     log::Level,
@@ -128,7 +128,11 @@ pub fn main() {
         )
         .add_axis(
             UserInput::Player1XAxis,
-            AxisBind::with_source(Input::Touch { axis: Axis::X }).with_discrete_map(0.2),
+            AxisBind::with_source(Input::Touch {
+                axis: Axis::X,
+                phase: TouchPhase::Started,
+            })
+            .with_discrete_map(0.2),
         );
 
     Engine::default()
@@ -225,8 +229,7 @@ fn setup(
 
     commands.spawn((
         Sprite {
-            width: camera_height * 1.77,
-            height: camera_height,
+            size: SpriteSize::Height(camera_height),
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
             texture: SpriteTexture::Simple(bg),
@@ -243,8 +246,7 @@ fn setup(
 
     commands.spawn((
         Sprite {
-            width: board_width,
-            height: board_height,
+            size: SpriteSize::Width(board_width),
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
             texture: SpriteTexture::Atlas {
@@ -323,8 +325,7 @@ fn setup(
 
     let pad1 = commands.spawn((
         Sprite {
-            width: pad_half_width * 2.0,
-            height: pad_half_height * 2.0,
+            size: SpriteSize::Size(Vec2::new(pad_half_width * 2.0, pad_half_height * 2.0)),
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
             texture: SpriteTexture::Atlas {
@@ -350,8 +351,7 @@ fn setup(
 
     commands.spawn((
         Sprite {
-            width: pad_half_width * 2.0,
-            height: pad_half_height * 2.0,
+            size: SpriteSize::Size(Vec2::new(pad_half_width * 2.0, pad_half_height * 2.0)),
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
             texture: SpriteTexture::Atlas {
@@ -377,8 +377,7 @@ fn setup(
 
     commands.spawn((
         Sprite {
-            width: ball_radius * 2.0,
-            height: ball_radius * 2.0,
+            size: SpriteSize::Size(Vec2::new(ball_radius * 2.0, ball_radius * 2.0)),
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
             texture: SpriteTexture::Atlas {
@@ -445,15 +444,15 @@ fn pad_movement(
     for (transform, pad) in query.iter_mut() {
         let drag_acc = -game_settings.drag_constant * pad.velocity / pad.mass;
         pad.velocity +=
-            pad.cur_acc * time.delta.as_secs_f32() + drag_acc * time.delta.as_secs_f32();
-        transform.position.x += pad.velocity * time.delta.as_secs_f32();
+            pad.cur_acc * time.delta().as_secs_f32() + drag_acc * time.delta().as_secs_f32();
+        transform.position.x += pad.velocity * time.delta().as_secs_f32();
     }
 
     for (transform, pad) in query.iter_mut() {
         let drag_acc = -game_settings.drag_constant * pad.velocity / pad.mass;
         pad.velocity +=
-            pad.cur_acc * time.delta.as_secs_f32() + drag_acc * time.delta.as_secs_f32();
-        transform.position.x += pad.velocity * time.delta.as_secs_f32();
+            pad.cur_acc * time.delta().as_secs_f32() + drag_acc * time.delta().as_secs_f32();
+        transform.position.x += pad.velocity * time.delta().as_secs_f32();
     }
 }
 
@@ -474,11 +473,11 @@ fn ball_movement(
     }
     if ball_movement.launched {
         for (transform, ball) in query.iter_mut() {
-            transform.position.x += ball.vel.x * time.delta.as_secs_f32();
-            transform.position.y += ball.vel.y * time.delta.as_secs_f32();
+            transform.position.x += ball.vel.x * time.delta().as_secs_f32();
+            transform.position.y += ball.vel.y * time.delta().as_secs_f32();
         }
     } else {
-        ball_movement.respawn += time.delta.as_secs_f32();
+        ball_movement.respawn += time.delta().as_secs_f32();
         if ball_movement.respawn > 5.0 {
             ball_movement.launched = true;
             ball_movement.respawn = 0.0;

@@ -3,8 +3,8 @@ use zengine::{
     core::Transform,
     ecs::system::{Commands, ResMut},
     graphic::{
-        Background, Camera, CameraMode, Color, GraphicModule, Sprite, SpriteTexture, Texture,
-        TextureAssets,
+        Background, Camera, CameraMode, Color, GraphicModule, Sprite, SpriteSize, SpriteTexture,
+        Texture, TextureAssets,
     },
     math::{Vec2, Vec3},
     window::{WindowConfig, WindowModule},
@@ -50,8 +50,7 @@ fn setup(
 
     commands.spawn((
         Sprite {
-            width: 1.77,
-            height: 1.,
+            size: SpriteSize::Size(Vec2::new(1.77, 1.)),
             origin: Vec3::new(0.5, 0.5, 0.0),
             color: Color::WHITE,
             texture: SpriteTexture::Simple(texture),

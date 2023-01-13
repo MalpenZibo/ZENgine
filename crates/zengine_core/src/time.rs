@@ -35,7 +35,7 @@ impl Default for FrameLimiter {
 #[derive(Resource, Debug)]
 pub struct Time {
     /// Delta time between each frame
-    pub delta: Duration,
+    delta: Duration,
 }
 
 impl Default for Time {
@@ -43,6 +43,13 @@ impl Default for Time {
         Time {
             delta: Duration::from_secs(1),
         }
+    }
+}
+
+impl Time {
+    /// Returns how much time has advanced since the cycle, as a [`Duration`].
+    pub fn delta(&self) -> Duration {
+        self.delta
     }
 }
 

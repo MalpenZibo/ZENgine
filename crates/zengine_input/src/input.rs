@@ -1,5 +1,5 @@
 use crate::device::{
-    Key, MouseButton, {ControllerButton, Which},
+    Key, MouseButton, TouchPhase, {ControllerButton, Which},
 };
 use serde::Deserialize;
 
@@ -60,8 +60,10 @@ pub enum Input {
     },
     /// Triggered then the user touch the screen (only on supported platform)
     Touch {
-        /// indixate the axis of the touch event
+        /// indicate the axis of the touch event
         axis: Axis,
+        /// indicate the touch-screen input state
+        phase: TouchPhase,
     },
 }
 
