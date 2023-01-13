@@ -195,3 +195,46 @@ pub fn collision_system(
         }
     }
 }
+
+fn point_in_rectangle(
+    point: Vec3,
+    shape_width: f32,
+    shape_height: f32,
+    shape_origin: Vec3,
+    shape_transform: &Transform,
+) -> bool {
+    let left = shape_width * shape_origin.x * shape_transform.scale;
+    let right = shape_width * shape_transform.scale - left;
+    let bottom = shape_height * shape_origin.y * shape_transform.scale;
+    let top = shape_height * shape_transform.scale - bottom;
+
+    let x = shape_transform.position.x - left;
+    let y = shape_transform.position.y - bottom;
+
+    let extent_x = shape_transform.position.x + right;
+    let extent_y = shape_transform.position.y + top;
+
+    point.x > x && point.x < extent_x && point.y > y && point.y < extent_y
+}
+
+/// Check if a point is inside a target shape
+pub fn point_in_shape(point: Vec3, shape: &Shape2D, shape_transform: &Transform) -> bool {
+    match shape.shape_type {
+        ShapeType::Rectangle { width, height } => {
+            point_in_rectangle(point, width, height, shape.origin, shape_transform)
+        }
+        ShapeType::Circle { radius } => {
+            let diameter = radius * 2.0 * shape_transform.scale;
+            let delta = Vec3::new(
+                diameter * -(-0.5 + shape.origin.x),
+                diameter * -(-0.5 + shape.origin.y),
+                0.0,
+            );
+
+            let distance = (shape_transform.position + delta).distance(point).abs();
+
+            let radius_lenghts = radius * shape_transform.scale;
+            distance < radius_lenghts
+        }
+    }
+}
