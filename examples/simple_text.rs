@@ -1,13 +1,13 @@
+use glam::vec2;
 use zengine::{
-    asset::{AssetManager, AssetModule, Assets},
+    asset::{AssetManager, AssetModule},
     core::Transform,
     ecs::system::{Commands, ResMut},
-    graphic::{
-        Background, Camera, CameraMode, Color, GraphicModule, Sprite, SpriteSize, SpriteTexture,
-        Texture, TextureAssets,
-    },
+    graphic::{Background, Camera, CameraMode, Color, GraphicModule},
     log::Level,
     math::{Vec2, Vec3},
+    text::TextModule,
+    text::{Text, TextAlignment, TextSection, TextStyle},
     window::{WindowConfig, WindowModule},
     Engine,
 };
@@ -18,7 +18,7 @@ fn main() {
 
     Engine::default()
         .add_module(WindowModule(WindowConfig {
-            title: "Simple Sprite".to_owned(),
+            title: "Simple Text".to_owned(),
             width: 1280,
             height: 720,
             fullscreen: false,
@@ -26,19 +26,13 @@ fn main() {
         }))
         .add_module(AssetModule::new("assets"))
         .add_module(GraphicModule::default())
+        .add_module(TextModule::default())
         .add_startup_system(setup)
         .run();
 }
 
-fn setup(
-    mut commands: Commands,
-    mut asset_manager: ResMut<AssetManager>,
-    textures: Option<ResMut<Assets<Texture>>>,
-) {
-    let mut textures = textures.unwrap();
-    let texture = asset_manager.load("branding/logo_extended.png");
-
-    let texture = textures.create_texture(&texture);
+fn setup(mut commands: Commands, mut asset_manager: ResMut<AssetManager>) {
+    let font = asset_manager.load("fonts/impact.ttf");
 
     commands.create_resource(Background {
         color: Color::new(35, 31, 32, 255),
@@ -52,11 +46,18 @@ fn setup(
     ));
 
     commands.spawn((
-        Sprite {
-            size: SpriteSize::Size(Vec2::new(1.77, 1.)),
-            origin: Vec3::new(0.5, 0.5, 0.0),
+        Text {
+            sections: vec![TextSection {
+                value: "Test".to_string(),
+                style: TextStyle {
+                    font: font.clone_as_weak(),
+                    font_size: 40.,
+                    color: Color::WHITE,
+                },
+            }],
+            alignment: TextAlignment::default(),
+            bounds: vec2(200., 300.),
             color: Color::WHITE,
-            texture: SpriteTexture::Simple(texture),
         },
         Transform::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
     ));

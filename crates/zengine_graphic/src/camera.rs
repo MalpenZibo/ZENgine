@@ -160,6 +160,7 @@ pub(crate) fn camera_render(
 ) {
     if let (Some(queue), Some(camera_buffer)) = (queue, camera_buffer) {
         let camera_data = pick_correct_camera(&camera_query, &active_camera);
+
         if let Some((camera, transform)) = camera_data {
             queue.write_buffer(
                 &camera_buffer.buffer,

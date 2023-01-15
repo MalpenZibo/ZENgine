@@ -41,11 +41,11 @@ impl Module for GraphicModule {
             .add_startup_system(setup_render)
             .add_startup_system(setup_camera)
             .add_startup_system(setup_sprite_render)
-            .add_system_into_stage(prepare_texture_asset, Stage::Render)
-            .add_system_into_stage(prepare_texture_atlas_asset, Stage::Render)
-            .add_system_into_stage(clear, Stage::Render)
+            .add_system_into_stage(prepare_texture_asset, Stage::PreRender)
+            .add_system_into_stage(prepare_texture_atlas_asset, Stage::PreRender)
+            .add_system_into_stage(clear, Stage::PreRender)
             .add_system_into_stage(camera_render, Stage::Render)
             .add_system_into_stage(sprite_render, Stage::Render)
-            .add_system_into_stage(present, Stage::Render);
+            .add_system_into_stage(present, Stage::PostRender);
     }
 }

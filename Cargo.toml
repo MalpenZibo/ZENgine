@@ -51,6 +51,7 @@ zengine_physics = { path = "crates/zengine_physics", version = "0.1.2" }
 zengine_window = { path = "crates/zengine_window", version = "0.1.2" }
 zengine_audio = { path = "crates/zengine_audio", version = "0.1.2" }
 zengine_gamepad = { path = "crates/zengine_gamepad", version = "0.1.2" }
+zengine_text = { path = "crates/zengine_text", version = "0.1.2" }
 zengine_macro = { path = "crates/zengine_macro", version = "0.1.2" }
 
 [dependencies]
@@ -64,6 +65,7 @@ zengine_physics = { workspace = true }
 zengine_window = { workspace = true }
 zengine_audio = { workspace = true }
 zengine_gamepad = { workspace = true }
+zengine_text = { workspace = true }
 zengine_macro = { workspace = true }
 
 glam = { workspace = true }
@@ -81,6 +83,10 @@ path = "examples/hello_world.rs"
 [[example]]
 name = "simple_sprite"
 path = "examples/simple_sprite.rs"
+
+[[example]]
+name = "simple_text"
+path = "examples/simple_text.rs"
 
 [[bench]]
 name = "archetype"
