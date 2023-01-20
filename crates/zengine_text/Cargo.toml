@@ -21,13 +21,18 @@ zengine_window = { workspace = true }
 
 log = { workspace = true }
 glam = { workspace = true }
+rustc-hash = { workspace = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wgpu = { workspace = true, features = ["webgl"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+wgpu = { workspace = true }
 
 ab_glyph = "0.2.19"
 glyph_brush_layout = "0.2.3"
-wgpu_glyph = "0.18.0"
+glyph_brush = "0.7.5"
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-wgpu = { version = "0.14", features = ["webgl"] }
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-wgpu = "0.14"
+[dependencies.bytemuck]
+version = "1.9"
+features = ["derive"]

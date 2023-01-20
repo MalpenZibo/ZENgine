@@ -38,9 +38,11 @@ fn setup(mut commands: Commands, mut asset_manager: ResMut<AssetManager>) {
         color: Color::new(35, 31, 32, 255),
     });
 
+    let camera_width = 10.0;
+
     commands.spawn((
         Camera {
-            mode: CameraMode::Mode2D(Vec2::new(3.55, 2.0)),
+            mode: CameraMode::Mode2D(Vec2::new(camera_width, camera_width / 1.777)),
         },
         Transform::new(Vec3::new(0.0, 0.0, -1.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
     ));
@@ -48,17 +50,17 @@ fn setup(mut commands: Commands, mut asset_manager: ResMut<AssetManager>) {
     commands.spawn((
         Text {
             sections: vec![TextSection {
-                value: "Test".to_string(),
+                value: "Hello!!!".to_string(),
                 style: TextStyle {
                     font: font.clone_as_weak(),
-                    font_size: 40.,
+                    font_size: 80.,
                     color: Color::WHITE,
                 },
             }],
             alignment: TextAlignment::default(),
-            bounds: vec2(200., 300.),
+            bounds: vec2(500., 500.),
             color: Color::WHITE,
         },
-        Transform::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
+        Transform::new(Vec3::new(0., 0., 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
     ));
 }
