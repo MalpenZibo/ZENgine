@@ -3,17 +3,12 @@ use crate::Region;
 
 use bytemuck::{Pod, Zeroable};
 use core::num::NonZeroU64;
-use glam::{Mat4, Vec2};
+use glam::Vec2;
 use glyph_brush::ab_glyph::{point, Rect};
-use log::info;
-use std::borrow::Cow;
-use std::marker::PhantomData;
 use std::mem;
 use zengine_graphic::CameraBuffer;
-use zengine_window::WindowSpecs;
 
-pub struct Pipeline<Depth> {
-    transform: wgpu::Buffer,
+pub struct Pipeline {
     sampler: wgpu::Sampler,
     cache: Cache,
     uniform_layout: wgpu::BindGroupLayout,
@@ -22,11 +17,9 @@ pub struct Pipeline<Depth> {
     instances: wgpu::Buffer,
     current_instances: usize,
     supported_instances: usize,
-    current_transform: [f32; 16],
-    depth: PhantomData<Depth>,
 }
 
-impl Pipeline<()> {
+impl Pipeline {
     pub fn new(
         device: &wgpu::Device,
         filter_mode: wgpu::FilterMode,
@@ -35,44 +28,154 @@ impl Pipeline<()> {
         cache_width: u32,
         cache_height: u32,
         camera_buffer: &CameraBuffer,
-    ) -> Pipeline<()> {
-        build(
-            device,
-            filter_mode,
+    ) -> Self {
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: filter_mode,
+            min_filter: filter_mode,
+            mipmap_filter: filter_mode,
+            ..Default::default()
+        });
+
+        let cache = Cache::new(device, cache_width, cache_height);
+
+        let uniform_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("wgpu_glyph::Pipeline uniforms"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+            ],
+        });
+
+        let uniforms = create_uniforms(device, &uniform_layout, &sampler, &cache.view);
+
+        let instances = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("wgpu_glyph::Pipeline instances"),
+            size: mem::size_of::<Instance>() as u64 * Instance::INITIAL_AMOUNT as u64,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: None,
+            push_constant_ranges: &[],
+            bind_group_layouts: &[&uniform_layout, &camera_buffer.bind_group_layout],
+        });
+
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Glyph Shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("glyph.wgsl").into()),
+        });
+
+        let raw = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: None,
+            layout: Some(&layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: "vs_main",
+                buffers: &[wgpu::VertexBufferLayout {
+                    array_stride: mem::size_of::<Instance>() as u64,
+                    step_mode: wgpu::VertexStepMode::Instance,
+                    attributes: &wgpu::vertex_attr_array![
+                        0 => Float32x3,
+                        1 => Float32x2,
+                        2 => Float32x2,
+                        3 => Float32x2,
+                        4 => Float32x4,
+                    ],
+                }],
+            },
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleStrip,
+                front_face: wgpu::FrontFace::Cw,
+                strip_index_format: Some(wgpu::IndexFormat::Uint16),
+                ..Default::default()
+            },
+            depth_stencil: None,
             multisample,
-            render_format,
-            None,
-            cache_width,
-            cache_height,
-            camera_buffer,
-        )
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: "fs_main",
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: render_format,
+                    blend: Some(wgpu::BlendState {
+                        color: wgpu::BlendComponent {
+                            src_factor: wgpu::BlendFactor::SrcAlpha,
+                            dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                            operation: wgpu::BlendOperation::Add,
+                        },
+                        alpha: wgpu::BlendComponent {
+                            src_factor: wgpu::BlendFactor::One,
+                            dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                            operation: wgpu::BlendOperation::Add,
+                        },
+                    }),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            multiview: None,
+        });
+
+        Self {
+            sampler,
+            cache,
+            uniform_layout,
+            uniforms,
+            raw,
+            instances,
+            current_instances: 0,
+            supported_instances: Instance::INITIAL_AMOUNT,
+        }
     }
 
     pub fn draw(
         &mut self,
-        device: &wgpu::Device,
-        staging_belt: &mut wgpu::util::StagingBelt,
         encoder: &mut wgpu::CommandEncoder,
         target: &wgpu::TextureView,
-        transform: [f32; 16],
         region: Option<Region>,
         camera_buffer: &CameraBuffer,
     ) {
-        draw(
-            self,
-            device,
-            staging_belt,
-            encoder,
-            target,
-            None,
-            transform,
-            region,
-            camera_buffer,
-        );
-    }
-}
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("wgpu_glyph::pipeline render pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: target,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: true,
+                },
+            })],
+            depth_stencil_attachment: None,
+        });
 
-impl<Depth> Pipeline<Depth> {
+        render_pass.set_pipeline(&self.raw);
+        render_pass.set_bind_group(1, &camera_buffer.bind_group, &[]);
+        render_pass.set_bind_group(0, &self.uniforms, &[]);
+        render_pass.set_vertex_buffer(0, self.instances.slice(..));
+
+        if let Some(region) = region {
+            render_pass.set_scissor_rect(region.x, region.y, region.width, region.height);
+        }
+
+        render_pass.draw(0..4, 0..self.current_instances as u32);
+    }
+
     pub fn update_cache(
         &mut self,
         device: &wgpu::Device,
@@ -92,7 +195,6 @@ impl<Depth> Pipeline<Depth> {
         self.uniforms = create_uniforms(
             device,
             &self.uniform_layout,
-            &self.transform,
             &self.sampler,
             &self.cache.view,
         );
@@ -134,215 +236,9 @@ impl<Depth> Pipeline<Depth> {
     }
 }
 
-// Helpers
-#[cfg_attr(rustfmt, rustfmt_skip)]
-const IDENTITY_MATRIX: [f32; 16] = [
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 1.0, 0.0,
-    0.0, 0.0, 0.0, 1.0,
-];
-
-fn build<D>(
-    device: &wgpu::Device,
-    filter_mode: wgpu::FilterMode,
-    multisample: wgpu::MultisampleState,
-    render_format: wgpu::TextureFormat,
-    depth_stencil: Option<wgpu::DepthStencilState>,
-    cache_width: u32,
-    cache_height: u32,
-    camera_buffer: &CameraBuffer,
-) -> Pipeline<D> {
-    use wgpu::util::DeviceExt;
-
-    let transform = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: None,
-        contents: bytemuck::cast_slice(&glam::Mat4::IDENTITY.to_cols_array()),
-        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-    });
-
-    let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-        address_mode_u: wgpu::AddressMode::ClampToEdge,
-        address_mode_v: wgpu::AddressMode::ClampToEdge,
-        address_mode_w: wgpu::AddressMode::ClampToEdge,
-        mag_filter: filter_mode,
-        min_filter: filter_mode,
-        mipmap_filter: filter_mode,
-        ..Default::default()
-    });
-
-    let cache = Cache::new(device, cache_width, cache_height);
-
-    let uniform_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("wgpu_glyph::Pipeline uniforms"),
-        entries: &[
-            // wgpu::BindGroupLayoutEntry {
-            //     binding: 0,
-            //     visibility: wgpu::ShaderStages::VERTEX,
-            //     ty: wgpu::BindingType::Buffer {
-            //         ty: wgpu::BufferBindingType::Uniform,
-            //         has_dynamic_offset: false,
-            //         min_binding_size: wgpu::BufferSize::new(mem::size_of::<[f32; 16]>() as u64),
-            //     },
-            //     count: None,
-            // },
-            wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 1,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Texture {
-                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    multisampled: false,
-                },
-                count: None,
-            },
-        ],
-    });
-
-    let uniforms = create_uniforms(device, &uniform_layout, &transform, &sampler, &cache.view);
-
-    let instances = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("wgpu_glyph::Pipeline instances"),
-        size: mem::size_of::<Instance>() as u64 * Instance::INITIAL_AMOUNT as u64,
-        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
-
-    let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: None,
-        push_constant_ranges: &[],
-        bind_group_layouts: &[&uniform_layout, &camera_buffer.bind_group_layout],
-    });
-
-    let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some("Glyph Shader"),
-        source: wgpu::ShaderSource::Wgsl(include_str!("glyph.wgsl").into()),
-    });
-
-    let raw = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: None,
-        layout: Some(&layout),
-        vertex: wgpu::VertexState {
-            module: &shader,
-            entry_point: "vs_main",
-            buffers: &[wgpu::VertexBufferLayout {
-                array_stride: mem::size_of::<Instance>() as u64,
-                step_mode: wgpu::VertexStepMode::Instance,
-                attributes: &wgpu::vertex_attr_array![
-                    0 => Float32x3,
-                    1 => Float32x2,
-                    2 => Float32x2,
-                    3 => Float32x2,
-                    4 => Float32x4,
-                ],
-            }],
-        },
-        primitive: wgpu::PrimitiveState {
-            topology: wgpu::PrimitiveTopology::TriangleStrip,
-            front_face: wgpu::FrontFace::Cw,
-            strip_index_format: Some(wgpu::IndexFormat::Uint16),
-            ..Default::default()
-        },
-        depth_stencil,
-        multisample,
-        fragment: Some(wgpu::FragmentState {
-            module: &shader,
-            entry_point: "fs_main",
-            targets: &[Some(wgpu::ColorTargetState {
-                format: render_format,
-                blend: Some(wgpu::BlendState {
-                    color: wgpu::BlendComponent {
-                        src_factor: wgpu::BlendFactor::SrcAlpha,
-                        dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                        operation: wgpu::BlendOperation::Add,
-                    },
-                    alpha: wgpu::BlendComponent {
-                        src_factor: wgpu::BlendFactor::One,
-                        dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                        operation: wgpu::BlendOperation::Add,
-                    },
-                }),
-                write_mask: wgpu::ColorWrites::ALL,
-            })],
-        }),
-        multiview: None,
-    });
-
-    Pipeline {
-        transform,
-        sampler,
-        cache,
-        uniform_layout,
-        uniforms,
-        raw,
-        instances,
-        current_instances: 0,
-        supported_instances: Instance::INITIAL_AMOUNT,
-        current_transform: [0.0; 16],
-        depth: PhantomData,
-    }
-}
-
-fn draw<D>(
-    pipeline: &mut Pipeline<D>,
-    device: &wgpu::Device,
-    staging_belt: &mut wgpu::util::StagingBelt,
-    encoder: &mut wgpu::CommandEncoder,
-    target: &wgpu::TextureView,
-    depth_stencil_attachment: Option<wgpu::RenderPassDepthStencilAttachment>,
-    transform: [f32; 16],
-    region: Option<Region>,
-    camera_buffer: &CameraBuffer,
-) {
-    if transform != pipeline.current_transform {
-        let mut transform_view = staging_belt.write_buffer(
-            encoder,
-            &pipeline.transform,
-            0,
-            unsafe { NonZeroU64::new_unchecked(16 * 4) },
-            device,
-        );
-
-        transform_view.copy_from_slice(bytemuck::cast_slice(&glam::Mat4::IDENTITY.to_cols_array()));
-
-        pipeline.current_transform = transform;
-    }
-
-    let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-        label: Some("wgpu_glyph::pipeline render pass"),
-        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-            view: target,
-            resolve_target: None,
-            ops: wgpu::Operations {
-                load: wgpu::LoadOp::Load,
-                store: true,
-            },
-        })],
-        depth_stencil_attachment,
-    });
-
-    render_pass.set_pipeline(&pipeline.raw);
-    render_pass.set_bind_group(1, &camera_buffer.bind_group, &[]);
-    render_pass.set_bind_group(0, &pipeline.uniforms, &[]);
-    render_pass.set_vertex_buffer(0, pipeline.instances.slice(..));
-
-    if let Some(region) = region {
-        render_pass.set_scissor_rect(region.x, region.y, region.width, region.height);
-    }
-
-    render_pass.draw(0..4, 0..pipeline.current_instances as u32);
-}
-
 fn create_uniforms(
     device: &wgpu::Device,
     layout: &wgpu::BindGroupLayout,
-    transform: &wgpu::Buffer,
     sampler: &wgpu::Sampler,
     cache: &wgpu::TextureView,
 ) -> wgpu::BindGroup {
@@ -384,7 +280,6 @@ impl Instance {
         }: glyph_brush::GlyphVertex,
         scale: &Vec2,
     ) -> Instance {
-        info!("tex coords {tex_coords:?} pixel_coords {pixel_coords:?} bounds {bounds:?}");
         let gl_bounds = bounds;
 
         let mut gl_rect = Rect {

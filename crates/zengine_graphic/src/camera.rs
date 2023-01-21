@@ -72,10 +72,10 @@ pub struct Camera {
 }
 
 impl Camera {
+    /// Get the [Camera] size
     pub fn get_size(&self) -> Vec2 {
         match self.mode {
             CameraMode::Mode2D(size) => size,
-            _ => Vec2::ONE,
         }
     }
 
@@ -106,8 +106,27 @@ pub struct CameraBuffer {
     pub bind_group: BindGroup,
 }
 
+#[derive(Debug)]
+struct UsedCameraData {
+    pub size: Vec2,
+    pub transform: Option<Transform>,
+}
+
+/// Resource that contains information about the Camera used to render the current frame
 #[derive(Resource, Default, Debug)]
-pub struct UsedCamera(pub Option<(Vec2, Transform)>);
+pub struct UsedCamera(Option<UsedCameraData>);
+
+impl UsedCamera {
+    /// Get the size of the [Camera] used to render the current frame
+    pub fn get_size(&self) -> Option<Vec2> {
+        self.0.as_ref().map(|d| d.size)
+    }
+
+    /// Get the transform of the [Camera] used to render the current frame
+    pub fn get_transform(&self) -> Option<&Transform> {
+        self.0.as_ref().and_then(|d| d.transform.as_ref())
+    }
+}
 
 fn pick_correct_camera<'a>(
     camera_query: &'a Query<(Entity, &Camera, Option<&Transform>)>,
@@ -170,19 +189,19 @@ pub(crate) fn camera_render(
     camera_buffer: Option<ResMut<CameraBuffer>>,
     mut used_camera: ResMut<UsedCamera>,
 ) {
-    if let (Some(queue), Some(mut camera_buffer)) = (queue, camera_buffer) {
+    if let (Some(queue), Some(camera_buffer)) = (queue, camera_buffer) {
         let camera_data = pick_correct_camera(&camera_query, &active_camera);
 
-        used_camera.0 =
-            camera_data.map(|(c, t)| (c.get_size(), t.map(|t| t.clone()).unwrap_or_default()));
+        used_camera.0 = camera_data.map(|(c, t)| UsedCameraData {
+            size: c.get_size(),
+            transform: t.map(|t| t.clone()),
+        });
 
         let camera_uniform = if let Some((camera, transform)) = camera_data {
             CameraUniform::new(camera, transform)
         } else {
             CameraUniform::default()
         };
-
-        // let wgpu_uniform: WGPUCameraUniform = camera_buffer.camera_uniform.into();
 
         queue.write_buffer(
             &camera_buffer.buffer,

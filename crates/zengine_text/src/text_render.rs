@@ -2,11 +2,9 @@ use std::borrow::Cow;
 
 use ab_glyph::FontArc;
 use glam::Vec2;
-use glyph_brush::{
-    BrushAction, BrushError, DefaultSectionHasher, Extra, FontId, Rectangle, Section,
-};
+use glyph_brush::{BrushAction, BrushError, Extra, FontId, Section};
 use log::info;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use wgpu::Device;
 use zengine_asset::{Assets, Handle};
 use zengine_graphic::CameraBuffer;
@@ -20,12 +18,12 @@ use crate::{
 #[derive(Resource)]
 pub struct TextRender {
     font_handle_to_id: FxHashMap<Handle<Font>, FontId>,
-    pipeline: Pipeline<()>,
+    pipeline: Pipeline,
     glyph_brush: glyph_brush::GlyphBrush<Instance, Extra, ab_glyph::FontArc>,
 }
 
 impl std::fmt::Debug for TextRender {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         //TODO fix this implementation
         Ok(())
     }
@@ -40,7 +38,7 @@ impl TextRender {
     ) -> Self {
         let mut new_fonts: Vec<FontArc> = Vec::with_capacity(fonts.len());
         let mut i = 0;
-        for (h, f) in fonts.iter_mut() {
+        for (_h, f) in fonts.iter_mut() {
             f.font_id = Some(FontId(i));
             new_fonts.push(f.font.clone());
             i += 1;
@@ -50,9 +48,9 @@ impl TextRender {
         let (cache_width, cache_height) = glyph_brush.texture_dimensions();
         Self {
             font_handle_to_id: FxHashMap::default(),
-            pipeline: Pipeline::<()>::new(
+            pipeline: Pipeline::new(
                 device,
-                wgpu::FilterMode::Linear,
+                wgpu::FilterMode::Nearest,
                 wgpu::MultisampleState::default(),
                 render_format,
                 cache_width,
@@ -78,43 +76,11 @@ impl TextRender {
         staging_belt: &mut wgpu::util::StagingBelt,
         encoder: &mut wgpu::CommandEncoder,
         target: &wgpu::TextureView,
-        target_width: u32,
-        target_height: u32,
-        camera_buffer: &CameraBuffer,
-        camera_scale: &Vec2,
-    ) -> Result<(), String> {
-        self.draw_queued_with_transform(
-            device,
-            staging_belt,
-            encoder,
-            target,
-            orthographic_projection(target_width, target_height),
-            camera_buffer,
-            camera_scale,
-        )
-    }
-
-    #[inline]
-    pub fn draw_queued_with_transform(
-        &mut self,
-        device: &wgpu::Device,
-        staging_belt: &mut wgpu::util::StagingBelt,
-        encoder: &mut wgpu::CommandEncoder,
-        target: &wgpu::TextureView,
-        transform: [f32; 16],
         camera_buffer: &CameraBuffer,
         camera_scale: &Vec2,
     ) -> Result<(), String> {
         self.process_queued(device, staging_belt, encoder, camera_scale);
-        self.pipeline.draw(
-            device,
-            staging_belt,
-            encoder,
-            target,
-            transform,
-            None,
-            camera_buffer,
-        );
+        self.pipeline.draw(encoder, target, None, camera_buffer);
 
         Ok(())
     }
@@ -180,15 +146,4 @@ impl TextRender {
             BrushAction::ReDraw => {}
         };
     }
-}
-
-/// Helper function to generate a generate a transform matrix.
-pub fn orthographic_projection(width: u32, height: u32) -> [f32; 16] {
-    #[cfg_attr(rustfmt, rustfmt_skip)]
-    [
-        2.0 / width as f32, 0.0, 0.0, 0.0,
-        0.0, -2.0 / height as f32, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0,
-        -1.0, 1.0, 0.0, 1.0,
-    ]
 }
