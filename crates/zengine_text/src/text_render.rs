@@ -3,7 +3,6 @@ use std::borrow::Cow;
 use ab_glyph::FontArc;
 use glam::Vec2;
 use glyph_brush::{BrushAction, BrushError, Extra, FontId, Section};
-use log::info;
 use rustc_hash::FxHashMap;
 use wgpu::Device;
 use zengine_asset::{Assets, Handle};
@@ -99,7 +98,6 @@ impl TextRender {
         loop {
             brush_action = self.glyph_brush.process_queued(
                 |rect, tex_data| {
-                    info!("rect {rect:?} ");
                     let offset = [rect.min[0] as u16, rect.min[1] as u16];
                     let size = [rect.width() as u16, rect.height() as u16];
 

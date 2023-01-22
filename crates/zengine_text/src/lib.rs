@@ -75,13 +75,15 @@ fn text_render(
     let staging_belt = staging_belt.get_or_insert(wgpu::util::StagingBelt::new(1024));
     staging_belt.recall();
 
+    let scale = window_specs.size / used_camera.get_size().unwrap_or_else(|| Vec2::ONE);
+
     if let (Some(mut text_render), Some(fonts), Some(device), Some(render_context)) =
         (text_render, fonts, device, render_context.as_mut())
     {
         for (text, transform) in texts.iter() {
             text_render.queue(Section {
                 screen_position: (transform.position.x, transform.position.y),
-                bounds: text.bounds.into(),
+                bounds: (text.bounds * scale).into(),
                 text: text
                     .sections
                     .iter()
@@ -103,8 +105,12 @@ fn text_render(
                         &mut render_context.command_encoder,
                         &render_context.texture_view,
                         camera_buffer,
+<<<<<<< HEAD
                         &(window_specs.size.as_vec2()
                             / used_camera.get_size().unwrap_or_else(|| Vec2::ONE)),
+=======
+                        &scale,
+>>>>>>> c4707fd (fix bounds)
                     )
                     .expect("Draw queued");
             }
