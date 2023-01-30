@@ -1,17 +1,22 @@
+use ab_glyph::{FontArc, FontVec};
+use glyph_brush_layout::FontId;
 use zengine_asset::AssetLoader;
 use zengine_macro::Asset;
 
 #[derive(Asset, Debug)]
 pub struct Font {
-    pub font: fontdue::Font,
+    pub font: FontArc,
+    pub font_id: Option<FontId>,
 }
 
 impl Font {
     pub fn try_from_bytes(font_data: Vec<u8>) -> Self {
-        let font = fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default())
-            .expect("Unable to load Font");
-
-        Font { font }
+        let font = FontVec::try_from_vec(font_data).expect("Unable to load Font");
+        let font = FontArc::new(font);
+        Font {
+            font,
+            font_id: None,
+        }
     }
 }
 

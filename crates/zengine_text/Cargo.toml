@@ -32,6 +32,8 @@ wgpu = { workspace = true }
 ab_glyph = "0.2.19"
 glyph_brush_layout = "0.2.3"
 glyph_brush = "0.7.5"
+fontdue = { git = "https://github.com/mooman219/fontdue", rev = "828b4f4" }
+etagere = "0.2.7"
 
 [dependencies.bytemuck]
 version = "1.9"

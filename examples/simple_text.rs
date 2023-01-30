@@ -7,10 +7,12 @@ use zengine::{
     log::Level,
     math::{Vec2, Vec3},
     text::TextModule,
-    text::{Text, TextAlignment, TextSection, TextStyle},
+    text::{Text, TextAlignment, TextSection},
     window::{WindowConfig, WindowModule},
     Engine,
 };
+use zengine_asset::Handle;
+use zengine_text::Font;
 
 #[cfg(not(target_os = "android"))]
 fn main() {
@@ -32,13 +34,13 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, mut asset_manager: ResMut<AssetManager>) {
-    let font = asset_manager.load("fonts/impact.ttf");
+    let font: Handle<Font> = asset_manager.load("fonts/impact.ttf");
 
     commands.create_resource(Background {
         color: Color::new(35, 31, 32, 255),
     });
 
-    let camera_width = 10.0;
+    let camera_width = 1280.0;
 
     commands.spawn((
         Camera {
@@ -47,20 +49,20 @@ fn setup(mut commands: Commands, mut asset_manager: ResMut<AssetManager>) {
         Transform::new(Vec3::new(0.0, 0.0, -1.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
     ));
 
-    commands.spawn((
-        Text {
-            sections: vec![TextSection {
-                value: "Hello!!!".to_string(),
-                style: TextStyle {
-                    font: font.clone_as_weak(),
-                    font_size: 80.,
-                    color: Color::WHITE,
-                },
-            }],
-            alignment: TextAlignment::default(),
-            bounds: vec2(500., 500.),
-            color: Color::WHITE,
-        },
-        Transform::new(Vec3::new(0., 0., 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
-    ));
+    // commands.spawn((
+    //     Text {
+    //         sections: vec![TextSection {
+    //             value: "Ti amo tanto piccola!!!".to_string(),
+    //             style: TextStyle {
+    //                 font: font.clone_as_weak(),
+    //                 font_size: 80.,
+    //                 color: Color::WHITE,
+    //             },
+    //         }],
+    //         alignment: TextAlignment::default(),
+    //         bounds: vec2(0.25, 1.),
+    //         color: Color::WHITE,
+    //     },
+    //     Transform::new(Vec3::new(0.3, 0., 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
+    // ));
 }
