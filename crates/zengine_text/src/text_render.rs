@@ -147,8 +147,8 @@ impl TextRenderer {
 
                     (
                         GpuCache::InAtlas {
-                            x: atlas_min.x as u16,
-                            y: atlas_min.y as u16,
+                            x: atlas_min.x as f32,
+                            y: atlas_min.y as f32,
                         },
                         Some(allocation.id),
                     )
@@ -160,8 +160,8 @@ impl TextRenderer {
                     atlas.glyph_cache.insert(
                         glyph.key,
                         GlyphDetails {
-                            width: metrics.width as u16,
-                            height: metrics.height as u16,
+                            width: metrics.width as f32,
+                            height: metrics.height as f32,
                             gpu_cache,
                             atlas_id,
                         },
@@ -251,7 +251,7 @@ impl TextRenderer {
 
                             x = bounds_min_x;
                             width = max_x - bounds_min_x;
-                            atlas_x += right_shift as u16;
+                            atlas_x += right_shift;
                         }
 
                         // Clip right edge
@@ -265,7 +265,7 @@ impl TextRenderer {
 
                             y = bounds_min_y;
                             height = max_y - bounds_min_y;
-                            atlas_y += bottom_shift as u16;
+                            atlas_y += bottom_shift;
                         }
 
                         // Clip bottom edge
@@ -279,8 +279,8 @@ impl TextRenderer {
 
                 glyph_vertices.extend(
                     iter::repeat(GlyphToRender {
-                        pos: [x as i32, y as i32],
-                        dim: [width as u16, height as u16],
+                        pos: [x, y],
+                        dim: [width, height],
                         uv: [atlas_x, atlas_y],
                         color: [color.r, color.g, color.b, color.a],
                     })

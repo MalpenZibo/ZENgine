@@ -6,9 +6,9 @@ var<uniform> camera: CameraUniform;
 
 struct VertexInput {
     @builtin(vertex_index) vertex_idx: u32,
-    @location(0) pos: vec2<i32>,
-    @location(1) dim: u32,
-    @location(2) uv: u32,
+    @location(0) pos: vec2<f32>,
+    @location(1) dim: vec2<f32>,
+    @location(2) uv: vec2<f32>,
     @location(3) color: u32,
 }
 
@@ -35,25 +35,25 @@ var atlas_sampler: sampler;
 @vertex
 fn vs_main(in_vert: VertexInput) -> VertexOutput {
     var pos = in_vert.pos;
-    let width = in_vert.dim & 0xffffu;
-    let height = (in_vert.dim & 0xffff0000u) >> 16u;
+    let width = in_vert.dim.x;
+    let height = in_vert.dim.y;
     let color = in_vert.color;
-    var uv = vec2<u32>(in_vert.uv & 0xffffu, (in_vert.uv & 0xffff0000u) >> 16u);
+    var uv = in_vert.uv;
     let v = in_vert.vertex_idx % 4u;
 
     switch v {
         case 1u: {
-            pos.x += i32(width);
+            pos.x += width;
             uv.x += width;
         }
         case 2u: {
-            pos.x += i32(width);
-            pos.y += i32(height);
+            pos.x += width;
+            pos.y += height;
             uv.x += width;
             uv.y += height;
         }
         case 3u: {
-            pos.y += i32(height);
+            pos.y += height;
             uv.y += height;
         }
         default: {}

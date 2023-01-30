@@ -50,13 +50,13 @@ pub trait HasColor: Copy {
 }
 
 pub(crate) enum GpuCache {
-    InAtlas { x: u16, y: u16 },
+    InAtlas { x: f32, y: f32 },
     SkipRasterization,
 }
 
 pub(crate) struct GlyphDetails {
-    width: u16,
-    height: u16,
+    width: f32,
+    height: f32,
     gpu_cache: GpuCache,
     atlas_id: Option<AllocId>,
 }
@@ -64,9 +64,9 @@ pub(crate) struct GlyphDetails {
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct GlyphToRender {
-    pos: [i32; 2],
-    dim: [u16; 2],
-    uv: [u16; 2],
+    pos: [f32; 2],
+    dim: [f32; 2],
+    uv: [f32; 2],
     color: [u8; 4],
 }
 

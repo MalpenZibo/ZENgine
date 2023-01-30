@@ -88,23 +88,23 @@ impl TextAtlas {
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
                 wgpu::VertexAttribute {
-                    format: VertexFormat::Sint32x2,
+                    format: VertexFormat::Float32x2,
                     offset: 0,
                     shader_location: 0,
                 },
                 wgpu::VertexAttribute {
-                    format: VertexFormat::Uint32,
-                    offset: size_of::<u32>() as u64 * 2,
+                    format: VertexFormat::Float32x2,
+                    offset: size_of::<[f32; 2]>() as wgpu::BufferAddress,
                     shader_location: 1,
                 },
                 wgpu::VertexAttribute {
-                    format: VertexFormat::Uint32,
-                    offset: size_of::<u32>() as u64 * 3,
+                    format: VertexFormat::Float32x2,
+                    offset: size_of::<[f32; 4]>() as wgpu::BufferAddress,
                     shader_location: 2,
                 },
                 wgpu::VertexAttribute {
                     format: VertexFormat::Uint32,
-                    offset: size_of::<u32>() as u64 * 4,
+                    offset: size_of::<[f32; 6]>() as wgpu::BufferAddress,
                     shader_location: 3,
                 },
             ],
