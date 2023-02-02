@@ -1,9 +1,16 @@
+use std::ops::Deref;
+
 use zengine_asset::AssetLoader;
 use zengine_macro::Asset;
 
 #[derive(Asset, Debug)]
-pub struct Font {
-    pub font: fontdue::Font,
+pub struct Font(pub(crate) fontdue::Font);
+
+impl Deref for Font {
+    type Target = fontdue::Font;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl Font {
@@ -11,7 +18,7 @@ impl Font {
         let font = fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default())
             .expect("Unable to load Font");
 
-        Font { font }
+        Font(font)
     }
 }
 

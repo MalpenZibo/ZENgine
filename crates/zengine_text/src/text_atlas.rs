@@ -1,38 +1,35 @@
 use etagere::{size2, BucketedAtlasAllocator};
 use fontdue::layout::GlyphRasterConfig;
-use std::{borrow::Cow, fmt::Debug, mem::size_of, num::NonZeroU64, sync::Arc};
+use std::{borrow::Cow, fmt::Debug, sync::Arc};
 use wgpu::{
     BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,
-    Buffer, BufferBindingType, BufferDescriptor, BufferUsages, ColorTargetState, ColorWrites,
-    Device, Extent3d, FilterMode, FragmentState, MultisampleState, PipelineLayoutDescriptor,
-    PrimitiveState, Queue, RenderPipeline, RenderPipelineDescriptor, SamplerBindingType,
-    SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages, Texture,
-    TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages,
-    TextureViewDescriptor, TextureViewDimension, VertexFormat, VertexState,
+    ColorTargetState, ColorWrites, Device, Extent3d, FilterMode, FragmentState, MultisampleState,
+    PipelineLayoutDescriptor, PrimitiveState, Queue, RenderPipeline, RenderPipelineDescriptor,
+    SamplerBindingType, SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages,
+    Texture, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages,
+    TextureViewDescriptor, TextureViewDimension, VertexState,
 };
-use zengine_graphic::CameraBuffer;
+use zengine_graphic::{CameraBuffer, Vertex};
 use zengine_macro::Resource;
 
-use crate::{recently_used::RecentlyUsedMap, GlyphDetails, GlyphToRender, Params, Resolution};
+use crate::{recently_used::RecentlyUsedMap, GlyphDetails};
 
 /// An atlas containing a cache of rasterized glyphs that can be rendered.
 #[derive(Resource)]
-pub struct TextAtlas {
-    pub(crate) texture_pending: Vec<u8>,
-    pub(crate) texture: Texture,
-    pub(crate) packer: BucketedAtlasAllocator,
-    pub(crate) width: u32,
-    pub(crate) height: u32,
-    pub(crate) glyph_cache: RecentlyUsedMap<GlyphRasterConfig, GlyphDetails>,
-    pub(crate) params: Params,
-    pub(crate) params_buffer: Buffer,
-    pub(crate) pipeline: Arc<RenderPipeline>,
-    pub(crate) bind_group: Arc<BindGroup>,
+pub(crate) struct TextAtlas {
+    pub texture_pending: Vec<u8>,
+    pub texture: Texture,
+    pub packer: BucketedAtlasAllocator,
+    pub width: u32,
+    pub height: u32,
+    pub glyph_cache: RecentlyUsedMap<GlyphRasterConfig, GlyphDetails>,
+    pub pipeline: Arc<RenderPipeline>,
+    pub bind_group: Arc<BindGroup>,
 }
 
 impl Debug for TextAtlas {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Ok(())
+        write!(f, "TextAtlas")
     }
 }
 
@@ -83,47 +80,12 @@ impl TextAtlas {
             source: ShaderSource::Wgsl(Cow::Borrowed(include_str!("shader.wgsl"))),
         });
 
-        let vertex_buffers = [wgpu::VertexBufferLayout {
-            array_stride: size_of::<GlyphToRender>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    format: VertexFormat::Float32x2,
-                    offset: 0,
-                    shader_location: 0,
-                },
-                wgpu::VertexAttribute {
-                    format: VertexFormat::Float32x2,
-                    offset: size_of::<[f32; 2]>() as wgpu::BufferAddress,
-                    shader_location: 1,
-                },
-                wgpu::VertexAttribute {
-                    format: VertexFormat::Float32x2,
-                    offset: size_of::<[f32; 4]>() as wgpu::BufferAddress,
-                    shader_location: 2,
-                },
-                wgpu::VertexAttribute {
-                    format: VertexFormat::Uint32,
-                    offset: size_of::<[f32; 6]>() as wgpu::BufferAddress,
-                    shader_location: 3,
-                },
-            ],
-        }];
+        let vertex_buffers = [Vertex::desc()];
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[
                 BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: ShaderStages::VERTEX,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: NonZeroU64::new(size_of::<Params>() as u64),
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 1,
                     visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
                     ty: BindingType::Texture {
                         multisampled: false,
@@ -133,7 +95,7 @@ impl TextAtlas {
                     count: None,
                 },
                 BindGroupLayoutEntry {
-                    binding: 2,
+                    binding: 1,
                     visibility: ShaderStages::FRAGMENT,
                     ty: BindingType::Sampler(SamplerBindingType::Filtering),
                     count: None,
@@ -142,34 +104,15 @@ impl TextAtlas {
             label: Some("glyphon bind group layout"),
         });
 
-        let params = Params {
-            screen_resolution: Resolution {
-                width: 0,
-                height: 0,
-            },
-            _pad: [0, 0],
-        };
-
-        let params_buffer = device.create_buffer(&BufferDescriptor {
-            label: Some("glyphon params"),
-            size: size_of::<Params>() as u64,
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
         let bind_group = Arc::new(device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bind_group_layout,
             entries: &[
                 BindGroupEntry {
                     binding: 0,
-                    resource: params_buffer.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
                     resource: BindingResource::TextureView(&texture_view),
                 },
                 BindGroupEntry {
-                    binding: 2,
+                    binding: 1,
                     resource: BindingResource::Sampler(&sampler),
                 },
             ],
@@ -216,8 +159,6 @@ impl TextAtlas {
             width,
             height,
             glyph_cache,
-            params,
-            params_buffer,
             pipeline,
             bind_group,
         }

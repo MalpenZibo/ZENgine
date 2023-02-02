@@ -90,6 +90,11 @@ impl<T: Asset> Assets<T> {
         self.assets.iter_mut()
     }
 
+    /// Gets an iterator over the assets key in the storage
+    pub fn keys(&self) -> impl Iterator<Item = &HandleId> {
+        self.assets.keys()
+    }
+
     /// Add an asset to the storage returning a strong handle to that asset
     pub fn add(&mut self, asset: T) -> Handle<T> {
         let handle = Handle::strong(

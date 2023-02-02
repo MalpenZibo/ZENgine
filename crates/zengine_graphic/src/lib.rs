@@ -10,7 +10,7 @@ mod renderer;
 mod sprite;
 mod texture;
 mod texture_atlas;
-pub(crate) mod vertex;
+mod vertex;
 
 pub use camera::*;
 pub use color::*;
@@ -19,6 +19,7 @@ pub use renderer::*;
 pub use sprite::*;
 pub use texture::*;
 pub use texture_atlas::*;
+pub use vertex::*;
 
 /// [Resource](zengine_ecs::Resource) that describe the color used
 /// to clear of the view

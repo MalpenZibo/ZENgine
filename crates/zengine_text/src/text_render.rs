@@ -3,30 +3,29 @@ use fontdue::{
     layout::{GlyphRasterConfig, Layout},
     Font,
 };
-use glam::Vec2;
-use std::{borrow::Borrow, collections::HashSet, iter, mem::size_of, num::NonZeroU32, slice};
+use glam::{Vec2, Vec4};
+use std::{borrow::Borrow, collections::HashSet, mem::size_of, num::NonZeroU32, slice};
 use wgpu::{
     Buffer, BufferDescriptor, BufferUsages, Device, Extent3d, ImageCopyTexture, ImageDataLayout,
     IndexFormat, Origin3d, Queue, RenderPass, TextureAspect, COPY_BUFFER_ALIGNMENT,
 };
-use zengine_graphic::{Camera, CameraBuffer};
+use zengine_graphic::{CameraBuffer, Vertex};
 use zengine_macro::Resource;
 
 use crate::{
     error::{PrepareError, RenderError},
-    GlyphDetails, GlyphToRender, GpuCache, HasColor, Params, Resolution, TextAtlas, TextOverflow,
+    GlyphDetails, GlyphUserData, GpuCache, TextAtlas, TextOverflow,
 };
 
 /// A text renderer that uses cached glyphs to render text into an existing render pass.
 #[derive(Resource, Debug)]
-pub struct TextRenderer {
+pub(crate) struct TextRenderer {
     vertex_buffer: Buffer,
     vertex_buffer_size: u64,
     index_buffer: Buffer,
     index_buffer_size: u64,
     vertices_to_render: u32,
     glyphs_in_use: HashSet<GlyphRasterConfig>,
-    screen_resolution: Resolution,
 }
 
 impl TextRenderer {
@@ -55,38 +54,19 @@ impl TextRenderer {
             index_buffer_size,
             vertices_to_render: 0,
             glyphs_in_use: HashSet::new(),
-            screen_resolution: Resolution {
-                width: 0,
-                height: 0,
-            },
         }
     }
 
     /// Prepares all of the provided layouts for rendering.
-    pub fn prepare<C: HasColor>(
+    pub(crate) fn prepare(
         &mut self,
         device: &Device,
         queue: &Queue,
         atlas: &mut TextAtlas,
-        screen_resolution: Resolution,
         fonts: &[&Font],
-        layouts: &[(impl Borrow<Layout<C>>, TextOverflow)],
+        layouts: &[(impl Borrow<Layout<GlyphUserData>>, TextOverflow)],
         scale: &Vec2,
     ) -> Result<(), PrepareError> {
-        self.screen_resolution = screen_resolution;
-
-        let atlas_current_resolution = { atlas.params.screen_resolution };
-
-        if screen_resolution != atlas_current_resolution {
-            atlas.params.screen_resolution = screen_resolution;
-            queue.write_buffer(&atlas.params_buffer, 0, unsafe {
-                slice::from_raw_parts(
-                    &atlas.params as *const Params as *const u8,
-                    size_of::<Params>(),
-                )
-            });
-        }
-
         struct UploadBounds {
             x_min: usize,
             x_max: usize,
@@ -201,7 +181,7 @@ impl TextRenderer {
         let mut glyphs_added = 0;
 
         for (layout, overflow) in layouts.iter() {
-            let layout: &Layout<C> = layout.borrow();
+            let layout: &Layout<GlyphUserData> = layout.borrow();
             let settings = layout.settings();
 
             // Note: subpixel positioning is not currently handled, so we always truncate down to
@@ -227,8 +207,8 @@ impl TextRenderer {
                     GpuCache::SkipRasterization => continue,
                 };
 
-                let mut width = details.width as f32;
-                let mut height = details.height as f32;
+                let mut width = details.width;
+                let mut height = details.height;
 
                 match overflow {
                     TextOverflow::Overflow => {}
@@ -275,17 +255,42 @@ impl TextRenderer {
                     }
                 }
 
-                let color = glyph.user_data.color();
+                let color = glyph.user_data.color;
+                let transform = glyph.user_data.transform_matrix;
 
-                glyph_vertices.extend(
-                    iter::repeat(GlyphToRender {
-                        pos: [x, y],
-                        dim: [width, height],
-                        uv: [atlas_x, atlas_y],
-                        color: [color.r, color.g, color.b, color.a],
-                    })
-                    .take(4),
-                );
+                x /= scale.x;
+                y /= scale.y;
+                let s_width = width / scale.x;
+                let s_height = height / scale.y;
+
+                glyph_vertices.extend([
+                    Vertex {
+                        position: transform.mul_vec4(Vec4::new(x, y, 1., 1.)).to_array(),
+                        tex_coords: [atlas_x, atlas_y],
+                        color: color.to_array(),
+                    },
+                    Vertex {
+                        position: transform
+                            .mul_vec4(Vec4::new(x + s_width, y, 1., 1.))
+                            .to_array(),
+                        tex_coords: [atlas_x + width, atlas_y],
+                        color: color.to_array(),
+                    },
+                    Vertex {
+                        position: transform
+                            .mul_vec4(Vec4::new(x + s_width, y + s_height, 1., 1.))
+                            .to_array(),
+                        tex_coords: [atlas_x + width, atlas_y + height],
+                        color: color.to_array(),
+                    },
+                    Vertex {
+                        position: transform
+                            .mul_vec4(Vec4::new(x, y + s_height, 1., 1.))
+                            .to_array(),
+                        tex_coords: [atlas_x, atlas_y + height],
+                        color: color.to_array(),
+                    },
+                ]);
 
                 let start = 4 * glyphs_added as u32;
                 glyph_indices.extend([start, start + 1, start + 2, start, start + 2, start + 3]);
@@ -306,7 +311,7 @@ impl TextRenderer {
         let vertices_raw = unsafe {
             slice::from_raw_parts(
                 vertices as *const _ as *const u8,
-                size_of::<GlyphToRender>() * vertices.len(),
+                size_of::<Vertex>() * vertices.len(),
             )
         };
 
@@ -370,11 +375,6 @@ impl TextRenderer {
                 if !atlas.glyph_cache.contains_key(glyph) {
                     return Err(RenderError::RemovedFromAtlas);
                 }
-            }
-
-            // Validate that screen resolution hasn't changed since `prepare`
-            if self.screen_resolution != atlas.params.screen_resolution {
-                return Err(RenderError::ScreenResolutionChanged);
             }
         }
 

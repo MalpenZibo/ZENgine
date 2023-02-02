@@ -1,22 +1,19 @@
 use etagere::AllocId;
-use fontdue::layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle};
-use glam::Vec2;
-
-use log::info;
+use fontdue::layout::{CoordinateSystem, Layout, LayoutSettings};
+use glam::{Mat4, Vec2};
 use text_atlas::TextAtlas;
 use text_render::TextRenderer;
-use wgpu::{Buffer, LoadOp, Operations, RenderPassColorAttachment, RenderPassDescriptor};
-use zengine_asset::{AssetEvent, AssetExtension, Assets};
+use wgpu::{LoadOp, Operations, RenderPassColorAttachment, RenderPassDescriptor};
+use zengine_asset::{AssetExtension, Assets};
 use zengine_core::Transform;
 use zengine_ecs::{
     query::{Query, QueryIter},
-    system::{Commands, EventStream, Local, Res, ResMut},
+    system::{Commands, Local, Res, ResMut},
 };
 use zengine_engine::{Engine, Module, Stage};
 use zengine_graphic::{
-    Adapter, CameraBuffer, Device, Queue, RenderContextInstance, Surface, UsedCamera,
+    CameraBuffer, Color, Device, Queue, RenderContextInstance, Surface, UsedCamera,
 };
-use zengine_macro::Resource;
 use zengine_window::WindowSpecs;
 
 mod error;
@@ -29,26 +26,6 @@ mod text_render;
 pub use font::*;
 pub use text::*;
 
-/// The color to use when rendering text.
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct Color {
-    /// The red component of the color.
-    pub r: u8,
-    /// The green component of the color.
-    pub g: u8,
-    /// The blue component of the color.
-    pub b: u8,
-    /// The alpha component of the color.
-    pub a: u8,
-}
-
-/// Allows text to be colored during rendering.
-pub trait HasColor: Copy {
-    /// The color to use when rendering text.
-    fn color(&self) -> Color;
-}
-
 pub(crate) enum GpuCache {
     InAtlas { x: f32, y: f32 },
     SkipRasterization,
@@ -59,32 +36,6 @@ pub(crate) struct GlyphDetails {
     height: f32,
     gpu_cache: GpuCache,
     atlas_id: Option<AllocId>,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct GlyphToRender {
-    pos: [f32; 2],
-    dim: [f32; 2],
-    uv: [f32; 2],
-    color: [u8; 4],
-}
-
-/// The screen resolution to use when rendering text.
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct Resolution {
-    /// The width of the screen in pixels.
-    pub width: u32,
-    /// The height of the screen in pixels.
-    pub height: u32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct Params {
-    screen_resolution: Resolution,
-    _pad: [u32; 2],
 }
 
 /// Controls the overflow behavior of any glyphs that are outside of the layout bounds.
@@ -129,20 +80,13 @@ fn setup_text_render(
     }
 }
 
-#[derive(Clone, Copy)]
-struct GlyphUserData;
-
-impl HasColor for GlyphUserData {
-    fn color(&self) -> Color {
-        Color {
-            r: 255,
-            g: 255,
-            b: 0,
-            a: 255,
-        }
-    }
+#[derive(Default, Clone, Copy)]
+struct GlyphUserData {
+    pub transform_matrix: Mat4,
+    pub color: Color,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn text_render(
     text_renderer: Option<ResMut<TextRenderer>>,
     text_atlas: Option<ResMut<TextAtlas>>,
@@ -151,10 +95,10 @@ fn text_render(
     device: Option<Res<Device>>,
     queue: Option<Res<Queue>>,
     mut render_context: ResMut<RenderContextInstance>,
-    staging_belt: Local<Option<wgpu::util::StagingBelt>>,
     camera_buffer: Option<ResMut<CameraBuffer>>,
     window_specs: Res<WindowSpecs>,
     used_camera: Res<UsedCamera>,
+    layouts: Local<Vec<(Layout<GlyphUserData>, TextOverflow)>>,
 ) {
     if let (
         Some(mut text_renderer),
@@ -173,39 +117,78 @@ fn text_render(
         render_context.as_mut(),
         camera_buffer,
     ) {
-        let mut layout1 = Layout::new(CoordinateSystem::PositiveYDown);
-        layout1.reset(&LayoutSettings {
-            x: 0.0,
-            y: 0.0,
-            ..LayoutSettings::default()
-        });
+        if !fonts.is_empty() {
+            let scale = window_specs.size / used_camera.get_size().unwrap_or(Vec2::ONE);
 
-        let fonts: Vec<&fontdue::Font> = fonts.iter().map(|f| &f.1.font).collect();
+            let fontdue_fonts: Vec<&fontdue::Font> = fonts.iter().map(|f| &f.1 .0).collect();
+            layouts.clear();
 
-        let scale = window_specs.size / used_camera.get_size().unwrap_or_else(|| Vec2::ONE);
+            for (text, transform) in texts.iter() {
+                let transform_matrix = transform.get_transformation_matrix();
+                let default_font = fonts
+                    .keys()
+                    .enumerate()
+                    .find_map(|(index, key)| {
+                        if *key == text.style.font.get_id() {
+                            Some(index)
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or(0);
 
-        if fonts.len() > 0 {
-            layout1.append(
-                fonts.as_slice(),
-                &TextStyle::with_user_data("P", 100.0, 0, GlyphUserData),
-            );
+                let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
+                layout.reset(&LayoutSettings {
+                    x: 0.0,
+                    y: 0.0,
+                    ..LayoutSettings::default()
+                });
+
+                for s in &text.sections {
+                    let (font, font_size, color) = s
+                        .style
+                        .as_ref()
+                        .map(|style| {
+                            (
+                                fonts
+                                    .keys()
+                                    .enumerate()
+                                    .find_map(|(index, key)| {
+                                        if *key == style.font.get_id() {
+                                            Some(index)
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .unwrap_or(default_font),
+                                style.font_size,
+                                style.color,
+                            )
+                        })
+                        .unwrap_or((default_font, text.style.font_size, text.style.color));
+
+                    layout.append(
+                        fontdue_fonts.as_slice(),
+                        &fontdue::layout::TextStyle::with_user_data(
+                            &s.value,
+                            font_size,
+                            font,
+                            GlyphUserData {
+                                color,
+                                transform_matrix,
+                            },
+                        ),
+                    );
+                }
+
+                layouts.push((layout, TextOverflow::Hide));
+            }
 
             text_renderer
-                .prepare(
-                    &device,
-                    &queue,
-                    &mut atlas,
-                    Resolution {
-                        width: 1280,
-                        height: 720,
-                    },
-                    &fonts,
-                    &[(layout1, TextOverflow::Hide)],
-                    &Vec2::ONE,
-                )
+                .prepare(&device, &queue, &mut atlas, &fontdue_fonts, layouts, &scale)
                 .unwrap();
 
-            let mut pass =
+            let pass =
                 &mut render_context
                     .command_encoder
                     .begin_render_pass(&RenderPassDescriptor {
@@ -221,9 +204,7 @@ fn text_render(
                         depth_stencil_attachment: None,
                     });
 
-            text_renderer
-                .render(&atlas, &mut pass, &camera_buffer)
-                .unwrap();
+            text_renderer.render(&atlas, pass, &camera_buffer).unwrap();
         }
     }
 }

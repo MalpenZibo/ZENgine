@@ -21,7 +21,6 @@ impl Error for PrepareError {}
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RenderError {
     RemovedFromAtlas,
-    ScreenResolutionChanged,
 }
 
 impl Display for RenderError {
@@ -33,10 +32,6 @@ impl Display for RenderError {
                     "Render error: glyph no longer exists within the texture atlas"
                 )
             }
-            RenderError::ScreenResolutionChanged => write!(
-                f,
-                "Render error: screen resolution changed since last `prepare` call"
-            ),
         }
     }
 }

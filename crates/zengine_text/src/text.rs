@@ -9,7 +9,8 @@ use crate::Font;
 pub struct Text {
     pub sections: Vec<TextSection>,
     pub bounds: Vec2,
-    pub color: Color,
+
+    pub style: TextStyle,
 
     pub alignment: TextAlignment,
 }
@@ -24,7 +25,7 @@ pub struct TextStyle {
 #[derive(Debug)]
 pub struct TextSection {
     pub value: String,
-    pub style: TextStyle,
+    pub style: Option<TextStyle>,
 }
 
 #[derive(Debug)]

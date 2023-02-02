@@ -1,13 +1,11 @@
-use glam::vec2;
 use zengine::{
     asset::{AssetManager, AssetModule},
     core::Transform,
     ecs::system::{Commands, ResMut},
     graphic::{Background, Camera, CameraMode, Color, GraphicModule},
     log::Level,
-    math::{Vec2, Vec3},
-    text::TextModule,
-    text::{Text, TextAlignment, TextSection},
+    math::{vec2, Vec2, Vec3},
+    text::{Text, TextAlignment, TextModule, TextSection, TextStyle},
     window::{WindowConfig, WindowModule},
     Engine,
 };
@@ -40,7 +38,7 @@ fn setup(mut commands: Commands, mut asset_manager: ResMut<AssetManager>) {
         color: Color::new(35, 31, 32, 255),
     });
 
-    let camera_width = 1280.0;
+    let camera_width = 10.0;
 
     commands.spawn((
         Camera {
@@ -49,20 +47,20 @@ fn setup(mut commands: Commands, mut asset_manager: ResMut<AssetManager>) {
         Transform::new(Vec3::new(0.0, 0.0, -1.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
     ));
 
-    // commands.spawn((
-    //     Text {
-    //         sections: vec![TextSection {
-    //             value: "Ti amo tanto piccola!!!".to_string(),
-    //             style: TextStyle {
-    //                 font: font.clone_as_weak(),
-    //                 font_size: 80.,
-    //                 color: Color::WHITE,
-    //             },
-    //         }],
-    //         alignment: TextAlignment::default(),
-    //         bounds: vec2(0.25, 1.),
-    //         color: Color::WHITE,
-    //     },
-    //     Transform::new(Vec3::new(0.3, 0., 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
-    // ));
+    commands.spawn((
+        Text {
+            sections: vec![TextSection {
+                value: "Hello!!!".to_string(),
+                style: None,
+            }],
+            alignment: TextAlignment::default(),
+            bounds: vec2(15., 1.),
+            style: TextStyle {
+                font: font.clone_as_weak(),
+                font_size: 80.,
+                color: Color::WHITE,
+            },
+        },
+        Transform::new(Vec3::new(-1.3, 0., 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
+    ));
 }
