@@ -38,15 +38,6 @@ pub(crate) struct GlyphDetails {
     atlas_id: Option<AllocId>,
 }
 
-/// Controls the overflow behavior of any glyphs that are outside of the layout bounds.
-pub enum TextOverflow {
-    /// Glyphs can overflow the bounds.
-    Overflow,
-    /// Hide any glyphs outside the bounds. If a glyph is partially outside the bounds, it will be
-    /// clipped to the bounds.
-    Hide,
-}
-
 ///A [Module] that defines an interface for windowing support in ZENgine.
 #[derive(Default, Debug)]
 pub struct TextModule;
@@ -98,7 +89,7 @@ fn text_render(
     camera_buffer: Option<ResMut<CameraBuffer>>,
     window_specs: Res<WindowSpecs>,
     used_camera: Res<UsedCamera>,
-    layouts: Local<Vec<(Layout<GlyphUserData>, TextOverflow)>>,
+    layouts: Local<Vec<Layout<GlyphUserData>>>,
 ) {
     if let (
         Some(mut text_renderer),
@@ -141,6 +132,8 @@ fn text_render(
                 layout.reset(&LayoutSettings {
                     x: 0.0,
                     y: 0.0,
+                    max_width: text.bounds.map(|b| b.x * scale.x),
+                    max_height: text.bounds.map(|b| b.y * scale.y),
                     ..LayoutSettings::default()
                 });
 
@@ -181,7 +174,7 @@ fn text_render(
                     );
                 }
 
-                layouts.push((layout, TextOverflow::Hide));
+                layouts.push(layout);
             }
 
             text_renderer

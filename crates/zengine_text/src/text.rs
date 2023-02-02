@@ -8,7 +8,7 @@ use crate::Font;
 #[derive(Component, Debug)]
 pub struct Text {
     pub sections: Vec<TextSection>,
-    pub bounds: Vec2,
+    pub bounds: Option<Vec2>,
 
     pub style: TextStyle,
 

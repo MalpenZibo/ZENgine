@@ -29,7 +29,7 @@ wgpu = { workspace = true, features = ["webgl"] }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 wgpu = { workspace = true }
 
-fontdue = { git = "https://github.com/mooman219/fontdue", rev = "828b4f4" }
+fontdue = "0.7.2"
 etagere = "0.2.7"
 
 [dependencies.bytemuck]
