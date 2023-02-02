@@ -1,34 +1,38 @@
 use glam::Vec2;
+use typed_builder::TypedBuilder;
 use zengine_asset::Handle;
 use zengine_graphic::Color;
 use zengine_macro::Component;
 
 use crate::Font;
 
-#[derive(Component, Debug)]
+#[derive(TypedBuilder, Component, Debug)]
 pub struct Text {
     pub sections: Vec<TextSection>,
+    #[builder(default, setter(strip_option))]
     pub bounds: Option<Vec2>,
-
     pub style: TextStyle,
-
+    #[builder(default)]
     pub alignment: TextAlignment,
 }
 
-#[derive(Debug)]
+#[derive(TypedBuilder, Debug)]
 pub struct TextStyle {
     pub font: Handle<Font>,
+    #[builder(default = 32.)]
     pub font_size: f32,
+    #[builder(default)]
     pub color: Color,
 }
 
-#[derive(Debug)]
+#[derive(TypedBuilder, Debug)]
 pub struct TextSection {
     pub value: String,
+    #[builder(default)]
     pub style: Option<TextStyle>,
 }
 
-#[derive(Debug)]
+#[derive(TypedBuilder, Debug)]
 pub struct TextAlignment {
     pub vertical: VerticalAlign,
     pub horizontal: HorizontalAlign,

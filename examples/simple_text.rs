@@ -5,7 +5,7 @@ use zengine::{
     graphic::{Background, Camera, CameraMode, Color, GraphicModule},
     log::Level,
     math::{vec2, Vec2, Vec3},
-    text::{Text, TextAlignment, TextModule, TextSection, TextStyle},
+    text::{Text, TextModule, TextSection, TextStyle},
     window::{WindowConfig, WindowModule},
     Engine,
 };
@@ -48,19 +48,18 @@ fn setup(mut commands: Commands, mut asset_manager: ResMut<AssetManager>) {
     ));
 
     commands.spawn((
-        Text {
-            sections: vec![TextSection {
-                value: "Hello!!!".to_string(),
-                style: None,
-            }],
-            alignment: TextAlignment::default(),
-            bounds: vec2(15., 1.),
-            style: TextStyle {
-                font: font.clone_as_weak(),
-                font_size: 80.,
-                color: Color::WHITE,
-            },
-        },
+        Text::builder()
+            .sections(vec![TextSection::builder()
+                .value("Hello!!! ".to_string())
+                .build()])
+            .style(
+                TextStyle::builder()
+                    .font(font.clone_as_weak())
+                    .font_size(80.)
+                    .build(),
+            )
+            .bounds(vec2(4., 1.))
+            .build(),
         Transform::new(Vec3::new(-1.3, 0., 0.0), Vec3::new(0.0, 0.0, 0.0), 1.0),
     ));
 }
