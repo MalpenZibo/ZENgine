@@ -59,7 +59,7 @@ struct EventLoop(winit::event_loop::EventLoop<()>);
 
 #[derive(Eq, PartialEq)]
 enum RunnerState {
-    Initializing { app_ready: bool, window_ready: bool },
+    Initializing,
     Running,
     Suspending,
     Suspended,
@@ -68,28 +68,6 @@ enum RunnerState {
 impl RunnerState {
     pub fn is_running(&self) -> bool {
         matches!(self, RunnerState::Running | RunnerState::Suspending)
-    }
-
-    pub fn can_start(&self) -> bool {
-        matches!(
-            self,
-            RunnerState::Initializing {
-                app_ready: true,
-                window_ready: true
-            }
-        )
-    }
-
-    pub fn set_app_ready(&mut self) {
-        if let RunnerState::Initializing { app_ready, .. } = self {
-            *app_ready = true
-        }
-    }
-
-    pub fn set_window_ready(&mut self) {
-        if let RunnerState::Initializing { window_ready, .. } = self {
-            *window_ready = true
-        }
     }
 }
 
@@ -111,8 +89,12 @@ impl Module for WindowModule {
         }
 
         let window = window_builder.build(&event_loop).unwrap();
+
         let window_size = if self.0.fullscreen {
-            let size = window.current_monitor().unwrap().size();
+            let size = window
+                .current_monitor()
+                .expect("No current monitor found")
+                .size();
 
             (size.width, size.height)
         } else {
@@ -167,10 +149,7 @@ fn runner(mut engine: Engine) {
         .remove_unsendable_resource::<EventLoop>()
         .unwrap();
 
-    let mut runner_state = RunnerState::Initializing {
-        app_ready: false,
-        window_ready: false,
-    };
+    let mut runner_state = RunnerState::Initializing;
 
     let event_handler = move |event: Event<()>,
                               _event_loop: &EventLoopWindowTarget<()>,
@@ -193,17 +172,8 @@ fn runner(mut engine: Engine) {
 
                     runner_state = RunnerState::Running;
                 } else {
-                    runner_state.set_app_ready();
-
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        runner_state.set_window_ready();
-                    }
-
-                    if runner_state.can_start() {
-                        runner_state = RunnerState::Running;
-                        engine.startup();
-                    }
+                    runner_state = RunnerState::Running;
+                    engine.startup();
                 }
             }
             Event::Suspended => {
@@ -227,23 +197,14 @@ fn runner(mut engine: Engine) {
                 event: WindowEvent::Resized(size),
                 ..
             } => {
-                if matches!(runner_state, RunnerState::Initializing { .. }) {
-                    {
-                        let mut window_specs =
-                            engine.world.get_mut_resource::<WindowSpecs>().unwrap();
-                        window_specs.size = UVec2::new(size.width, size.height);
-                        window_specs.ratio = size.width as f32 / size.height as f32;
-                    }
-
-                    info!("New window size {:?}", size);
-
-                    runner_state.set_window_ready();
-
-                    if runner_state.can_start() {
-                        runner_state = RunnerState::Running;
-                        engine.startup();
-                    }
+                {
+                    let mut window_specs = engine.world.get_mut_resource::<WindowSpecs>().unwrap();
+                    window_specs.size = UVec2::new(size.width, size.height);
+                    window_specs.ratio = size.width as f32 / size.height as f32;
+                    window_specs.surface_id += 1;
                 }
+
+                info!("New window size {:?}", size);
             }
             Event::WindowEvent {
                 event: WindowEvent::MouseInput { state, button, .. },

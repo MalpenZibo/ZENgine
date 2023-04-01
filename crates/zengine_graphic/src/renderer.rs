@@ -61,14 +61,19 @@ impl Surface {
     ) {
         let internal_window = &window.internal;
 
-        let surface = unsafe { instance.create_surface(internal_window) };
+        let surface =
+            unsafe { instance.create_surface(internal_window) }.expect("Cannot create surface");
         log::warn!("create surface");
+        let swapchain_capabilities = surface.get_capabilities(adapter);
+        let swapchain_format = swapchain_capabilities.formats[0];
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_supported_formats(adapter)[0],
+            format: swapchain_format,
             width: window_specs.size.x,
             height: window_specs.size.y,
             present_mode: wgpu::PresentMode::Fifo,
+            alpha_mode: swapchain_capabilities.alpha_modes[0],
+            view_formats: vec![],
         };
         surface.configure(device, &config);
 
@@ -153,8 +158,9 @@ pub(crate) fn setup_render(
     let window = window.expect("Cannot find a Window");
     let internal_window = &window.internal;
 
-    let instance = wgpu::Instance::new(wgpu::Backends::all());
-    let surface = unsafe { instance.create_surface(internal_window) };
+    let instance = wgpu::Instance::default();
+    let surface =
+        unsafe { instance.create_surface(internal_window) }.expect("Could not create surface");
     async fn create_adapter_device_queue(
         instance: &wgpu::Instance,
         surface: &wgpu::Surface,
@@ -191,12 +197,16 @@ pub(crate) fn setup_render(
     let (adapter, device, queue) =
         pollster::block_on(create_adapter_device_queue(&instance, &surface));
 
+    let swapchain_capabilities = surface.get_capabilities(&adapter);
+    let swapchain_format = swapchain_capabilities.formats[0];
     let config = wgpu::SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-        format: surface.get_supported_formats(&adapter)[0],
+        format: swapchain_format,
         width: window_specs.size.x,
         height: window_specs.size.y,
         present_mode: wgpu::PresentMode::Fifo,
+        alpha_mode: swapchain_capabilities.alpha_modes[0],
+        view_formats: vec![],
     };
     surface.configure(&device, &config);
 
