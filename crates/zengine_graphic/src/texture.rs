@@ -59,6 +59,7 @@ impl Texture {
                 format: wgpu::TextureFormat::Rgba8UnormSrgb,
                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
                 label: Some("diffuse_texture"),
+                view_formats: &[],
             });
 
             queue.write_texture(
