@@ -109,7 +109,7 @@ fn text_render(
         camera_buffer,
     ) {
         if !fonts.is_empty() {
-            let scale = window_specs.size / used_camera.get_size().unwrap_or(Vec2::ONE);
+            let scale = window_specs.size.as_vec2() / used_camera.get_size().unwrap_or(Vec2::ONE);
 
             let fontdue_fonts: Vec<&fontdue::Font> = fonts.iter().map(|f| &f.1 .0).collect();
             layouts.clear();

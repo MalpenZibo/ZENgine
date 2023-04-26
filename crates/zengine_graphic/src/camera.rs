@@ -194,7 +194,7 @@ pub(crate) fn camera_render(
 
         used_camera.0 = camera_data.map(|(c, t)| UsedCameraData {
             size: c.get_size(),
-            transform: t.map(|t| t.clone()),
+            transform: t.cloned(),
         });
 
         let camera_uniform = if let Some((camera, transform)) = camera_data {
