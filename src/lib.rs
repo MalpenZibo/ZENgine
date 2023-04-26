@@ -82,6 +82,11 @@ pub mod gamepad {
     pub use zengine_gamepad::*;
 }
 
+pub mod text {
+    //! Provides text functionality for ZENgine.
+    pub use zengine_text::*;
+}
+
 extern crate zengine_macro;
 pub use zengine_macro::*;
 

@@ -10,7 +10,7 @@ mod renderer;
 mod sprite;
 mod texture;
 mod texture_atlas;
-pub(crate) mod vertex;
+mod vertex;
 
 pub use camera::*;
 pub use color::*;
@@ -19,6 +19,7 @@ pub use renderer::*;
 pub use sprite::*;
 pub use texture::*;
 pub use texture_atlas::*;
+pub use vertex::*;
 
 /// [Resource](zengine_ecs::Resource) that describe the color used
 /// to clear of the view
@@ -41,11 +42,11 @@ impl Module for GraphicModule {
             .add_startup_system(setup_render)
             .add_startup_system(setup_camera)
             .add_startup_system(setup_sprite_render)
-            .add_system_into_stage(prepare_texture_asset, Stage::Render)
-            .add_system_into_stage(prepare_texture_atlas_asset, Stage::Render)
-            .add_system_into_stage(clear, Stage::Render)
+            .add_system_into_stage(prepare_texture_asset, Stage::PreRender)
+            .add_system_into_stage(prepare_texture_atlas_asset, Stage::PreRender)
+            .add_system_into_stage(clear, Stage::PreRender)
             .add_system_into_stage(camera_render, Stage::Render)
             .add_system_into_stage(sprite_render, Stage::Render)
-            .add_system_into_stage(present, Stage::Render);
+            .add_system_into_stage(present, Stage::PostRender);
     }
 }

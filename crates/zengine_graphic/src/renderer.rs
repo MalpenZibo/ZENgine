@@ -47,7 +47,8 @@ impl Surface {
             })
     }
 
-    pub(crate) fn get_config(&self) -> Option<&SurfaceConfiguration> {
+    /// Get the [SurfaceConfiguration]
+    pub fn get_config(&self) -> Option<&SurfaceConfiguration> {
         self.0.as_ref().map(|s| &s.0)
     }
 

@@ -5,14 +5,14 @@ use wgpu::{util::DeviceExt, BindGroup, BindGroupLayout};
 use zengine_core::Transform;
 use zengine_ecs::{
     query::{Query, QueryIter},
-    system::{Commands, Res},
+    system::{Commands, Res, ResMut},
     Entity,
 };
 use zengine_macro::{Component, Resource};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-struct CameraUniform {
+pub struct CameraUniform {
     view_proj: [[f32; 4]; 4],
 }
 
@@ -72,6 +72,13 @@ pub struct Camera {
 }
 
 impl Camera {
+    /// Get the [Camera] size
+    pub fn get_size(&self) -> Vec2 {
+        match self.mode {
+            CameraMode::Mode2D(size) => size,
+        }
+    }
+
     pub(crate) fn get_projection(&self, transform: Option<&Transform>) -> glam::Mat4 {
         let mut proj = match self.mode {
             CameraMode::Mode2D(size) => glam::Mat4::orthographic_lh(
@@ -93,10 +100,32 @@ impl Camera {
 }
 
 #[derive(Resource, Debug)]
-pub(crate) struct CameraBuffer {
+pub struct CameraBuffer {
     pub buffer: wgpu::Buffer,
     pub bind_group_layout: BindGroupLayout,
     pub bind_group: BindGroup,
+}
+
+#[derive(Debug)]
+struct UsedCameraData {
+    pub size: Vec2,
+    pub transform: Option<Transform>,
+}
+
+/// Resource that contains information about the Camera used to render the current frame
+#[derive(Resource, Default, Debug)]
+pub struct UsedCamera(Option<UsedCameraData>);
+
+impl UsedCamera {
+    /// Get the size of the [Camera] used to render the current frame
+    pub fn get_size(&self) -> Option<Vec2> {
+        self.0.as_ref().map(|d| d.size)
+    }
+
+    /// Get the transform of the [Camera] used to render the current frame
+    pub fn get_transform(&self) -> Option<&Transform> {
+        self.0.as_ref().and_then(|d| d.transform.as_ref())
+    }
 }
 
 fn pick_correct_camera<'a>(
@@ -116,6 +145,7 @@ pub(crate) fn setup_camera(device: Option<Res<Device>>, mut commands: Commands) 
     let device = device.unwrap();
 
     let camera_uniform = CameraUniform::default();
+
     let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Camera Buffer"),
         contents: bytemuck::cast_slice(&[camera_uniform]),
@@ -156,22 +186,27 @@ pub(crate) fn camera_render(
     queue: Option<Res<Queue>>,
     camera_query: Query<(Entity, &Camera, Option<&Transform>)>,
     active_camera: Option<Res<ActiveCamera>>,
-    camera_buffer: Option<Res<CameraBuffer>>,
+    camera_buffer: Option<ResMut<CameraBuffer>>,
+    mut used_camera: ResMut<UsedCamera>,
 ) {
     if let (Some(queue), Some(camera_buffer)) = (queue, camera_buffer) {
         let camera_data = pick_correct_camera(&camera_query, &active_camera);
-        if let Some((camera, transform)) = camera_data {
-            queue.write_buffer(
-                &camera_buffer.buffer,
-                0,
-                bytemuck::cast_slice(&[CameraUniform::new(camera, transform)]),
-            );
+
+        used_camera.0 = camera_data.map(|(c, t)| UsedCameraData {
+            size: c.get_size(),
+            transform: t.cloned(),
+        });
+
+        let camera_uniform = if let Some((camera, transform)) = camera_data {
+            CameraUniform::new(camera, transform)
         } else {
-            queue.write_buffer(
-                &camera_buffer.buffer,
-                0,
-                bytemuck::cast_slice(&[CameraUniform::default()]),
-            );
-        }
+            CameraUniform::default()
+        };
+
+        queue.write_buffer(
+            &camera_buffer.buffer,
+            0,
+            bytemuck::cast_slice(&[camera_uniform]),
+        )
     }
 }
