@@ -165,8 +165,8 @@ impl TextRenderer {
                 &atlas.texture_pending[ub.y_min * atlas.width as usize + ub.x_min..],
                 ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: NonZeroU32::new(atlas.width),
-                    rows_per_image: NonZeroU32::new(atlas.height),
+                    bytes_per_row: Some(atlas.width),
+                    rows_per_image: Some(atlas.height),
                 },
                 Extent3d {
                     width: (ub.x_max - ub.x_min) as u32,

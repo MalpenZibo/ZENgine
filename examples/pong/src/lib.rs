@@ -104,19 +104,24 @@ pub fn main() {
     let bindings: Bindings<UserInput> = Bindings::default()
         .add_axis(
             UserInput::Player1XAxis,
-            AxisBind::with_source(Input::Keyboard { key: Key::D }),
+            AxisBind::with_source(Input::Keyboard { key: Key::KeyD }),
         )
         .add_axis(
             UserInput::Player1XAxis,
-            AxisBind::with_source(Input::Keyboard { key: Key::A }).invert_input(),
+            AxisBind::with_source(Input::Keyboard { key: Key::KeyA }).invert_input(),
         )
         .add_axis(
             UserInput::Player1XAxis,
-            AxisBind::with_source(Input::Keyboard { key: Key::Right }),
+            AxisBind::with_source(Input::Keyboard {
+                key: Key::ArrowRight,
+            }),
         )
         .add_axis(
             UserInput::Player1XAxis,
-            AxisBind::with_source(Input::Keyboard { key: Key::Left }).invert_input(),
+            AxisBind::with_source(Input::Keyboard {
+                key: Key::ArrowLeft,
+            })
+            .invert_input(),
         )
         .add_axis(
             UserInput::Player1XAxis,
