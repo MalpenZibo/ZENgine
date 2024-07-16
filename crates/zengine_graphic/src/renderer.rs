@@ -1,9 +1,9 @@
 use crate::Background;
 use std::{
-    iter,
-    ops::{Deref, DerefMut},
+    borrow::Borrow, iter, ops::{Deref, DerefMut}
 };
-use wgpu::{BindGroupLayout, SurfaceConfiguration};
+use wgpu::{rwh::HasWindowHandle, BindGroupLayout, StoreOp, SurfaceConfiguration};
+use winit::window;
 use zengine_ecs::system::{Commands, Res, ResMut, UnsendableRes};
 use zengine_macro::Resource;
 use zengine_window::{Window, WindowSpecs};
@@ -21,7 +21,7 @@ impl Deref for TextureBindGroupLayout {
 
 #[doc(hidden)]
 #[derive(Resource, Default, Debug)]
-pub struct Surface(Option<(SurfaceConfiguration, wgpu::Surface, usize)>);
+pub struct Surface(Option<(SurfaceConfiguration, wgpu::Surface<'static>, usize)>);
 
 #[derive(Debug)]
 pub(crate) enum SurfaceError {
@@ -60,10 +60,12 @@ impl Surface {
         device: &Device,
         window_specs: &WindowSpecs,
     ) {
-        let internal_window = &window.internal;
+        let internal_window = window.internal.clone();
 
-        let surface =
-            unsafe { instance.create_surface(internal_window) }.expect("Cannot create surface");
+        let surface = instance
+            .create_surface(internal_window)
+            .expect("Cannot create surface");
+        // unsafe { instance.create_surface(internal_window) }.expect("Cannot create surface");
         log::warn!("create surface");
         let swapchain_capabilities = surface.get_capabilities(adapter);
         let swapchain_format = swapchain_capabilities.formats[0];
@@ -75,6 +77,7 @@ impl Surface {
             present_mode: wgpu::PresentMode::Fifo,
             alpha_mode: swapchain_capabilities.alpha_modes[0],
             view_formats: vec![],
+            desired_maximum_frame_latency: 2,
         };
         surface.configure(device, &config);
 
@@ -157,14 +160,15 @@ pub(crate) fn setup_render(
     mut commands: Commands,
 ) {
     let window = window.expect("Cannot find a Window");
-    let internal_window = &window.internal;
+    let window_handle = window.internal.clone();
 
     let instance = wgpu::Instance::default();
     let surface =
-        unsafe { instance.create_surface(internal_window) }.expect("Could not create surface");
+        unsafe { instance.create_surface(window_handle) }.expect("Could not create surface");
+
     async fn create_adapter_device_queue(
         instance: &wgpu::Instance,
-        surface: &wgpu::Surface,
+        surface: &wgpu::Surface<'static>,
     ) -> (wgpu::Adapter, wgpu::Device, wgpu::Queue) {
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -178,10 +182,10 @@ pub(crate) fn setup_render(
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    features: wgpu::Features::empty(),
+                    required_features: wgpu::Features::empty(),
                     // WebGL doesn't support all of wgpu's features, so if
                     // we're building for the web we'll have to disable some.
-                    limits: if cfg!(target_arch = "wasm32") {
+                    required_limits: if cfg!(target_arch = "wasm32") {
                         wgpu::Limits::downlevel_webgl2_defaults()
                     } else {
                         wgpu::Limits::default()
@@ -208,6 +212,7 @@ pub(crate) fn setup_render(
         present_mode: wgpu::PresentMode::Fifo,
         alpha_mode: swapchain_capabilities.alpha_modes[0],
         view_formats: vec![],
+        desired_maximum_frame_latency: 2,
     };
     surface.configure(&device, &config);
 
@@ -295,10 +300,11 @@ pub(crate) fn clear(
                                 b: bg_color.color.b as f64,
                                 a: bg_color.color.a as f64,
                             }),
-                            store: true,
+                            store: StoreOp::Store,
                         },
                     })],
                     depth_stencil_attachment: None,
+                    ..Default::default()
                 });
         }
     }

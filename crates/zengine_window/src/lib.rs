@@ -1,11 +1,10 @@
+use std::sync::{Arc, Mutex};
+
 use application::Application;
 use glam::UVec2;
 use log::info;
 use winit::{
-    dpi::LogicalSize,
-    event::{ElementState, Event, MouseScrollDelta, WindowEvent},
-    event_loop::{ActiveEventLoop, ControlFlow},
-    window::Fullscreen,
+    dpi::LogicalSize, event::{ElementState, Event, MouseScrollDelta, WindowEvent}, event_loop::{ActiveEventLoop, ControlFlow}, raw_window_handle::RawWindowHandle, window::Fullscreen
 };
 use zengine_engine::{Engine, EngineEvent, Module};
 use zengine_input::{Axis, Input, InputEvent};
@@ -46,7 +45,7 @@ impl Default for WindowConfig {
 #[doc(hidden)]
 #[derive(UnsendableResource, Debug)]
 pub struct Window {
-    pub internal: winit::window::Window,
+    pub internal: Arc<winit::window::Window>,
 }
 
 /// A [Resource](zengine_ecs::Resource) that contains the active Windows settings

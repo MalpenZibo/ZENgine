@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use glam::UVec2;
 use log::info;
 use winit::{
@@ -5,6 +7,7 @@ use winit::{
     dpi::{LogicalSize, PhysicalPosition, PhysicalSize},
     event::{ElementState, MouseScrollDelta, WindowEvent},
     event_loop::ActiveEventLoop,
+    raw_window_handle::HasWindowHandle,
     window::{Fullscreen, WindowId},
 };
 use zengine_engine::{Engine, EngineEvent};
@@ -90,9 +93,9 @@ impl Application {
             }
         }
 
-        self.engine
-            .world
-            .create_unsendable_resource(Window { internal: window });
+        self.engine.world.create_unsendable_resource(Window {
+            internal: Arc::new(window),
+        });
     }
 }
 
