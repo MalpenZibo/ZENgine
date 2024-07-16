@@ -23,12 +23,12 @@ log = { workspace = true }
 glam = { workspace = true }
 rustc-hash = { workspace = true }
 
-fontdue = "0.7.2"
-etagere = "0.2.7"
-typed-builder = "0.12.0"
+fontdue = "0.9"
+etagere = "0.2"
+typed-builder = "0.19"
 
 [dependencies.bytemuck]
-version = "1.9"
+version = "1"
 features = ["derive"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

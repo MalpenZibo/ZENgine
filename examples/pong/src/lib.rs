@@ -97,7 +97,6 @@ pub struct Dimensions {
     pub board_width: f32,
 }
 
-#[zengine_main]
 pub fn main() {
     Engine::init_logger(Level::Info);
 

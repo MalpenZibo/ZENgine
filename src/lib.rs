@@ -90,5 +90,3 @@ pub mod text {
 extern crate zengine_macro;
 pub use zengine_macro::*;
 
-#[cfg(target_os = "android")]
-pub use ndk_glue;

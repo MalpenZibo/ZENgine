@@ -26,6 +26,8 @@ serde = { workspace = true }
 wasm-bindgen = "0.2"
 web-sys = { version = "0.3", features = ["Document", "Window", "Element"] }
 
-[target.'cfg(target_os = "android")'.dependencies]
-ndk-context = "0.1.1"
-jni = "0.19.0"
+[target.'cfg(not(target_os = "android"))'.workspace.dependencies]
+winit = { workspace = true, features= ["rwh_06"] }
+
+[target.'cfg(target_os = "android")'.workspace.dependencies]
+winit = { workspace = true, features= ["rwh_06", "android-native-activity"] }

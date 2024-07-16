@@ -19,14 +19,14 @@ zengine_macro = { workspace = true }
 log = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-rodio = { version = "0.16", default-features = false, features = [
+rodio = { version = "0.19", default-features = false, features = [
     "vorbis",
     "flac",
     "wav",
 ] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-rodio = { version = "0.16", default-features = false, features = [
+rodio = { version = "0.19", default-features = false, features = [
     "vorbis",
     "flac",
     "wav",
