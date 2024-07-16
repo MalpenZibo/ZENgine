@@ -4,8 +4,7 @@ use crate::{
     world::World,
 };
 use std::{
-    any::Any,
-    sync::{RwLockReadGuard, RwLockWriteGuard},
+    any::Any, marker::PhantomData, sync::{RwLockReadGuard, RwLockWriteGuard}
 };
 
 /// Shared borrow of an event with a subscription to the event queue
@@ -43,7 +42,7 @@ pub struct EventStreamState<E: Any + std::fmt::Debug> {
 impl<E: Any + std::fmt::Debug> Default for EventStreamState<E> {
     fn default() -> Self {
         EventStreamState {
-            _marker: std::marker::PhantomData::default(),
+            _marker: PhantomData,
             token: None,
         }
     }
@@ -107,7 +106,7 @@ pub struct EventState<E: Any + std::fmt::Debug> {
 impl<E: Any + std::fmt::Debug> Default for EventState<E> {
     fn default() -> Self {
         EventState {
-            _marker: std::marker::PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }
@@ -167,7 +166,7 @@ pub struct EventPublisherState<E: Any + std::fmt::Debug> {
 impl<E: Any + std::fmt::Debug> Default for EventPublisherState<E> {
     fn default() -> Self {
         EventPublisherState {
-            _marker: std::marker::PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }

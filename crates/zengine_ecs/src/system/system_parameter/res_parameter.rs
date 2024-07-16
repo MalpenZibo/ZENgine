@@ -1,6 +1,5 @@
 use std::{
-    cell::{Ref, RefMut},
-    sync::{RwLockReadGuard, RwLockWriteGuard},
+    cell::{Ref, RefMut}, marker::PhantomData, sync::{RwLockReadGuard, RwLockWriteGuard}
 };
 
 use crate::{Resource, UnsendableResource, World};
@@ -40,7 +39,7 @@ pub struct ResState<R: Resource + Default> {
 impl<T: Resource + Default> Default for ResState<T> {
     fn default() -> Self {
         ResState {
-            _marker: std::marker::PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }
@@ -103,7 +102,7 @@ pub struct ResMutState<R: Resource + Default> {
 impl<T: Resource + Default> Default for ResMutState<T> {
     fn default() -> Self {
         ResMutState {
-            _marker: std::marker::PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }
@@ -134,7 +133,7 @@ pub struct OptionalResState<R: Resource> {
 impl<T: Resource> Default for OptionalResState<T> {
     fn default() -> Self {
         OptionalResState {
-            _marker: std::marker::PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }
@@ -159,7 +158,7 @@ pub struct OptionalResMutState<R: Resource> {
 impl<T: Resource> Default for OptionalResMutState<T> {
     fn default() -> Self {
         OptionalResMutState {
-            _marker: std::marker::PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }
@@ -212,7 +211,7 @@ pub struct UnsendableResState<R: UnsendableResource + Default> {
 impl<T: UnsendableResource + Default> Default for UnsendableResState<T> {
     fn default() -> Self {
         Self {
-            _marker: std::marker::PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }
@@ -275,7 +274,7 @@ pub struct UnsendableResMutState<R: UnsendableResource + Default> {
 impl<T: UnsendableResource + Default> Default for UnsendableResMutState<T> {
     fn default() -> Self {
         Self {
-            _marker: std::marker::PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }
@@ -306,7 +305,7 @@ pub struct OptionalUnsendableResState<R: UnsendableResource> {
 impl<T: UnsendableResource> Default for OptionalUnsendableResState<T> {
     fn default() -> Self {
         Self {
-            _marker: std::marker::PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }
@@ -331,7 +330,7 @@ pub struct OptionalUnsendableResMutState<R: UnsendableResource> {
 impl<T: UnsendableResource> Default for OptionalUnsendableResMutState<T> {
     fn default() -> Self {
         Self {
-            _marker: std::marker::PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }

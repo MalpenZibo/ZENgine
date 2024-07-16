@@ -1,13 +1,8 @@
-use std::sync::{Arc, Mutex};
-
 use application::Application;
 use glam::UVec2;
-use log::info;
-use winit::{
-    dpi::LogicalSize, event::{ElementState, Event, MouseScrollDelta, WindowEvent}, event_loop::{ActiveEventLoop, ControlFlow}, raw_window_handle::RawWindowHandle, window::Fullscreen
-};
-use zengine_engine::{Engine, EngineEvent, Module};
-use zengine_input::{Axis, Input, InputEvent};
+use std::sync::Arc;
+use winit::event_loop::ControlFlow;
+use zengine_engine::{Engine, Module};
 use zengine_macro::{Resource, UnsendableResource};
 
 #[cfg(target_os = "android")]
@@ -56,9 +51,6 @@ pub struct WindowSpecs {
     pub surface_id: usize,
 }
 
-#[derive(UnsendableResource, Debug)]
-struct EventLoop(winit::event_loop::EventLoop<()>);
-
 #[derive(Eq, PartialEq)]
 enum RunnerState {
     Initializing,
@@ -78,30 +70,6 @@ impl RunnerState {
 pub struct WindowModule(pub WindowConfig);
 impl Module for WindowModule {
     fn init(self, engine: &mut Engine) {
-        #[cfg(target_arch = "wasm32")]
-        {
-            // Winit prevents sizing with CSS, so we have to set
-            // the size manually when on web.
-            use winit::platform::web::WindowExtWebSys;
-            web_sys::window()
-                .and_then(|win| win.document())
-                .and_then(|doc| {
-                    let dst = doc.get_element_by_id("zengine-root")?;
-                    let canvas = web_sys::Element::from(window.canvas());
-                    dst.append_child(&canvas).ok()?;
-                    Some(())
-                })
-                .expect("Couldn't append canvas to document body.");
-        }
-
-        #[cfg(target_os = "android")]
-        {
-            let result = android_utils::set_immersive_mode();
-            if let Err(error) = result {
-                log::warn!("Impossible to set the Android immersive mode: {}", error);
-            }
-        }
-
         engine.world.create_resource(self.0);
         engine.set_runner(runner);
     }

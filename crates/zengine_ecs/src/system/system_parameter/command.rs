@@ -4,7 +4,7 @@ use crate::{
     entity::{Entity, EntityGenerator},
     Resource, UnsendableResource, World,
 };
-use std::any::TypeId;
+use std::{any::TypeId, marker::PhantomData};
 
 #[doc(hidden)]
 pub trait Command: ApplyCommand {
@@ -168,7 +168,7 @@ impl<'a> Commands<'a> {
     pub fn remove_components<T: ComponentBundle + 'static>(&mut self, entity: Entity) {
         self.queue.push(Box::new(RemoveComponentCommand::<T> {
             entity,
-            _phantom: std::marker::PhantomData::default(),
+            _phantom: PhantomData,
         }))
     }
 

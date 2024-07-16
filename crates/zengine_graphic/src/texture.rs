@@ -1,6 +1,5 @@
 use crate::{Device, Image, Queue, TextureBindGroupLayout};
 use glam::Vec2;
-use std::num::NonZeroU32;
 use zengine_asset::{AssetEvent, Assets, Handle};
 use zengine_ecs::system::{EventStream, Res, ResMut};
 use zengine_macro::Asset;

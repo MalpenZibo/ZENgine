@@ -7,7 +7,7 @@ use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input,
     token::Comma,
-    DeriveInput, Ident, Index, ItemFn, LitInt, Path, Result,
+    DeriveInput, Ident, Index, LitInt, Path, Result,
 };
 
 mod zengine_manifest;

@@ -1,4 +1,3 @@
-#![allow(clippy::blocks_in_if_conditions)]
 use glam::Vec3;
 use rustc_hash::FxHashSet;
 use zengine_core::Transform;
@@ -146,18 +145,18 @@ pub fn collision_system(
                         height: b_height,
                     },
                 ) => {
+                    let left = a_width * a_shape.origin.x * a_transform.scale;
+                    let right = a_width * a_transform.scale - left;
+                    let bottom = a_height * a_shape.origin.y * a_transform.scale;
+                    let top = a_height * a_transform.scale - bottom;
+
+                    let x = a_transform.position.x - left;
+                    let y = a_transform.position.y - bottom;
+
+                    let extent_x = a_transform.position.x + right;
+                    let extent_y = a_transform.position.y + top;
+
                     let point_in_shape = |point: Vec3| {
-                        let left = a_width * a_shape.origin.x * a_transform.scale;
-                        let right = a_width * a_transform.scale - left;
-                        let bottom = a_height * a_shape.origin.y * a_transform.scale;
-                        let top = a_height * a_transform.scale - bottom;
-
-                        let x = a_transform.position.x - left;
-                        let y = a_transform.position.y - bottom;
-
-                        let extent_x = a_transform.position.x + right;
-                        let extent_y = a_transform.position.y + top;
-
                         point.x > x && point.x < extent_x && point.y > y && point.y < extent_y
                     };
 

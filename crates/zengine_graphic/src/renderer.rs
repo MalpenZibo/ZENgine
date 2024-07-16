@@ -1,9 +1,9 @@
 use crate::Background;
 use std::{
-    borrow::Borrow, iter, ops::{Deref, DerefMut}
+    iter,
+    ops::{Deref, DerefMut},
 };
-use wgpu::{rwh::HasWindowHandle, BindGroupLayout, StoreOp, SurfaceConfiguration};
-use winit::window;
+use wgpu::{BindGroupLayout, StoreOp, SurfaceConfiguration};
 use zengine_ecs::system::{Commands, Res, ResMut, UnsendableRes};
 use zengine_macro::Resource;
 use zengine_window::{Window, WindowSpecs};
@@ -163,8 +163,9 @@ pub(crate) fn setup_render(
     let window_handle = window.internal.clone();
 
     let instance = wgpu::Instance::default();
-    let surface =
-        unsafe { instance.create_surface(window_handle) }.expect("Could not create surface");
+    let surface = instance
+        .create_surface(window_handle)
+        .expect("Could not create surface");
 
     async fn create_adapter_device_queue(
         instance: &wgpu::Instance,

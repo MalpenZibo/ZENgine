@@ -1,13 +1,11 @@
-use std::sync::{Arc, Mutex};
-
 use glam::UVec2;
 use log::info;
+use std::sync::Arc;
 use winit::{
     application::ApplicationHandler,
-    dpi::{LogicalSize, PhysicalPosition, PhysicalSize},
+    dpi::LogicalSize,
     event::{ElementState, MouseScrollDelta, WindowEvent},
     event_loop::ActiveEventLoop,
-    raw_window_handle::HasWindowHandle,
     window::{Fullscreen, WindowId},
 };
 use zengine_engine::{Engine, EngineEvent};

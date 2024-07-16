@@ -4,7 +4,7 @@ use fontdue::{
     Font,
 };
 use glam::{Vec2, Vec4};
-use std::{borrow::Borrow, collections::HashSet, mem::size_of, num::NonZeroU32, slice};
+use std::{borrow::Borrow, collections::HashSet, slice};
 use wgpu::{
     Buffer, BufferDescriptor, BufferUsages, Device, Extent3d, ImageCopyTexture, ImageDataLayout,
     IndexFormat, Origin3d, Queue, RenderPass, TextureAspect, COPY_BUFFER_ALIGNMENT,
@@ -252,7 +252,7 @@ impl TextRenderer {
         let vertices_raw = unsafe {
             slice::from_raw_parts(
                 vertices as *const _ as *const u8,
-                size_of::<Vertex>() * vertices.len(),
+                std::mem::size_of_val(vertices),
             )
         };
 
@@ -276,7 +276,7 @@ impl TextRenderer {
         let indices_raw = unsafe {
             slice::from_raw_parts(
                 indices as *const _ as *const u8,
-                size_of::<u32>() * indices.len(),
+                std::mem::size_of_val(indices),
             )
         };
 

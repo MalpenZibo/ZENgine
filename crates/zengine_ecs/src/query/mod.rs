@@ -1,4 +1,4 @@
-use std::iter::{zip, Zip};
+use std::{iter::{zip, Zip}, marker::PhantomData};
 
 use crate::World;
 use zengine_macro::{query_iter_for_tuple, query_iter_mut_for_tuple};
@@ -33,7 +33,7 @@ impl<T: QueryParameters> QueryRunner<T> {
 impl<T: QueryParameters> Default for QueryRunner<T> {
     fn default() -> Self {
         Self {
-            _marker: std::marker::PhantomData::default(),
+            _marker: PhantomData,
             query_cache: None,
         }
     }

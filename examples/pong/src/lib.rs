@@ -21,7 +21,7 @@ use zengine::{
     math::{Vec2, Vec3},
     physics::{collision_system, Collision, Shape2D, ShapeType},
     window::{WindowConfig, WindowModule, WindowSpecs},
-    zengine_main, Component, Engine, InputType, Resource,
+    Component, Engine, InputType, Resource,
 };
 
 static PAD_FORCE: f32 = 2000.0;

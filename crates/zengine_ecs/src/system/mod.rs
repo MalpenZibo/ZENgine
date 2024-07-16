@@ -60,6 +60,8 @@
 //! - [Commands] to send command to the [World]
 //! - [Local] to get access to data owned by the system
 
+use std::marker::PhantomData;
+
 use zengine_macro::all_tuples;
 
 use crate::world::World;
@@ -86,7 +88,7 @@ where
     type System = F;
     fn into_system(self) -> SystemWrapper<Self::System, Param> {
         SystemWrapper {
-            _marker: std::marker::PhantomData::default(),
+            _marker: PhantomData,
             function: self,
             param_state: Param::Fetch::default(),
         }
