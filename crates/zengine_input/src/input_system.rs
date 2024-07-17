@@ -171,12 +171,12 @@ mod tests {
             bindings.axis_mappings.unwrap().get(&UserInput::X).unwrap(),
             &vec!(
                 AxisBind {
-                    source: Input::Keyboard { key: Key::D },
+                    source: Input::Keyboard { key: Key::KeyD },
                     invert: false,
                     discrete_map: None
                 },
                 AxisBind {
-                    source: Input::Keyboard { key: Key::A },
+                    source: Input::Keyboard { key: Key::KeyA },
                     invert: true,
                     discrete_map: None
                 }
@@ -216,12 +216,12 @@ mod tests {
             bindings.axis_mappings.unwrap().get("X").unwrap(),
             &vec!(
                 AxisBind {
-                    source: Input::Keyboard { key: Key::D },
+                    source: Input::Keyboard { key: Key::KeyD },
                     invert: false,
                     discrete_map: None
                 },
                 AxisBind {
-                    source: Input::Keyboard { key: Key::A },
+                    source: Input::Keyboard { key: Key::KeyA },
                     invert: true,
                     discrete_map: None
                 }
@@ -255,7 +255,7 @@ mod tests {
         {
             let mut input_stream = world.get_mut_event_handler::<InputEvent>().unwrap();
             input_stream.publish(InputEvent {
-                input: Input::Keyboard { key: Key::D },
+                input: Input::Keyboard { key: Key::KeyD },
                 value: 1.0,
             });
         }
@@ -273,7 +273,7 @@ mod tests {
         {
             let mut input_stream = world.get_mut_event_handler::<InputEvent>().unwrap();
             input_stream.publish(InputEvent {
-                input: Input::Keyboard { key: Key::A },
+                input: Input::Keyboard { key: Key::KeyA },
                 value: 1.0,
             });
         }
@@ -291,11 +291,11 @@ mod tests {
         {
             let mut input_stream = world.get_mut_event_handler::<InputEvent>().unwrap();
             input_stream.publish(InputEvent {
-                input: Input::Keyboard { key: Key::A },
+                input: Input::Keyboard { key: Key::KeyA },
                 value: 1.0,
             });
             input_stream.publish(InputEvent {
-                input: Input::Keyboard { key: Key::D },
+                input: Input::Keyboard { key: Key::KeyD },
                 value: 1.0,
             });
         }
