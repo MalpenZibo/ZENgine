@@ -1,5 +1,7 @@
 use std::{
-    cell::{Ref, RefMut}, marker::PhantomData, sync::{RwLockReadGuard, RwLockWriteGuard}
+    cell::{Ref, RefMut},
+    marker::PhantomData,
+    sync::{RwLockReadGuard, RwLockWriteGuard},
 };
 
 use crate::{Resource, UnsendableResource, World};

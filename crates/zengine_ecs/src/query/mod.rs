@@ -1,4 +1,7 @@
-use std::{iter::{zip, Zip}, marker::PhantomData};
+use std::{
+    iter::{zip, Zip},
+    marker::PhantomData,
+};
 
 use crate::World;
 use zengine_macro::{query_iter_for_tuple, query_iter_mut_for_tuple};

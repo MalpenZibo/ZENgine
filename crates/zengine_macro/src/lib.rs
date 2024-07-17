@@ -533,4 +533,3 @@ pub fn query_iter_mut_for_tuple(input: TokenStream) -> TokenStream {
 
     TokenStream::from(expanded)
 }
-

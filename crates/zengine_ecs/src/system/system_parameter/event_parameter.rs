@@ -4,7 +4,9 @@ use crate::{
     world::World,
 };
 use std::{
-    any::Any, marker::PhantomData, sync::{RwLockReadGuard, RwLockWriteGuard}
+    any::Any,
+    marker::PhantomData,
+    sync::{RwLockReadGuard, RwLockWriteGuard},
 };
 
 /// Shared borrow of an event with a subscription to the event queue
