@@ -19,13 +19,12 @@ rustc-hash = { workspace = true }
 log = { workspace = true }
 ahash = { workspace = true }
 
-crossbeam-channel = "0.5.6"
-pollster = "0.2.5"
-downcast-rs = "1.2.0"
-async-trait = "0.1.57"
+crossbeam-channel = "0.5"
+downcast-rs = "1.2"
+async-trait = "0.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-pollster = "0.2.5"
+pollster = "0.3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { version = "0.2" }
@@ -33,9 +32,6 @@ web-sys = { version = "0.3", features = ["Request", "Window", "Response"] }
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 getrandom = { version = "0.2.0", features = ["js"] }
-
-[target.'cfg(target_os = "android")'.dependencies]
-ndk-glue = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3.2.0"

@@ -1,5 +1,5 @@
 use rustc_hash::FxHashMap;
-use std::any::{Any, TypeId};
+use std::any::Any;
 use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -117,27 +117,28 @@ impl<E: Any + Debug> EventHandler<E> {
     pub fn read(&self, token: &SubscriptionToken) -> impl Iterator<Item = &E> {
         let head = self.head.unwrap_or(0);
         let mut subscription = self.get_subscription(token);
-        if self.head != subscription.position {
+
+        let (start, end) = if self.head != subscription.position {
             let start = match subscription.position {
                 Some(pos) if pos + 1 >= self.buffer.len() => 0,
                 Some(pos) => pos + 1,
                 None => 0,
             };
             subscription.position = self.head;
-            self.buffer
-                .iter()
-                .cycle()
-                .skip(start)
-                .take(if start >= self.buffer.len() {
-                    0
-                } else if head >= start {
-                    head - start + 1
-                } else {
-                    self.buffer.len() - (start - head) + 1
-                })
+            let end = if start >= self.buffer.len() {
+                0
+            } else if head >= start {
+                head - start + 1
+            } else {
+                self.buffer.len() - (start - head) + 1
+            };
+
+            (start, end)
         } else {
-            self.buffer.iter().cycle().skip(0).take(0)
-        }
+            (0, 0)
+        };
+
+        self.buffer.iter().cycle().skip(start).take(end)
     }
 
     fn get_subscription(&self, token: &SubscriptionToken) -> RwLockWriteGuard<Subscription> {
@@ -191,12 +192,6 @@ impl<E: Any + Debug> EventHandler<E> {
 
         new_head
     }
-}
-
-#[derive(Hash, Eq, PartialEq, Debug)]
-struct SubscriptionKey {
-    event_id: TypeId,
-    token: SubscriptionToken,
 }
 
 /// Token that rappresent a subscription to the event queue

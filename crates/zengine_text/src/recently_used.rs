@@ -159,10 +159,10 @@ impl<K: Clone + Copy + Eq + Hash, V> RecentlyUsedMap<K, V> {
         self.free = Some(idx);
     }
 
-    pub fn remove<Q: ?Sized>(&mut self, key: &Q) -> Option<V>
+    pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq,
+        Q: Hash + Eq + ?Sized,
     {
         self.map.remove(key.borrow()).map(|entry| {
             self.remove_node(entry.node_idx);
@@ -170,18 +170,18 @@ impl<K: Clone + Copy + Eq + Hash, V> RecentlyUsedMap<K, V> {
         })
     }
 
-    pub fn get<Q: ?Sized>(&self, k: &Q) -> Option<&V>
+    pub fn get<Q>(&self, k: &Q) -> Option<&V>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq,
+        Q: Hash + Eq + ?Sized,
     {
         self.map.get(k).map(|item| &item.value)
     }
 
-    pub fn contains_key<Q: ?Sized>(&self, k: &Q) -> bool
+    pub fn contains_key<Q>(&self, k: &Q) -> bool
     where
         K: Borrow<Q>,
-        Q: Hash + Eq,
+        Q: Hash + Eq + ?Sized,
     {
         self.map.contains_key(k)
     }

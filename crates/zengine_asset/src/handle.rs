@@ -159,7 +159,7 @@ impl<T: Asset> Handle<T> {
         Self {
             id,
             handle_type: HandleType::Strong(handle_ref_sender),
-            _phantom: PhantomData::default(),
+            _phantom: PhantomData,
         }
     }
 
@@ -168,7 +168,7 @@ impl<T: Asset> Handle<T> {
         Self {
             id,
             handle_type: HandleType::Weak,
-            _phantom: PhantomData::default(),
+            _phantom: PhantomData,
         }
     }
 

@@ -5,6 +5,7 @@ use crate::{
 };
 use std::{
     any::Any,
+    marker::PhantomData,
     sync::{RwLockReadGuard, RwLockWriteGuard},
 };
 
@@ -43,7 +44,7 @@ pub struct EventStreamState<E: Any + std::fmt::Debug> {
 impl<E: Any + std::fmt::Debug> Default for EventStreamState<E> {
     fn default() -> Self {
         EventStreamState {
-            _marker: std::marker::PhantomData::default(),
+            _marker: PhantomData,
             token: None,
         }
     }
@@ -107,7 +108,7 @@ pub struct EventState<E: Any + std::fmt::Debug> {
 impl<E: Any + std::fmt::Debug> Default for EventState<E> {
     fn default() -> Self {
         EventState {
-            _marker: std::marker::PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }
@@ -167,7 +168,7 @@ pub struct EventPublisherState<E: Any + std::fmt::Debug> {
 impl<E: Any + std::fmt::Debug> Default for EventPublisherState<E> {
     fn default() -> Self {
         EventPublisherState {
-            _marker: std::marker::PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }

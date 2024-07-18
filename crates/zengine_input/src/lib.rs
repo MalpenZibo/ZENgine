@@ -25,7 +25,7 @@ pub mod device {
     use serde::Deserialize;
 
     /// enum with all possible keyboard keys
-    pub type Key = winit::event::VirtualKeyCode;
+    pub type Key = winit::keyboard::KeyCode;
 
     /// enum with all possible mouse buttons
     pub type MouseButton = winit::event::MouseButton;

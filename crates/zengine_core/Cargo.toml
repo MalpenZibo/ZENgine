@@ -18,4 +18,4 @@ zengine_macro = { workspace = true }
 log = { workspace = true }
 glam = { workspace = true }
 
-instant = "0.1.12"
+instant = "0.1"

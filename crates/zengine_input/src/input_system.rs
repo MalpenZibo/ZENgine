@@ -111,122 +111,23 @@ mod tests {
     fn setup_test() -> (World, impl System) {
         let world = World::default();
 
-        let content = "
-            axis_mappings: 
-                X:
-                - source:
-                    Keyboard:
-                        key: D
-                - source:
-                    Keyboard:
-                        key: A
-                  invert: true
-            action_mappings:
-                Jump:
-                - source: 
-                    Keyboard: 
-                        key: Space
-        ";
-
-        let bindings: Bindings<UserInput> = serde_yaml::from_str(content).unwrap();
+        let bindings = Bindings::default()
+            .add_action(
+                UserInput::Jump,
+                ActionBind::with_source(Input::Keyboard { key: Key::Space }),
+            )
+            .add_axis(
+                UserInput::X,
+                AxisBind::with_source(Input::Keyboard { key: Key::KeyD }),
+            )
+            .add_axis(
+                UserInput::X,
+                AxisBind::with_source(Input::Keyboard { key: Key::KeyA }).invert_input(),
+            );
 
         let input_system = IntoSystem::into_system(input_system(bindings));
 
         (world, input_system)
-    }
-
-    #[test]
-    fn decode_typed_bindings_from_yaml() {
-        let content = "
-            axis_mappings: 
-                X:
-                - source:
-                    Keyboard:
-                        key: D
-                - source:
-                    Keyboard:
-                        key: A
-                  invert: true
-            action_mappings:
-                Jump:
-                - source: 
-                    Keyboard: 
-                        key: Space
-        ";
-
-        let bindings: Bindings<UserInput> = serde_yaml::from_str(content).unwrap();
-
-        assert_eq!(
-            bindings
-                .action_mappings
-                .unwrap()
-                .get(&UserInput::Jump)
-                .unwrap(),
-            &vec!(ActionBind {
-                source: Input::Keyboard { key: Key::Space }
-            })
-        );
-
-        assert_eq!(
-            bindings.axis_mappings.unwrap().get(&UserInput::X).unwrap(),
-            &vec!(
-                AxisBind {
-                    source: Input::Keyboard { key: Key::D },
-                    invert: false,
-                    discrete_map: None
-                },
-                AxisBind {
-                    source: Input::Keyboard { key: Key::A },
-                    invert: true,
-                    discrete_map: None
-                }
-            )
-        );
-    }
-
-    #[test]
-    fn decode_generics_bindings_from_yaml() {
-        let content = "
-            axis_mappings: 
-                X:
-                - source:
-                    Keyboard:
-                        key: D
-                - source:
-                    Keyboard:
-                        key: A
-                  invert: true
-            action_mappings:
-                Jump:
-                - source: 
-                    Keyboard: 
-                        key: Space
-        ";
-
-        let bindings: Bindings<String> = serde_yaml::from_str(content).unwrap();
-
-        assert_eq!(
-            bindings.action_mappings.unwrap().get("Jump").unwrap(),
-            &vec!(ActionBind {
-                source: Input::Keyboard { key: Key::Space }
-            })
-        );
-
-        assert_eq!(
-            bindings.axis_mappings.unwrap().get("X").unwrap(),
-            &vec!(
-                AxisBind {
-                    source: Input::Keyboard { key: Key::D },
-                    invert: false,
-                    discrete_map: None
-                },
-                AxisBind {
-                    source: Input::Keyboard { key: Key::A },
-                    invert: true,
-                    discrete_map: None
-                }
-            )
-        );
     }
 
     #[test]
@@ -255,7 +156,7 @@ mod tests {
         {
             let mut input_stream = world.get_mut_event_handler::<InputEvent>().unwrap();
             input_stream.publish(InputEvent {
-                input: Input::Keyboard { key: Key::D },
+                input: Input::Keyboard { key: Key::KeyD },
                 value: 1.0,
             });
         }
@@ -273,7 +174,7 @@ mod tests {
         {
             let mut input_stream = world.get_mut_event_handler::<InputEvent>().unwrap();
             input_stream.publish(InputEvent {
-                input: Input::Keyboard { key: Key::A },
+                input: Input::Keyboard { key: Key::KeyA },
                 value: 1.0,
             });
         }
@@ -291,11 +192,11 @@ mod tests {
         {
             let mut input_stream = world.get_mut_event_handler::<InputEvent>().unwrap();
             input_stream.publish(InputEvent {
-                input: Input::Keyboard { key: Key::A },
+                input: Input::Keyboard { key: Key::KeyA },
                 value: 1.0,
             });
             input_stream.publish(InputEvent {
-                input: Input::Keyboard { key: Key::D },
+                input: Input::Keyboard { key: Key::KeyD },
                 value: 1.0,
             });
         }

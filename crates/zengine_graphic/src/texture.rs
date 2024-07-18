@@ -1,6 +1,5 @@
 use crate::{Device, Image, Queue, TextureBindGroupLayout};
 use glam::Vec2;
-use std::num::NonZeroU32;
 use zengine_asset::{AssetEvent, Assets, Handle};
 use zengine_ecs::system::{EventStream, Res, ResMut};
 use zengine_macro::Asset;
@@ -72,8 +71,8 @@ impl Texture {
                 &image.data,
                 wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: NonZeroU32::new(4 * image.width),
-                    rows_per_image: NonZeroU32::new(image.height),
+                    bytes_per_row: Some(4 * image.width),
+                    rows_per_image: Some(image.height),
                 },
                 size,
             );

@@ -21,7 +21,7 @@ use zengine::{
     math::{Vec2, Vec3},
     physics::{collision_system, Collision, Shape2D, ShapeType},
     window::{WindowConfig, WindowModule, WindowSpecs},
-    zengine_main, Component, Engine, InputType, Resource,
+    Component, Engine, InputType, Resource,
 };
 
 static PAD_FORCE: f32 = 2000.0;
@@ -97,26 +97,30 @@ pub struct Dimensions {
     pub board_width: f32,
 }
 
-#[zengine_main]
 pub fn main() {
     Engine::init_logger(Level::Info);
 
     let bindings: Bindings<UserInput> = Bindings::default()
         .add_axis(
             UserInput::Player1XAxis,
-            AxisBind::with_source(Input::Keyboard { key: Key::D }),
+            AxisBind::with_source(Input::Keyboard { key: Key::KeyD }),
         )
         .add_axis(
             UserInput::Player1XAxis,
-            AxisBind::with_source(Input::Keyboard { key: Key::A }).invert_input(),
+            AxisBind::with_source(Input::Keyboard { key: Key::KeyA }).invert_input(),
         )
         .add_axis(
             UserInput::Player1XAxis,
-            AxisBind::with_source(Input::Keyboard { key: Key::Right }),
+            AxisBind::with_source(Input::Keyboard {
+                key: Key::ArrowRight,
+            }),
         )
         .add_axis(
             UserInput::Player1XAxis,
-            AxisBind::with_source(Input::Keyboard { key: Key::Left }).invert_input(),
+            AxisBind::with_source(Input::Keyboard {
+                key: Key::ArrowLeft,
+            })
+            .invert_input(),
         )
         .add_axis(
             UserInput::Player1XAxis,

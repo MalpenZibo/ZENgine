@@ -191,10 +191,11 @@ fn text_render(
                             resolve_target: None,
                             ops: Operations {
                                 load: LoadOp::Clear(wgpu::Color::BLACK),
-                                store: true,
+                                store: wgpu::StoreOp::Store,
                             },
                         })],
                         depth_stencil_attachment: None,
+                        ..Default::default()
                     });
 
             text_renderer.render(&atlas, pass, &camera_buffer).unwrap();

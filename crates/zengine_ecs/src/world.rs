@@ -196,7 +196,7 @@ impl World {
 
             enum ColumnType {
                 Add(usize),
-                Replace(usize, usize),
+                Replace(usize),
             }
             let mut columns: Vec<ColumnType> = Vec::default();
             for c_type in component_ids.iter() {
@@ -204,9 +204,9 @@ impl World {
                     archetype.archetype_specs.iter().position(|c| c == c_type),
                     destination_archetype_specs.iter().position(|c| c == c_type),
                 ) {
-                    (Some(old_index), Some(new_index)) => {
+                    (Some(_), Some(new_index)) => {
                         // replace
-                        columns.push(ColumnType::Replace(old_index, new_index))
+                        columns.push(ColumnType::Replace(new_index))
                     }
                     (None, Some(new_index)) => {
                         // add
@@ -302,7 +302,7 @@ impl World {
                         .into_iter()
                         .map(|column| match column {
                             ColumnType::Add(column_index) => (InsertType::Add, column_index),
-                            ColumnType::Replace(_, new_index) => {
+                            ColumnType::Replace(new_index) => {
                                 (InsertType::Replace(new_row), new_index)
                             }
                         })
@@ -334,7 +334,7 @@ impl World {
                     columns
                         .into_iter()
                         .filter_map(|column| match column {
-                            ColumnType::Replace(_, new_index) => {
+                            ColumnType::Replace(new_index) => {
                                 Some((InsertType::Replace(record.row), new_index))
                             }
                             _ => None,
@@ -693,10 +693,6 @@ mod tests {
     #[derive(Debug)]
     struct Component4 {}
     impl Component for Component4 {}
-
-    #[derive(Debug)]
-    struct Component5 {}
-    impl Component for Component5 {}
 
     #[derive(Debug)]
     struct Component6 {}
