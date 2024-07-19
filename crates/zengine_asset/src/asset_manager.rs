@@ -1,10 +1,10 @@
 use crossbeam_channel::{Receiver, Sender, TryRecvError};
 use downcast_rs::{impl_downcast, Downcast};
+use log::debug;
 use rustc_hash::FxHashMap;
 use std::sync::{Arc, RwLock};
 use std::{any::TypeId, path::Path};
 use zengine_ecs::system::{EventPublisher, Res, ResMut};
-use zengine_engine::log::debug;
 use zengine_macro::Resource;
 
 use crate::assets::Assets;

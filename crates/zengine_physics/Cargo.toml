@@ -12,9 +12,18 @@ license.workspace = true
 
 [dependencies]
 zengine_ecs = { workspace = true }
+zengine_engine = { workspace = true }
 zengine_core = { workspace = true }
 zengine_macro = { workspace = true }
+zengine_graphic = { workspace = true }
 
 log = { workspace = true }
 rustc-hash = { workspace = true }
 glam = { workspace = true }
+bytemuck = { version = "1", features = ["derive"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wgpu = { workspace = true, features = ["webgl"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+wgpu = { workspace = true }

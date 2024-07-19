@@ -4,10 +4,8 @@ use std::{
     hash::{Hash, Hasher},
     marker::PhantomData,
 };
-
 use crossbeam_channel::{Receiver, Sender};
-use zengine_engine::log::debug;
-
+use log::debug;
 use crate::{
     assets::{Asset, Assets},
     AssetPath,

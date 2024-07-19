@@ -114,15 +114,14 @@ mod tests {
         let bindings = Bindings::default()
             .add_action(
                 UserInput::Jump,
-                ActionBind::with_source(Input::Keyboard { key: Key::Space }),
+                vec![ActionBind::with_source(Input::Keyboard { key: Key::Space })],
             )
             .add_axis(
                 UserInput::X,
-                AxisBind::with_source(Input::Keyboard { key: Key::KeyD }),
-            )
-            .add_axis(
-                UserInput::X,
-                AxisBind::with_source(Input::Keyboard { key: Key::KeyA }).invert_input(),
+                vec![
+                    AxisBind::with_source(Input::Keyboard { key: Key::KeyD }),
+                    AxisBind::with_source(Input::Keyboard { key: Key::KeyA }).invert_input(),
+                ],
             );
 
         let input_system = IntoSystem::into_system(input_system(bindings));

@@ -64,7 +64,7 @@ fn check_rectangle_and_circle(
 ///
 /// This system doesn't take in consideration the entity transform
 /// rotation for rectangular shape
-pub fn collision_system(
+pub(crate) fn collision_system(
     query: Query<(Entity, &Shape2D, &Transform)>,
     mut collision_event: EventPublisher<Collision>,
     already_collided: Local<FxHashSet<(Entity, Entity)>>,

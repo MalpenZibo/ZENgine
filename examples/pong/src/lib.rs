@@ -1,3 +1,7 @@
+use std::panic;
+
+use flexi_logger::Logger;
+use log::error;
 use serde::Deserialize;
 use zengine::{
     asset::{AssetManager, AssetModule, Assets, Handle},
@@ -17,9 +21,8 @@ use zengine::{
         device::{Key, TouchPhase, Which},
         Axis, AxisBind, Bindings, Input, InputHandler, InputModule,
     },
-    log::Level,
     math::{Vec2, Vec3},
-    physics::{collision_system, Collision, Shape2D, ShapeType},
+    physics::{Collision, CollisionModule, Shape2D, ShapeType},
     window::{WindowConfig, WindowModule, WindowSpecs},
     Component, Engine, InputType, Resource,
 };
@@ -98,46 +101,35 @@ pub struct Dimensions {
 }
 
 pub fn main() {
-    Engine::init_logger(Level::Info);
+    flexi_logger::init();
+    panic::set_hook(Box::new(|info| {
+        error!("Panic: {}", info);
+    }));
 
-    let bindings: Bindings<UserInput> = Bindings::default()
-        .add_axis(
-            UserInput::Player1XAxis,
+    let bindings: Bindings<UserInput> = Bindings::default().add_axis(
+        UserInput::Player1XAxis,
+        vec![
             AxisBind::with_source(Input::Keyboard { key: Key::KeyD }),
-        )
-        .add_axis(
-            UserInput::Player1XAxis,
             AxisBind::with_source(Input::Keyboard { key: Key::KeyA }).invert_input(),
-        )
-        .add_axis(
-            UserInput::Player1XAxis,
             AxisBind::with_source(Input::Keyboard {
                 key: Key::ArrowRight,
             }),
-        )
-        .add_axis(
-            UserInput::Player1XAxis,
             AxisBind::with_source(Input::Keyboard {
                 key: Key::ArrowLeft,
             })
             .invert_input(),
-        )
-        .add_axis(
-            UserInput::Player1XAxis,
             AxisBind::with_source(Input::ControllerStick {
                 device_id: 0,
                 which: Which::Left,
                 axis: Axis::X,
             }),
-        )
-        .add_axis(
-            UserInput::Player1XAxis,
             AxisBind::with_source(Input::Touch {
                 axis: Axis::X,
                 phase: TouchPhase::Started,
             })
             .with_discrete_map(0.2),
-        );
+        ],
+    );
 
     Engine::default()
         .add_module(WindowModule(WindowConfig {
@@ -148,13 +140,13 @@ pub fn main() {
             vsync: false,
         }))
         .add_module(AssetModule::new("assets"))
-        .add_module(GraphicModule::default())
+        .add_module(GraphicModule)
         .add_module(GamepadModule)
-        .add_module(AudioModule::default())
+        .add_module(AudioModule)
         .add_module(TimeModule(None))
         .add_module(InputModule(bindings))
+        .add_module(CollisionModule::default())
         .add_startup_system(setup)
-        .add_system(collision_system)
         .add_system(ai_pad_control)
         .add_system(player_pad_control)
         .add_system(pad_movement)

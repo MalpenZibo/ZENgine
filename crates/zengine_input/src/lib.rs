@@ -131,20 +131,20 @@ pub struct Bindings<T: InputType> {
 }
 
 impl<T: InputType> Bindings<T> {
-    /// Adds the given [ActionBind] to the input [Bindings] for the given [InputType]
-    pub fn add_action(mut self, input_type: T, bind: ActionBind) -> Self {
+    /// Adds the given list of [ActionBind] to the input [Bindings] for the given [InputType]
+    pub fn add_action(mut self, input_type: T, binds: Vec<ActionBind>) -> Self {
         match &mut self.action_mappings {
             Some(action_mappings) => match action_mappings.get_mut(&input_type) {
                 Some(mappings) => {
-                    mappings.push(bind);
+                    mappings.extend(binds);
                 }
                 None => {
-                    action_mappings.insert(input_type, vec![bind]);
+                    action_mappings.insert(input_type, binds);
                 }
             },
             None => {
                 let mut action_mappings = FnvHashMap::default();
-                action_mappings.insert(input_type, vec![bind]);
+                action_mappings.insert(input_type, binds);
 
                 self.action_mappings = Some(action_mappings);
             }
@@ -153,20 +153,20 @@ impl<T: InputType> Bindings<T> {
         self
     }
 
-    /// Adds the given [AxisBind] to the input [Bindings] for the given [InputType]
-    pub fn add_axis(mut self, input_type: T, bind: AxisBind) -> Self {
+    /// Adds the given list of [AxisBind] to the input [Bindings] for the given [InputType]
+    pub fn add_axis(mut self, input_type: T, binds: Vec<AxisBind>) -> Self {
         match &mut self.axis_mappings {
             Some(axis_mappings) => match axis_mappings.get_mut(&input_type) {
                 Some(mappings) => {
-                    mappings.push(bind);
+                    mappings.extend(binds);
                 }
                 None => {
-                    axis_mappings.insert(input_type, vec![bind]);
+                    axis_mappings.insert(input_type, binds);
                 }
             },
             None => {
                 let mut axis_mappings = FnvHashMap::default();
-                axis_mappings.insert(input_type, vec![bind]);
+                axis_mappings.insert(input_type, binds);
 
                 self.axis_mappings = Some(axis_mappings);
             }

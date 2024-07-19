@@ -38,7 +38,7 @@ pub(crate) struct GlyphDetails {
     atlas_id: Option<AllocId>,
 }
 
-///A [Module] that defines an interface for windowing support in ZENgine.
+/// Adds text support to the engine
 #[derive(Default, Debug)]
 pub struct TextModule;
 impl Module for TextModule {

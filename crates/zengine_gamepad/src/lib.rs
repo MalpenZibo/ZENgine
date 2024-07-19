@@ -29,6 +29,9 @@ impl Module for GamepadModule {
     #[cfg(not(target_os = "android"))]
     fn init(self, engine: &mut zengine_engine::Engine) {
         let gilrs = Gilrs::new().unwrap();
+        gilrs.gamepads().for_each(|(id, gamepad)| {
+            log::info!("Found gamepad: {} - {}", id, gamepad.name());
+        });
 
         engine
             .world
