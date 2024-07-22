@@ -1,8 +1,7 @@
-use zengine::{log::Level, Engine};
+use zengine::Engine;
 
 #[cfg(not(target_os = "android"))]
 fn main() {
-    Engine::init_logger(Level::Info);
 
     Engine::default().add_system(hello_world_system).run();
 }

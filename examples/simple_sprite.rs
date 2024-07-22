@@ -6,7 +6,6 @@ use zengine::{
         Background, Camera, CameraMode, Color, GraphicModule, Sprite, SpriteSize, SpriteTexture,
         Texture, TextureAssets,
     },
-    log::Level,
     math::{Vec2, Vec3},
     window::{WindowConfig, WindowModule},
     Engine,
@@ -14,8 +13,6 @@ use zengine::{
 
 #[cfg(not(target_os = "android"))]
 fn main() {
-    Engine::init_logger(Level::Info);
-
     Engine::default()
         .add_module(WindowModule(WindowConfig {
             title: "Simple Sprite".to_owned(),
@@ -25,7 +22,7 @@ fn main() {
             vsync: false,
         }))
         .add_module(AssetModule::new("assets"))
-        .add_module(GraphicModule::default())
+        .add_module(GraphicModule)
         .add_startup_system(setup)
         .run();
 }

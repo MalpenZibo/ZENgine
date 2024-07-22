@@ -85,6 +85,10 @@ path = "examples/simple_sprite.rs"
 name = "simple_text"
 path = "examples/simple_text.rs"
 
+[[example]]
+name = "collision_system"
+path = "examples/collision_system.rs"
+
 [[bench]]
 name = "archetype"
 path = "benches/archetype.rs"

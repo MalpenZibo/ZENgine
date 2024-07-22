@@ -14,6 +14,12 @@ use zengine_ecs::{
 };
 use zengine_macro::{Component, Resource};
 
+const VERTICES: &[Vec4; 4] = &[
+    Vec4::new(-0.5, 0.5, 0.0, 1.0),
+    Vec4::new(-0.5, -0.5, 0.0, 1.0),
+    Vec4::new(0.5, -0.5, 0.0, 1.0),
+    Vec4::new(0.5, 0.5, 0.0, 1.0),
+];
 const INDICES: &[u16] = &[0, 1, 2, 2, 3, 0];
 
 struct SpriteTextureInfo {
@@ -170,43 +176,40 @@ fn calculate_vertices(
         }
     };
 
-    let min_x = -(width * origin.x);
-    let max_x = width * (1.0 - origin.x);
-
-    let min_y = -(height * origin.y);
-    let max_y = height * (1.0 - origin.y);
-
     let min_u = info.min.x;
     let max_u = info.max.x;
 
     let min_v = info.min.y;
     let max_v = info.max.y;
 
+    let origin_matrix = Mat4::from_translation(origin / 2.).inverse();
+    let scale_matrix = Mat4::from_scale(Vec3::new(width, height, 1.0));
+
     [
         Vertex {
             position: transform
-                .mul_vec4(Vec4::new(min_x, max_y, 0.0, 1.0))
+                .mul_vec4(scale_matrix.mul_vec4(origin_matrix.mul_vec4(VERTICES[0])))
                 .to_array(),
             tex_coords: [min_u, min_v],
             color: color.to_array(),
         },
         Vertex {
             position: transform
-                .mul_vec4(Vec4::new(min_x, min_y, 0.0, 1.0))
+                .mul_vec4(scale_matrix.mul_vec4(origin_matrix.mul_vec4(VERTICES[1])))
                 .to_array(),
             tex_coords: [min_u, max_v],
             color: color.to_array(),
         },
         Vertex {
             position: transform
-                .mul_vec4(Vec4::new(max_x, min_y, 0.0, 1.0))
+                .mul_vec4(scale_matrix.mul_vec4(origin_matrix.mul_vec4(VERTICES[2])))
                 .to_array(),
             tex_coords: [max_u, max_v],
             color: color.to_array(),
         },
         Vertex {
             position: transform
-                .mul_vec4(Vec4::new(max_x, max_y, 0.0, 1.0))
+                .mul_vec4(scale_matrix.mul_vec4(origin_matrix.mul_vec4(VERTICES[3])))
                 .to_array(),
             tex_coords: [max_u, min_v],
             color: color.to_array(),

@@ -1,6 +1,5 @@
 use std::panic;
 
-use flexi_logger::Logger;
 use log::error;
 use serde::Deserialize;
 use zengine::{
@@ -226,7 +225,7 @@ fn setup(
     commands.spawn((
         Sprite {
             size: SpriteSize::Height(camera_height),
-            origin: Vec3::new(0.5, 0.5, 0.0),
+            origin: Vec3::ZERO,
             color: Color::WHITE,
             texture: SpriteTexture::Simple(bg),
         },
@@ -243,7 +242,7 @@ fn setup(
     commands.spawn((
         Sprite {
             size: SpriteSize::Width(board_width),
-            origin: Vec3::new(0.5, 0.5, 0.0),
+            origin: Vec3::ZERO,
             color: Color::WHITE,
             texture: SpriteTexture::Atlas {
                 texture_handle: atlas.clone(),
@@ -260,7 +259,7 @@ fn setup(
             1.0,
         ),
         Shape2D {
-            origin: Vec3::new(1.0, 0.5, 0.0),
+            origin: Vec3::new(1.0, 0., 0.0),
             shape_type: ShapeType::Rectangle {
                 width: 300.0,
                 height: board_height,
@@ -274,7 +273,7 @@ fn setup(
             1.0,
         ),
         Shape2D {
-            origin: Vec3::new(0.0, 0.5, 0.0),
+            origin: Vec3::new(-1., 0., 0.0),
             shape_type: ShapeType::Rectangle {
                 width: 300.0,
                 height: board_height,
@@ -289,7 +288,7 @@ fn setup(
             1.0,
         ),
         Shape2D {
-            origin: Vec3::new(0.5, 0.0, 0.0),
+            origin: Vec3::new(1., 0.0, 0.0),
             shape_type: ShapeType::Rectangle {
                 width: board_width,
                 height: 300.0,
@@ -304,7 +303,7 @@ fn setup(
             1.0,
         ),
         Shape2D {
-            origin: Vec3::new(0.5, 1.0, 0.0),
+            origin: Vec3::new(1., 1.0, 0.0),
             shape_type: ShapeType::Rectangle {
                 width: board_width,
                 height: 300.0,
@@ -322,7 +321,7 @@ fn setup(
     let pad1 = commands.spawn((
         Sprite {
             size: SpriteSize::Size(Vec2::new(pad_half_width * 2.0, pad_half_height * 2.0)),
-            origin: Vec3::new(0.5, 0.5, 0.0),
+            origin: Vec3::new(0., 0., 0.0),
             color: Color::WHITE,
             texture: SpriteTexture::Atlas {
                 texture_handle: atlas.clone(),
@@ -335,7 +334,7 @@ fn setup(
             1.0,
         ),
         Shape2D {
-            origin: Vec3::new(0.5, 0.5, 0.0),
+            origin: Vec3::new(0., 0., 0.0),
             shape_type: ShapeType::Rectangle {
                 width: pad_half_width * 2.0,
                 height: pad_half_height * 2.0,
@@ -348,7 +347,7 @@ fn setup(
     commands.spawn((
         Sprite {
             size: SpriteSize::Size(Vec2::new(pad_half_width * 2.0, pad_half_height * 2.0)),
-            origin: Vec3::new(0.5, 0.5, 0.0),
+            origin: Vec3::new(0., 0., 0.0),
             color: Color::WHITE,
             texture: SpriteTexture::Atlas {
                 texture_handle: atlas.clone(),
@@ -361,7 +360,7 @@ fn setup(
             1.0,
         ),
         Shape2D {
-            origin: Vec3::new(0.5, 0.5, 0.0),
+            origin: Vec3::new(0., 0., 0.0),
             shape_type: ShapeType::Rectangle {
                 width: pad_half_width * 2.0,
                 height: pad_half_height * 2.0,
@@ -374,7 +373,7 @@ fn setup(
     commands.spawn((
         Sprite {
             size: SpriteSize::Size(Vec2::new(ball_radius * 2.0, ball_radius * 2.0)),
-            origin: Vec3::new(0.5, 0.5, 0.0),
+            origin: Vec3::new(0., 0., 0.0),
             color: Color::WHITE,
             texture: SpriteTexture::Atlas {
                 texture_handle: atlas,
@@ -383,7 +382,7 @@ fn setup(
         },
         Transform::new(Vec3::new(0.0, 0.0, 1.0), Vec3::ZERO, 1.0),
         Shape2D {
-            origin: Vec3::new(0.5, 0.5, 0.0),
+            origin: Vec3::new(0., 0., 0.0),
             shape_type: ShapeType::Circle {
                 radius: ball_radius,
             },

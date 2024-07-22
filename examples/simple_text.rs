@@ -3,7 +3,6 @@ use zengine::{
     core::Transform,
     ecs::system::{Commands, ResMut},
     graphic::{Background, Camera, CameraMode, Color, GraphicModule},
-    log::Level,
     math::{vec2, Vec2, Vec3},
     text::{Text, TextModule, TextSection, TextStyle},
     window::{WindowConfig, WindowModule},
@@ -14,8 +13,6 @@ use zengine_text::Font;
 
 #[cfg(not(target_os = "android"))]
 fn main() {
-    Engine::init_logger(Level::Info);
-
     Engine::default()
         .add_module(WindowModule(WindowConfig {
             title: "Simple Text".to_owned(),
@@ -25,8 +22,8 @@ fn main() {
             vsync: false,
         }))
         .add_module(AssetModule::new("assets"))
-        .add_module(GraphicModule::default())
-        .add_module(TextModule::default())
+        .add_module(GraphicModule)
+        .add_module(TextModule)
         .add_startup_system(setup)
         .run();
 }
