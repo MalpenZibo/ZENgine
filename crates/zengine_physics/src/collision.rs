@@ -9,7 +9,7 @@ use zengine_ecs::{
 use zengine_macro::Component;
 
 /// types of Shape
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum ShapeType {
     /// A circle with the given radius
     Circle { radius: f32 },
@@ -21,10 +21,26 @@ pub enum ShapeType {
 ///
 /// A collision shape has an origin and a type
 /// that could be a [circle](ShapeType::Circle) or a [rectagle](ShapeType::Rectangle)
-#[derive(Component, Debug)]
+#[derive(Component, Clone, Copy, Debug)]
 pub struct Shape2D {
     pub origin: Vec3,
     pub shape_type: ShapeType,
+}
+
+impl Shape2D {
+    pub fn get_height(&self) -> f32 {
+        match self.shape_type {
+            ShapeType::Rectangle { height, .. } => height,
+            ShapeType::Circle { radius } => radius * 2.0,
+        }
+    }
+
+    pub fn get_width(&self) -> f32 {
+        match self.shape_type {
+            ShapeType::Rectangle { width, .. } => width,
+            ShapeType::Circle { radius } => radius * 2.0,
+        }
+    }
 }
 
 /// An event that rappresent a collision between two entities
