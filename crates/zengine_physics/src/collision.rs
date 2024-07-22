@@ -1,4 +1,4 @@
-use glam::Vec3;
+use glam::{Mat4, Vec3};
 use rustc_hash::FxHashSet;
 use zengine_core::Transform;
 use zengine_ecs::{
@@ -36,26 +36,28 @@ pub struct Collision {
 }
 
 fn check_rectangle_and_circle(
-    (a_width, a_height, a_position, a_origin): (&f32, &f32, &Vec3, &Vec3),
-    (b_radius, b_position, b_origin): (&f32, &Vec3, &Vec3),
+    (a_width, a_height, a_position, a_origin): (&f32, &f32, &Vec3, Vec3),
+    (b_radius, b_position, b_origin): (&f32, &Vec3, Vec3),
 ) -> bool {
-    let left = a_width * a_origin.x;
-    let right = a_width - left;
-    let bottom = a_height * a_origin.y;
-    let top = a_height - bottom;
-    let diameter = *b_radius * 2.0;
-    let b_position_x = b_position.x + diameter * -(-0.5 + b_origin.x);
-    let b_position_y = b_position.y + diameter * -(-0.5 + b_origin.y);
+    let half_width = *a_width / 2.0;
+    let half_height = *a_height / 2.0;
 
-    let delta_x = b_position_x
+    let a_origin =
+        Mat4::from_translation(a_origin * Vec3::new(half_width, half_height, 0.0)).inverse();
+    let a_position = a_origin.mul_vec4(a_position.extend(1.0));
+
+    let b_origin = Mat4::from_translation(b_origin * Vec3::splat(*b_radius)).inverse();
+    let b_position = b_origin.mul_vec4(b_position.extend(1.0));
+
+    let delta_x = b_position.x
         - f32::max(
-            a_position.x - left,
-            f32::min(b_position_x, a_position.x + right),
+            a_position.x - half_width,
+            f32::min(b_position.x, a_position.x + half_width),
         );
-    let delta_y = b_position_y
+    let delta_y = b_position.y
         - f32::max(
-            a_position.y - bottom,
-            f32::min(b_position_y, a_position.y + top),
+            a_position.y - half_height,
+            f32::min(b_position.y, a_position.y + half_height),
         );
     delta_x * delta_x + delta_y * delta_y < (b_radius * b_radius)
 }
@@ -77,21 +79,14 @@ pub(crate) fn collision_system(
                     ShapeType::Circle { radius: a_radius },
                     ShapeType::Circle { radius: b_radius },
                 ) => {
-                    let diameter = *a_radius * 2.0 * a_transform.scale;
-                    let a_delta = Vec3::new(
-                        diameter * -(-0.5 + a_shape.origin.x),
-                        diameter * -(-0.5 + a_shape.origin.y),
-                        0.0,
-                    );
-                    let diameter = *b_radius * 2.0 * b_transform.scale;
-                    let b_delta = Vec3::new(
-                        diameter * -(-0.5 + b_shape.origin.x),
-                        diameter * -(-0.5 + b_shape.origin.y),
-                        0.0,
-                    );
-                    let distance = (a_transform.position + a_delta)
-                        .distance(b_transform.position + b_delta)
-                        .abs();
+                    let a_origin =
+                        Mat4::from_translation(a_shape.origin * Vec3::splat(*a_radius)).inverse();
+                    let b_origin =
+                        Mat4::from_translation(b_shape.origin * Vec3::splat(*b_radius)).inverse();
+                    let a_pos = a_origin.mul_vec4(a_transform.position.extend(1.0));
+                    let b_pos = b_origin.mul_vec4(b_transform.position.extend(1.0));
+
+                    let distance = (a_pos).distance(b_pos).abs();
 
                     let radius_lenghts =
                         a_radius * a_transform.scale + b_radius * b_transform.scale;
@@ -108,12 +103,12 @@ pub(crate) fn collision_system(
                         &(b_width * b_transform.scale),
                         &(b_height * b_transform.scale),
                         &b_transform.position,
-                        &b_shape.origin,
+                        b_shape.origin,
                     ),
                     (
                         &(a_radius * a_transform.scale),
                         &a_transform.position,
-                        &a_shape.origin,
+                        a_shape.origin,
                     ),
                 ),
                 (
@@ -127,12 +122,12 @@ pub(crate) fn collision_system(
                         &(a_width * a_transform.scale),
                         &(a_height * a_transform.scale),
                         &a_transform.position,
-                        &a_shape.origin,
+                        a_shape.origin,
                     ),
                     (
                         &(b_radius * b_transform.scale),
                         &b_transform.position,
-                        &b_shape.origin,
+                        b_shape.origin,
                     ),
                 ),
                 (
@@ -145,41 +140,49 @@ pub(crate) fn collision_system(
                         height: b_height,
                     },
                 ) => {
-                    let left = a_width * a_shape.origin.x * a_transform.scale;
-                    let right = a_width * a_transform.scale - left;
-                    let bottom = a_height * a_shape.origin.y * a_transform.scale;
-                    let top = a_height * a_transform.scale - bottom;
+                    let a_half_width = *a_width * a_transform.scale / 2.0;
+                    let a_half_height = *a_height * a_transform.scale / 2.0;
 
-                    let x = a_transform.position.x - left;
-                    let y = a_transform.position.y - bottom;
+                    let a_origin = Mat4::from_translation(
+                        a_shape.origin * Vec3::new(a_half_width, a_half_height, 0.0),
+                    )
+                    .inverse();
+                    let a_position = a_origin.mul_vec4(a_transform.position.extend(1.0));
 
-                    let extent_x = a_transform.position.x + right;
-                    let extent_y = a_transform.position.y + top;
+                    let b_half_width = *b_width / 2.0;
+                    let b_half_height = *b_height / 2.0;
+
+                    let b_origin = Mat4::from_translation(
+                        b_shape.origin * Vec3::new(b_half_width, b_half_height, 0.0),
+                    )
+                    .inverse();
+                    let b_position = b_origin.mul_vec4(b_transform.position.extend(1.0));
+
+                    let x = a_position.x - a_half_width;
+                    let y = a_position.y - a_half_height;
+
+                    let extent_x = a_position.x + a_half_width;
+                    let extent_y = a_position.y + a_half_height;
 
                     let point_in_shape = |point: Vec3| {
                         point.x > x && point.x < extent_x && point.y > y && point.y < extent_y
                     };
 
-                    let left = b_width * b_shape.origin.x * b_transform.scale;
-                    let right = b_width * b_transform.scale - left;
-                    let bottom = b_height * b_shape.origin.y * b_transform.scale;
-                    let top = b_height * b_transform.scale - bottom;
-
                     point_in_shape(Vec3::new(
-                        b_transform.position.x - left,
-                        b_transform.position.y - bottom,
+                        b_position.x - b_half_width,
+                        b_position.y - b_half_height,
                         0.0,
                     )) || point_in_shape(Vec3::new(
-                        b_transform.position.x - left,
-                        b_transform.position.y + top,
+                        b_position.x - b_half_width,
+                        b_position.y + b_half_height,
                         0.0,
                     )) || point_in_shape(Vec3::new(
-                        b_transform.position.x + right,
-                        b_transform.position.y - bottom,
+                        b_position.x + b_half_width,
+                        b_position.y - b_half_height,
                         0.0,
                     )) || point_in_shape(Vec3::new(
-                        b_transform.position.x + right,
-                        b_transform.position.y + top,
+                        b_position.x + b_half_width,
+                        b_position.y + b_half_height,
                         0.0,
                     ))
                 }

@@ -1,18 +1,27 @@
-use std::ops::Deref;
+use std::{collections::HashSet, f32::consts::PI, ops::Deref};
 
 use glam::{Mat4, Vec3, Vec4};
 use wgpu::util::DeviceExt;
 use zengine_core::Transform;
 use zengine_ecs::{
     query::{Query, QueryIter},
-    system::{Commands, Local, Res, ResMut},
+    system::{Commands, EventStream, Local, Res, ResMut},
+    Entity,
 };
 use zengine_graphic::{CameraBuffer, Color, Device, Queue, RenderContextInstance, Surface};
 use zengine_macro::Resource;
 
-use crate::{Shape2D, ShapeType};
+use crate::{Collision, Shape2D, ShapeType};
 
+const VERTICES: &[Vec4; 4] = &[
+    Vec4::new(-0.5, 0.5, 0.0, 1.0),
+    Vec4::new(-0.5, -0.5, 0.0, 1.0),
+    Vec4::new(0.5, -0.5, 0.0, 1.0),
+    Vec4::new(0.5, 0.5, 0.0, 1.0),
+];
 const INDICES: &[u16] = &[0, 1, 2, 2, 3, 0];
+
+const SEGMENTS: usize = 36;
 
 #[doc(hidden)]
 #[derive(Resource, Debug)]
@@ -54,62 +63,102 @@ impl Vertex {
     }
 }
 
-fn calculate_vertices(
-    size: &ShapeType,
+fn calculate_rect_vertices(
+    width: f32,
+    height: f32,
     origin: Vec3,
     color: &Color,
     transform: Mat4,
-) -> [Vertex; 4] {
-    let (width, height) = {
-        match size {
-            ShapeType::Rectangle { width, height } => (*width, *height),
-            ShapeType::Circle { radius } => (radius * 2.0, radius * 2.0),
-        }
-    };
+) -> Vec<Vertex> {
+    let origin_matrix = Mat4::from_translation(origin / 2.).inverse();
+    let scale_matrix = Mat4::from_scale(Vec3::new(width, height, 1.0));
 
-    let min_x = -(width * origin.x);
-    let max_x = width * (1.0 - origin.x);
-
-    let min_y = -(height * origin.y);
-    let max_y = height * (1.0 - origin.y);
-
-    [
+    vec![
         Vertex {
             position: transform
-                .mul_vec4(Vec4::new(min_x, max_y, 0.0, 1.0))
+                .mul_vec4(scale_matrix.mul_vec4(origin_matrix.mul_vec4(VERTICES[0])))
                 .to_array(),
             color: color.to_array(),
         },
         Vertex {
             position: transform
-                .mul_vec4(Vec4::new(min_x, min_y, 0.0, 1.0))
+                .mul_vec4(scale_matrix.mul_vec4(origin_matrix.mul_vec4(VERTICES[1])))
                 .to_array(),
             color: color.to_array(),
         },
         Vertex {
             position: transform
-                .mul_vec4(Vec4::new(max_x, min_y, 0.0, 1.0))
+                .mul_vec4(scale_matrix.mul_vec4(origin_matrix.mul_vec4(VERTICES[2])))
                 .to_array(),
             color: color.to_array(),
         },
         Vertex {
             position: transform
-                .mul_vec4(Vec4::new(max_x, max_y, 0.0, 1.0))
+                .mul_vec4(scale_matrix.mul_vec4(origin_matrix.mul_vec4(VERTICES[3])))
                 .to_array(),
             color: color.to_array(),
         },
     ]
 }
 
-fn generate_vertex_and_indexes_buffer(
-    device: &wgpu::Device,
-    vertex: &[Vertex],
-) -> (wgpu::Buffer, wgpu::Buffer) {
-    let mut indices = Vec::default();
-    for index in 0..vertex.iter().len() / 4 {
-        indices.extend(INDICES.iter().map(|i| i + (4 * index as u16)))
+fn calculate_circle_vertices(
+    radius: f32,
+    origin: Vec3,
+    color: &Color,
+    transform: Mat4,
+) -> Vec<Vertex> {
+    let origin_matrix = Mat4::from_translation(origin).inverse();
+    let scale_matrix = Mat4::from_scale(Vec3::new(radius, radius, 1.0));
+
+    let mut vertices = Vec::with_capacity(SEGMENTS + 1);
+    let angle_increment = 2.0 * PI / SEGMENTS as f32;
+
+    let center = Vec3::ZERO.extend(1.0);
+    //
+    // Center vertex at the origin
+    vertices.push(Vertex {
+        position: transform
+            .mul_vec4(scale_matrix.mul_vec4(origin_matrix.mul_vec4(center)))
+            .to_array(),
+        color: color.to_array(),
+    });
+
+    for i in 0..SEGMENTS {
+        let theta = i as f32 * angle_increment;
+
+        let x = 1. * theta.cos();
+        let y = 1. * theta.sin();
+        let z = 0.0;
+
+        vertices.push(Vertex {
+            position: transform
+                .mul_vec4(scale_matrix.mul_vec4(origin_matrix.mul_vec4(Vec4::new(x, y, z, 1.0))))
+                .to_array(),
+            color: color.to_array(),
+        });
     }
 
+    vertices
+}
+
+fn calculate_circle_indices() -> Vec<u16> {
+    let mut indices: Vec<u16> = Vec::with_capacity(SEGMENTS * 3);
+
+    for i in 1..=SEGMENTS {
+        let next_index = if i == SEGMENTS { 1 } else { i + 1 };
+        indices.push(0); // Center vertex index
+        indices.push(i as u16); // Current vertex index
+        indices.push(next_index as u16); // Next vertex index
+    }
+
+    indices
+}
+
+fn generate_vertex_and_indexes_buffer(
+    device: &wgpu::Device,
+    indices: &[u16],
+    vertex: &[Vertex],
+) -> (wgpu::Buffer, wgpu::Buffer) {
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Vertex Buffer"),
         contents: bytemuck::cast_slice(vertex),
@@ -118,7 +167,7 @@ fn generate_vertex_and_indexes_buffer(
 
     let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Index Buffer"),
-        contents: bytemuck::cast_slice(&indices),
+        contents: bytemuck::cast_slice(indices),
         usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
     });
 
@@ -191,18 +240,26 @@ pub(crate) fn setup_trace_render(
 pub struct TracerBuffer {
     vertex_buffer: Option<wgpu::Buffer>,
     index_buffer: Option<wgpu::Buffer>,
-    size: usize,
+    v_buff_size: usize,
+    i_buff_size: usize,
 }
 
-pub(crate) fn collision_tracer(
+pub fn collision_tracer(
     queue: Option<Res<Queue>>,
     device: Option<Res<Device>>,
     mut render_context: ResMut<RenderContextInstance>,
     tracer_pipeline: Option<Res<TracerPipeline>>,
     camera_buffer: Option<Res<CameraBuffer>>,
-    shape_query: Query<(&Shape2D, &Transform)>,
+    shape_query: Query<(Entity, &Shape2D, &Transform)>,
     tracer_buffer: Local<TracerBuffer>,
+    collision_event: EventStream<Collision>,
 ) {
+    let mut collided = HashSet::new();
+    for collision in collision_event.read() {
+        collided.insert(collision.entity_a);
+        collided.insert(collision.entity_b);
+    }
+
     if let (Some(device), Some(queue), Some(camera_buffer), Some(tracer_pipeline)) =
         (device, queue, camera_buffer, tracer_pipeline)
     {
@@ -224,30 +281,86 @@ pub(crate) fn collision_tracer(
                         ..Default::default()
                     });
 
-            let num_of_shapes = shape_query.iter().count();
-            let color = Color::new(0, 255, 0, 100);
-            let data = shape_query
+            let num_of_rect_shapes = shape_query
                 .iter()
-                .flat_map(|(s, t)| {
-                    calculate_vertices(
-                        &s.shape_type,
-                        s.origin,
-                        &color,
-                        t.get_transformation_matrix(),
-                    )
-                })
-                .collect::<Vec<_>>();
+                .filter(|(_, s, _)| matches!(s.shape_type, ShapeType::Rectangle { .. }))
+                .count();
+            let num_of_circle_shapes = shape_query
+                .iter()
+                .filter(|(_, s, _)| matches!(s.shape_type, ShapeType::Circle { .. }))
+                .count();
+            let normal_color = Color::new(0, 255, 0, 100);
+            let collided_color = Color::new(255, 0, 0, 100);
+            let mut data =
+                Vec::with_capacity(num_of_rect_shapes * 4 + num_of_circle_shapes * (SEGMENTS + 1));
+            data.extend(
+                shape_query
+                    .iter()
+                    .filter_map(|(e, s, t)| {
+                        if let ShapeType::Rectangle { width, height } = &s.shape_type {
+                            Some(calculate_rect_vertices(
+                                *width,
+                                *height,
+                                s.origin,
+                                if collided.contains(e) {
+                                    &collided_color
+                                } else {
+                                    &normal_color
+                                },
+                                t.get_transformation_matrix(),
+                            ))
+                        } else {
+                            None
+                        }
+                    })
+                    .flatten(),
+            );
+            data.extend(
+                shape_query
+                    .iter()
+                    .filter_map(|(e, s, t)| {
+                        if let ShapeType::Circle { radius } = &s.shape_type {
+                            Some(calculate_circle_vertices(
+                                *radius,
+                                s.origin,
+                                if collided.contains(e) {
+                                    &collided_color
+                                } else {
+                                    &normal_color
+                                },
+                                t.get_transformation_matrix(),
+                            ))
+                        } else {
+                            None
+                        }
+                    })
+                    .flatten(),
+            );
 
-            if tracer_buffer.size >= num_of_shapes && tracer_buffer.vertex_buffer.is_some() {
+            let mut indices = Vec::with_capacity(
+                num_of_rect_shapes * INDICES.len() + num_of_circle_shapes * (SEGMENTS * 3),
+            );
+            for index in 0..num_of_rect_shapes {
+                indices.extend(INDICES.iter().map(|i| i + (4 * index as u16)))
+            }
+            let circle_indices = calculate_circle_indices();
+            let base = (num_of_rect_shapes * 4) as u16;
+            for index in 0..num_of_circle_shapes {
+                indices.extend(
+                    circle_indices
+                        .iter()
+                        .map(|i| i + base + ((SEGMENTS as u16 + 1) * index as u16)),
+                )
+            }
+            if tracer_buffer.v_buff_size >= data.len()
+                && tracer_buffer.i_buff_size >= indices.len()
+                && tracer_buffer.vertex_buffer.is_some()
+            {
                 queue.write_buffer(
                     tracer_buffer.vertex_buffer.as_ref().unwrap(),
                     0,
                     bytemuck::cast_slice(&data),
                 );
-                let mut indices = Vec::default();
-                for index in 0..num_of_shapes {
-                    indices.extend(INDICES.iter().map(|i| i + (4 * index as u16)))
-                }
 
                 queue.write_buffer(
                     tracer_buffer.index_buffer.as_ref().unwrap(),
@@ -255,7 +368,8 @@ pub(crate) fn collision_tracer(
                     bytemuck::cast_slice(&indices),
                 );
             } else {
-                let (v_buffer, i_buffer) = generate_vertex_and_indexes_buffer(&device, &data);
+                let (v_buffer, i_buffer) =
+                    generate_vertex_and_indexes_buffer(&device, &indices, &data);
                 if let Some(buffer) = &tracer_buffer.vertex_buffer {
                     buffer.destroy();
                 }
@@ -265,7 +379,8 @@ pub(crate) fn collision_tracer(
                 tracer_buffer.vertex_buffer = Some(v_buffer);
                 tracer_buffer.index_buffer = Some(i_buffer);
 
-                tracer_buffer.size = num_of_shapes;
+                tracer_buffer.v_buff_size = data.len();
+                tracer_buffer.i_buff_size = indices.len();
             }
 
             render_pass.set_pipeline(&tracer_pipeline);
@@ -278,7 +393,7 @@ pub(crate) fn collision_tracer(
                 wgpu::IndexFormat::Uint16,
             );
 
-            render_pass.draw_indexed(0..num_of_shapes as u32 * 6, 0, 0..1);
+            render_pass.draw_indexed(0..indices.len() as u32, 0, 0..1);
         }
     }
 }
