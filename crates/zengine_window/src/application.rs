@@ -43,15 +43,25 @@ impl Application {
 
             let window = event_loop.create_window(window_attributes).unwrap();
 
-            let window_size = if window_config.fullscreen {
-                let size = window
+            let (window_size, scale) = if window_config.fullscreen {
+                let monitor = window
                     .current_monitor()
-                    .expect("No current monitor found")
-                    .size();
+                    .unwrap_or_else(|| {
+                        window
+                            .available_monitors()
+                            .next()
+                            .expect("No available monitor found")
+                    });
+                let size = monitor.size();
+                let scale = monitor.scale_factor();
 
-                (size.width, size.height)
+                info!("monitor size: {:?} scale: {:?}", size, scale);
+                let size = size.to_logical(scale);
+
+                ((size.width, size.height), scale)
             } else {
-                window.inner_size().into()
+                (window.inner_size().into(), 
+                window.scale_factor())
             };
             info!("size: {:?}", window_size);
 
@@ -60,6 +70,7 @@ impl Application {
                 WindowSpecs {
                     size: UVec2::new(window_size.0, window_size.1),
                     ratio: window_size.0 as f32 / window_size.1 as f32,
+                    scale,
                     surface_id: 0,
                 },
             )
@@ -151,6 +162,9 @@ impl ApplicationHandler for Application {
                 {
                     let mut window_specs =
                         self.engine.world.get_mut_resource::<WindowSpecs>().unwrap();
+                    
+                    let size = size.to_logical(window_specs.scale);
+
                     window_specs.size = UVec2::new(size.width, size.height);
                     window_specs.ratio = size.width as f32 / size.height as f32;
                     window_specs.surface_id += 1;

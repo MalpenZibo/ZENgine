@@ -37,7 +37,7 @@ rustc-hash = "2.0"
 serde = { version = "1.0", features = ["derive"] }
 gilrs = "0.10"
 ahash = "0.8"
-wgpu = "0.20"
+wgpu = "22"
 winit = "0.30"
 
 zengine_asset = { path = "crates/zengine_asset", version = "0.1.2" }

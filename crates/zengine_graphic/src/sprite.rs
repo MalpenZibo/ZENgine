@@ -301,6 +301,7 @@ pub(crate) fn setup_sprite_render(
             alpha_to_coverage_enabled: false,
         },
         multiview: None,
+        cache: None
     });
 
     commands.create_resource(RenderPipeline(render_pipeline));

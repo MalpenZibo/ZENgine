@@ -48,6 +48,7 @@ pub struct Window {
 pub struct WindowSpecs {
     pub size: UVec2,
     pub ratio: f32,
+    pub scale: f64,
     pub surface_id: usize,
 }
 

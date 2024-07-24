@@ -65,7 +65,7 @@ impl Surface {
         let surface = instance
             .create_surface(internal_window)
             .expect("Cannot create surface");
-        // unsafe { instance.create_surface(internal_window) }.expect("Cannot create surface");
+
         log::warn!("create surface");
         let swapchain_capabilities = surface.get_capabilities(adapter);
         let swapchain_format = swapchain_capabilities.formats[0];
@@ -189,8 +189,9 @@ pub(crate) fn setup_render(
                     required_limits: if cfg!(target_arch = "wasm32") {
                         wgpu::Limits::downlevel_webgl2_defaults()
                     } else {
-                        wgpu::Limits::default()
+                        wgpu::Limits::downlevel_defaults()
                     },
+                    ..Default::default()
                 },
                 None,
             )

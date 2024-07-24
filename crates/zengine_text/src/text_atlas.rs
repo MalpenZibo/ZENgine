@@ -153,6 +153,7 @@ impl TextAtlas {
                 alpha_to_coverage_enabled: false,
             },
             multiview: None,
+            cache: None
         }));
 
         Self {
