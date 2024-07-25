@@ -1,17 +1,17 @@
-use std::{collections::HashSet, f32::consts::PI, ops::Deref};
+use std::{f32::consts::PI, ops::Deref};
 
 use glam::{Mat4, Vec3, Vec4};
 use wgpu::util::DeviceExt;
 use zengine_core::Transform;
 use zengine_ecs::{
     query::{Query, QueryIter},
-    system::{Commands, EventStream, Local, Res, ResMut},
+    system::{Commands, Local, Res, ResMut},
     Entity,
 };
 use zengine_graphic::{CameraBuffer, Color, Device, Queue, RenderContextInstance, Surface};
 use zengine_macro::Resource;
 
-use crate::{Collision, Shape2D, ShapeType};
+use crate::{Collisions, Shape2D, ShapeType};
 
 const VERTICES: &[Vec4; 4] = &[
     Vec4::new(-0.5, 0.5, 0.0, 1.0),
@@ -253,14 +253,8 @@ pub fn collision_tracer(
     camera_buffer: Option<Res<CameraBuffer>>,
     shape_query: Query<(Entity, &Shape2D, &Transform)>,
     tracer_buffer: Local<TracerBuffer>,
-    collision_event: EventStream<Collision>,
+    collisions: Res<Collisions>,
 ) {
-    let mut collided = HashSet::new();
-    for collision in collision_event.read() {
-        collided.insert(collision.entity_a);
-        collided.insert(collision.entity_b);
-    }
-
     if let (Some(device), Some(queue), Some(camera_buffer), Some(tracer_pipeline)) =
         (device, queue, camera_buffer, tracer_pipeline)
     {
@@ -303,7 +297,7 @@ pub fn collision_tracer(
                                 *width,
                                 *height,
                                 s.origin,
-                                if collided.contains(e) {
+                                if collisions.collides(*e) {
                                     &collided_color
                                 } else {
                                     &normal_color
@@ -324,7 +318,7 @@ pub fn collision_tracer(
                             Some(calculate_circle_vertices(
                                 *radius,
                                 s.origin,
-                                if collided.contains(e) {
+                                if collisions.collides(*e) {
                                     &collided_color
                                 } else {
                                     &normal_color

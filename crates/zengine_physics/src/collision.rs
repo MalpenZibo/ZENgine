@@ -3,10 +3,50 @@ use rustc_hash::FxHashSet;
 use zengine_core::Transform;
 use zengine_ecs::{
     query::{Query, QueryIter},
-    system::{EventPublisher, Local},
+    system::{Local, ResMut},
     Entity,
 };
-use zengine_macro::Component;
+use zengine_macro::{Component, Resource};
+
+#[derive(Resource, Default, Debug)]
+pub struct Collisions(pub(crate) Vec<Collision>);
+
+impl Collisions {
+    pub fn iter(&self) -> impl Iterator<Item = &Collision> {
+        self.0.iter()
+    }
+
+    pub fn collides_with(&self, entity: Entity) -> impl Iterator<Item = &Entity> {
+        self.0.iter().filter_map(move |c| {
+            if c.entity_a == entity {
+                Some(&c.entity_b)
+            } else if c.entity_b == entity {
+                Some(&c.entity_a)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn collide(&self, entity_a: Entity, entity_b: Entity) -> bool {
+        self.0.iter().any(|c| {
+            (c.entity_a == entity_a && c.entity_b == entity_b)
+                || (c.entity_a == entity_b && c.entity_b == entity_a)
+        })
+    }
+
+    pub fn collides(&self, entity: Entity) -> bool {
+        self.0.iter().any(|c| c.entity_a == entity || c.entity_b == entity)
+    }
+
+    pub (crate) fn insert(&mut self, collision: Collision) {
+        self.0.push(collision);
+    }
+
+    pub (crate) fn clear(&mut self) {
+        self.0.clear();
+    }
+}
 
 /// types of Shape
 #[derive(Debug, Clone, Copy)]
@@ -84,9 +124,10 @@ fn check_rectangle_and_circle(
 /// rotation for rectangular shape
 pub(crate) fn collision_system(
     query: Query<(Entity, &Shape2D, &Transform)>,
-    mut collision_event: EventPublisher<Collision>,
+    mut collisions: ResMut<Collisions>,
     already_collided: Local<FxHashSet<(Entity, Entity)>>,
 ) {
+    collisions.clear();
     already_collided.clear();
     for (a_entity, a_shape, a_transform) in query.iter() {
         for (b_entity, b_shape, b_transform) in query.iter().filter(|e| e.0 != a_entity) {
@@ -204,7 +245,7 @@ pub(crate) fn collision_system(
                 }
             } && !already_collided.contains(&(*b_entity, *a_entity))
             {
-                collision_event.publish(Collision {
+                collisions.insert(Collision {
                     entity_a: *a_entity,
                     entity_b: *b_entity,
                 });

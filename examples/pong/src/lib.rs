@@ -1,29 +1,19 @@
-use std::panic;
+use std::{collections::HashMap, panic};
 
+use flexi_logger::{FileSpec, LogSpecBuilder, Logger};
 use log::error;
 use serde::Deserialize;
 use zengine::{
-    asset::{AssetManager, AssetModule, Assets, Handle},
-    audio::{Audio, AudioDevice, AudioInstance, AudioModule, AudioSettings},
-    core::{Time, TimeModule, Transform},
-    ecs::{
+    asset::{AssetManager, AssetModule, Assets, Handle}, audio::{Audio, AudioDevice, AudioInstance, AudioModule, AudioSettings}, core::{Time, TimeModule, Transform}, ecs::{
         query::{Query, QueryIter, QueryIterMut},
         system::{Commands, EventPublisher, EventStream, Local, Res, ResMut},
         Entity,
-    },
-    gamepad::GamepadModule,
-    graphic::{
+    }, gamepad::GamepadModule, graphic::{
         ActiveCamera, Background, Camera, CameraMode, Color, GraphicModule, Sprite, SpriteSize,
         SpriteTexture, Texture, TextureAssets, TextureAtlas, TextureAtlasAssets,
-    },
-    input::{
-        device::{Key, TouchPhase, Which},
-        Axis, AxisBind, Bindings, Input, InputHandler, InputModule,
-    },
-    math::{Vec2, Vec3},
-    physics::{Collision, CollisionModule, Shape2D, ShapeType},
-    window::{WindowConfig, WindowModule, WindowSpecs},
-    Component, Engine, InputType, Resource,
+    }, input::{
+        device::{ControllerButton, Key, TouchPhase, Which}, Axis, AxisBind, Bindings, Input, InputEvent, InputHandler, InputModule
+    }, math::{Vec2, Vec3}, physics::{CollisionModule, Collisions, Shape2D, ShapeType}, window::{WindowConfig, WindowModule, WindowSpecs}, Component, Engine, EngineEvent, InputType, Resource
 };
 
 static PAD_FORCE: f32 = 2000.0;
@@ -100,10 +90,15 @@ pub struct Dimensions {
 }
 
 pub fn main() {
-    flexi_logger::init();
-    panic::set_hook(Box::new(|info| {
-        error!("Panic: {}", info);
-    }));
+    Logger::with(
+        LogSpecBuilder::new()
+            .default(log::LevelFilter::Info)
+            .module("wgpu_core", log::LevelFilter::Warn)
+            .module("wgpu_hal", log::LevelFilter::Error)
+            .build(),
+    )
+    .start()
+    .unwrap();
 
     let bindings: Bindings<UserInput> = Bindings::default().add_axis(
         UserInput::Player1XAxis,
@@ -140,7 +135,10 @@ pub fn main() {
         }))
         .add_module(AssetModule::new("assets"))
         .add_module(GraphicModule)
-        .add_module(GamepadModule)
+        .add_module(GamepadModule(Some(HashMap::from([
+            (65830, ControllerButton::Start),
+            (65831, ControllerButton::Select),
+        ]))))
         .add_module(AudioModule)
         .add_module(TimeModule(None))
         .add_module(InputModule(bindings))
@@ -151,6 +149,7 @@ pub fn main() {
         .add_system(pad_movement)
         .add_system(ball_movement)
         .add_system(collision_response)
+        .add_system(exit)
         .run();
 }
 
@@ -288,7 +287,7 @@ fn setup(
             1.0,
         ),
         Shape2D {
-            origin: Vec3::new(1., 0.0, 0.0),
+            origin: Vec3::new(0.0, -1.0, 0.0),
             shape_type: ShapeType::Rectangle {
                 width: board_width,
                 height: 300.0,
@@ -303,7 +302,7 @@ fn setup(
             1.0,
         ),
         Shape2D {
-            origin: Vec3::new(1., 1.0, 0.0),
+            origin: Vec3::new(0., 1.0, 0.0),
             shape_type: ShapeType::Rectangle {
                 width: board_width,
                 height: 300.0,
@@ -480,19 +479,6 @@ fn ball_movement(
     }
 }
 
-enum CollisionType {
-    PadBorder { pad: Entity, border: Side },
-    BallBorder { ball: Entity, border: Side },
-    BallPad { pad: Entity, ball: Entity },
-}
-
-enum Side {
-    Sx(Entity),
-    Dx(Entity),
-    Bottom(Entity),
-    Top(Entity),
-}
-
 fn initial_ball_movement() -> Vec2 {
     let angle =
         (fastrand::i32(70..110) as f32 + if fastrand::bool() { 180.0 } else { 0.0 }).to_radians();
@@ -503,7 +489,7 @@ fn initial_ball_movement() -> Vec2 {
 fn collision_response(
     mut query_pad: Query<(Entity, &mut Transform, &mut Pad)>,
     mut query_ball: Query<(Entity, &mut Transform, &mut Ball)>,
-    collision_event: EventStream<Collision>,
+    collisions: Res<Collisions>,
     field_border: Option<Res<FieldBorder>>,
     mut game_event: EventPublisher<GameEvent>,
     audio_device: Res<AudioDevice>,
@@ -511,236 +497,101 @@ fn collision_response(
     score_effect: Option<Res<ScoreEffect>>,
     dimensions: Res<Dimensions>,
 ) {
-    fn get_collision_type(
-        collision: &Collision,
-        query_pad: &Query<(Entity, &mut Transform, &mut Pad)>,
-        query_ball: &Query<(Entity, &mut Transform, &mut Ball)>,
-        field_border: &FieldBorder,
-    ) -> Option<CollisionType> {
-        let get_field_border = |entity: Entity| -> Option<Side> {
-            if field_border.sx == entity {
-                return Some(Side::Sx(entity));
-            } else if field_border.dx == entity {
-                return Some(Side::Dx(entity));
-            } else if field_border.bottom == entity {
-                return Some(Side::Bottom(entity));
-            } else if field_border.top == entity {
-                return Some(Side::Top(entity));
-            }
+    if let Some(field_border) = field_border {
+        for (ball_e, ball_t, ball) in query_ball.iter_mut() {
+            if collisions.collide(*ball_e, field_border.sx) {
+                ball.vel = Vec2::new(-ball.vel.x, ball.vel.y);
+                ball_t.position.x = (-dimensions.board_width / 2.) + dimensions.ball_radius + 0.1;
 
-            None
-        };
+                audio_device.play(bounce_effect.as_ref().unwrap().0.clone());
+            } else if collisions.collide(*ball_e, field_border.dx) {
+                ball.vel = Vec2::new(-ball.vel.x, ball.vel.y);
+                ball_t.position.x = (dimensions.board_width / 2.0) - dimensions.ball_radius - 0.1;
 
-        if query_pad
-            .iter()
-            .any(|(entity, _, _)| entity == &collision.entity_a)
-        {
-            if let Some(border) = get_field_border(collision.entity_b) {
-                return Some(CollisionType::PadBorder {
-                    pad: collision.entity_a,
-                    border,
-                });
-            } else if query_ball
-                .iter()
-                .any(|(entity, _, _)| entity == &collision.entity_b)
+                audio_device.play(bounce_effect.as_ref().unwrap().0.clone());
+            } else if collisions.collide(*ball_e, field_border.top)
+                || collisions.collide(*ball_e, field_border.bottom)
             {
-                return Some(CollisionType::BallPad {
-                    pad: collision.entity_a,
-                    ball: collision.entity_b,
-                });
-            }
-        } else if query_pad
-            .iter()
-            .any(|(entity, _, _)| entity == &collision.entity_b)
-        {
-            if let Some(border) = get_field_border(collision.entity_a) {
-                return Some(CollisionType::PadBorder {
-                    pad: collision.entity_b,
-                    border,
-                });
-            } else if query_ball
-                .iter()
-                .any(|(entity, _, _)| entity == &collision.entity_a)
-            {
-                return Some(CollisionType::BallPad {
-                    pad: collision.entity_b,
-                    ball: collision.entity_a,
-                });
-            }
-        } else if query_ball
-            .iter()
-            .any(|(entity, _, _)| entity == &collision.entity_a)
-        {
-            if let Some(border) = get_field_border(collision.entity_b) {
-                return Some(CollisionType::BallBorder {
-                    ball: collision.entity_a,
-                    border,
-                });
-            } else if query_pad
-                .iter()
-                .any(|(entity, _, _)| entity == &collision.entity_b)
-            {
-                return Some(CollisionType::BallPad {
-                    pad: collision.entity_b,
-                    ball: collision.entity_a,
-                });
-            }
-        } else if query_ball
-            .iter()
-            .any(|(entity, _, _)| entity == &collision.entity_b)
-        {
-            if let Some(border) = get_field_border(collision.entity_a) {
-                return Some(CollisionType::BallBorder {
-                    ball: collision.entity_b,
-                    border,
-                });
-            } else if query_pad
-                .iter()
-                .any(|(entity, _, _)| entity == &collision.entity_a)
-            {
-                return Some(CollisionType::BallPad {
-                    pad: collision.entity_a,
-                    ball: collision.entity_b,
-                });
+                ball_t.position.x = 0.0;
+                ball_t.position.y = 0.0;
+
+                ball.vel = initial_ball_movement();
+
+                game_event.publish(GameEvent::Score);
+
+                audio_device.play(score_effect.as_ref().unwrap().0.clone());
+
+                return;
+            } else {
+                for (pad_e, pad_t, _) in query_pad.iter() {
+                    if collisions.collide(*ball_e, *pad_e) {
+                        ball.vel = Vec2::new(
+                            ball.vel.x
+                                + (if ball_t.position.x < pad_t.position.x {
+                                    -1.0
+                                } else {
+                                    1.0
+                                } * ((ball_t.position.x - pad_t.position.x).abs()
+                                    / dimensions.pad_half_width
+                                    * 100.0)),
+                            -ball.vel.y,
+                        );
+                        ball_t.position.y = pad_t.position.y
+                            + if ball_t.position.y > pad_t.position.y {
+                                dimensions.pad_half_height + dimensions.ball_radius + 0.1
+                            } else {
+                                -(dimensions.pad_half_height + dimensions.ball_radius + 0.1)
+                            };
+
+                        audio_device.play(bounce_effect.as_ref().unwrap().0.clone());
+                    }
+                }
             }
         }
 
-        None
-    }
-
-    if let Some(field_border) = field_border {
-        for c in collision_event.read() {
-            match get_collision_type(c, &query_pad, &query_ball, &field_border) {
-                Some(CollisionType::PadBorder {
-                    pad: pad_entity,
-                    border: Side::Sx(_),
-                }) => {
-                    if let Some((pad, transform)) = query_pad.iter_mut().find_map(|(e, t, p)| {
-                        if e == &pad_entity {
-                            Some((p, t))
-                        } else {
-                            None
-                        }
-                    }) {
-                        pad.velocity = 0.0;
-                        transform.position.x =
-                            (-dimensions.board_width / 2.) + dimensions.pad_half_width + 0.1;
-                    }
-                }
-                Some(CollisionType::PadBorder {
-                    pad: pad_entity,
-                    border: Side::Dx(_),
-                }) => {
-                    if let Some((pad, transform)) = query_pad.iter_mut().find_map(|(e, t, p)| {
-                        if e == &pad_entity {
-                            Some((p, t))
-                        } else {
-                            None
-                        }
-                    }) {
-                        pad.velocity = 0.0;
-                        transform.position.x =
-                            (dimensions.board_width / 2.) - dimensions.pad_half_width - 0.1;
-                    };
-                }
-                Some(CollisionType::BallBorder {
-                    ball: ball_entity,
-                    border: Side::Sx(border_entity),
-                })
-                | Some(CollisionType::BallBorder {
-                    ball: ball_entity,
-                    border: Side::Dx(border_entity),
-                }) => {
-                    if let Some((ball, transform)) = query_ball.iter_mut().find_map(|(e, t, b)| {
-                        if e == &ball_entity {
-                            Some((b, t))
-                        } else {
-                            None
-                        }
-                    }) {
-                        ball.vel = Vec2::new(-ball.vel.x, ball.vel.y);
-                        transform.position.x = if border_entity == field_border.sx {
-                            (-dimensions.board_width / 2.) + dimensions.ball_radius + 0.1
-                        } else {
-                            (dimensions.board_width / 2.0) - dimensions.ball_radius - 0.1
-                        }
-                    }
-
-                    audio_device.play(bounce_effect.as_ref().unwrap().0.clone());
-                }
-                Some(CollisionType::BallBorder {
-                    ball: ball_entity,
-                    border: Side::Bottom(_),
-                })
-                | Some(CollisionType::BallBorder {
-                    ball: ball_entity,
-                    border: Side::Top(_),
-                }) => {
-                    if let Some((ball, transform)) = query_ball.iter_mut().find_map(|(e, t, b)| {
-                        if e == &ball_entity {
-                            Some((b, t))
-                        } else {
-                            None
-                        }
-                    }) {
-                        transform.position.x = 0.0;
-                        transform.position.y = 0.0;
-
-                        ball.vel = initial_ball_movement();
-                    }
-
-                    game_event.publish(GameEvent::Score);
-
-                    audio_device.play(score_effect.as_ref().unwrap().0.clone());
-
-                    return;
-                }
-                Some(CollisionType::BallPad {
-                    pad: pad_entity,
-                    ball: ball_entity,
-                }) => {
-                    if let Some(pad_transform) = query_pad.iter().find_map(|(e, t, _)| {
-                        if e == &pad_entity {
-                            Some(t.clone())
-                        } else {
-                            None
-                        }
-                    }) {
-                        if let Some((ball_transform, ball)) =
-                            query_ball.iter_mut().find_map(|(e, t, b)| {
-                                if e == &ball_entity {
-                                    Some((t, b))
-                                } else {
-                                    None
-                                }
-                            })
-                        {
-                            ball.vel = Vec2::new(
-                                ball.vel.x
-                                    + (if ball_transform.position.x < pad_transform.position.x {
-                                        -1.0
-                                    } else {
-                                        1.0
-                                    } * ((ball_transform.position.x
-                                        - pad_transform.position.x)
-                                        .abs()
-                                        / dimensions.pad_half_width
-                                        * 100.0)),
-                                -ball.vel.y,
-                            );
-                            ball_transform.position.y = pad_transform.position.y
-                                + if ball_transform.position.y > pad_transform.position.y {
-                                    dimensions.pad_half_height + dimensions.ball_radius + 0.1
-                                } else {
-                                    -(dimensions.pad_half_height + dimensions.ball_radius + 0.1)
-                                };
-
-                            audio_device.play(bounce_effect.as_ref().unwrap().0.clone());
-                        }
-                    }
-                }
-                _ => {}
-            };
+        for (pad_e, pad_t, pad) in query_pad.iter_mut() {
+            if collisions.collide(*pad_e, field_border.sx) {
+                pad.velocity = 0.0;
+                pad_t.position.x = (-dimensions.board_width / 2.) + dimensions.pad_half_width + 0.1;
+            } else if collisions.collide(*pad_e, field_border.dx) {
+                pad.velocity = 0.0;
+                pad_t.position.x = (dimensions.board_width / 2.) - dimensions.pad_half_width - 0.1;
+            }
         }
     }
 }
+
+fn exit(event_stream: EventStream<InputEvent>, mut engine_event: EventPublisher<EngineEvent>) {
+    let mut start = false;
+    let mut select = false;
+    for event in event_stream.read() {
+        match event {
+            InputEvent {
+                input:
+                    Input::ControllerButton {
+                        device_id: 0,
+                        button: ControllerButton::Start,
+                    },
+                value: 1.0,
+            } => {
+                start = true;
+            }
+            InputEvent {
+                input:
+                    Input::ControllerButton {
+                        device_id: 0,
+                        button: ControllerButton::Select,
+                    },
+                value: 1.0,
+            } => {
+                select = true;
+            }
+            _ => {}
+        }
+    }
+
+    if start && select {
+        engine_event.publish(EngineEvent::Quit);
+    }
+}
+

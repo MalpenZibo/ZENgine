@@ -10,7 +10,7 @@ use zengine_macro::UnsendableResource;
 /// Adds gamepad support to the engine
 ///
 /// NB: currently the gamepad support is not provided for Android platform
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct GamepadModule(pub Option<HashMap<u32, ControllerButton>>);
 
 #[derive(UnsendableResource, Debug)]
