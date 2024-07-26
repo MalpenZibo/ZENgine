@@ -1,0 +1,16 @@
+[package]
+name = "zengine_state"
+description = "State machine for ZENgine"
+keywords = ["zengine"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+documentation.workspace = true
+repository.workspace = true
+homepage.workspace = true
+license.workspace = true
+
+[dependencies]
+zengine_ecs = { workspace = true }
+zengine_engine = { workspace = true }
+zengine_macro = { workspace = true }
