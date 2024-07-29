@@ -1,10 +1,10 @@
 use crate::{Device, Image, Queue, Texture, TextureAssets, TextureBindGroupLayout};
 use glam::Vec2;
+use hashbrown::HashMap;
 use rectangle_pack::{
     contains_smallest_box, pack_rects, volume_heuristic, GroupedRectsToPlace, PackedLocation,
     RectToInsert, RectanglePackError, TargetBin,
 };
-use rustc_hash::FxHashMap;
 use std::{
     collections::BTreeMap,
     hash::{Hash, Hasher},
@@ -30,8 +30,8 @@ pub(crate) struct ImageRect {
 pub struct TextureAtlas {
     width: u32,
     height: u32,
-    images: FxHashMap<Handle<Image>, bool>,
-    image_handles: FxHashMap<Handle<Image>, usize>,
+    images: HashMap<Handle<Image>, bool>,
+    image_handles: HashMap<Handle<Image>, usize>,
     image_rects: Vec<ImageRect>,
     pub(crate) texture: Option<Handle<Texture>>,
 }
@@ -199,7 +199,7 @@ impl TextureAtlasAssets for Assets<TextureAtlas> {
                 width: 0,
                 height: 0,
                 texture: None,
-                image_handles: FxHashMap::default(),
+                image_handles: HashMap::default(),
                 image_rects: Vec::with_capacity(0),
                 images: images.iter().map(|i| ((*i).clone(), false)).collect(),
             },

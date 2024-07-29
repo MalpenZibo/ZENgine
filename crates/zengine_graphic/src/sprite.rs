@@ -3,7 +3,7 @@ use crate::{
     Texture, TextureAtlas, TextureBindGroupLayout,
 };
 use glam::{Mat4, Vec2, Vec3, Vec4};
-use rustc_hash::FxHashMap;
+use hashbrown::HashMap;
 use std::ops::{Deref, DerefMut};
 use wgpu::util::DeviceExt;
 use zengine_asset::{Assets, Handle};
@@ -142,7 +142,7 @@ pub struct SpriteBuffer {
     size: usize,
 }
 
-type BatchLayerData<'a> = FxHashMap<Handle<Texture>, Vec<(&'a Sprite, &'a Transform)>>;
+type BatchLayerData<'a> = HashMap<Handle<Texture>, Vec<(&'a Sprite, &'a Transform)>>;
 
 struct BatchLayer<'a> {
     pub z: f32,
@@ -409,7 +409,7 @@ pub(crate) fn sprite_render(
                                 index,
                                 BatchLayer {
                                     z,
-                                    data: FxHashMap::default(),
+                                    data: HashMap::default(),
                                 },
                             );
                             batches.get_mut(index).unwrap()

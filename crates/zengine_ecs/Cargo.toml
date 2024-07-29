@@ -13,7 +13,8 @@ license.workspace = true
 [dependencies]
 zengine_macro = { workspace = true }
 
-rustc-hash = { workspace = true }
+hashbrown = { workspace = true }
+ahash = { workspace = true }
 log = { workspace = true }
 
 nohash-hasher = "0.2.0"

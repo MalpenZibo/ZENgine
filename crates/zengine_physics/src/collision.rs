@@ -1,5 +1,5 @@
 use glam::{Mat4, Vec3};
-use rustc_hash::FxHashSet;
+use hashbrown::HashSet;
 use zengine_core::Transform;
 use zengine_ecs::{
     query::{Query, QueryIter},
@@ -125,7 +125,7 @@ fn check_rectangle_and_circle(
 pub(crate) fn collision_system(
     query: Query<(Entity, &Shape2D, &Transform)>,
     mut collisions: ResMut<Collisions>,
-    already_collided: Local<FxHashSet<(Entity, Entity)>>,
+    already_collided: Local<HashSet<(Entity, Entity)>>,
 ) {
     collisions.clear();
     already_collided.clear();

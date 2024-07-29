@@ -1,7 +1,7 @@
 use crossbeam_channel::{Receiver, Sender, TryRecvError};
 use downcast_rs::{impl_downcast, Downcast};
+use hashbrown::HashMap;
 use log::debug;
-use rustc_hash::FxHashMap;
 use std::sync::{Arc, RwLock};
 use std::{any::TypeId, path::Path};
 use zengine_ecs::system::{EventPublisher, Res, ResMut};
@@ -154,10 +154,10 @@ impl<T: Asset> AnyAssetCommandChannel for AssetCommandChannel<T> {
 #[derive(Resource, Debug)]
 pub struct AssetManager {
     loaders: Vec<Arc<dyn AssetLoader>>,
-    extension_to_loader: FxHashMap<String, usize>,
-    asset_channels: Arc<RwLock<FxHashMap<TypeId, Box<dyn AnyAssetCommandChannel>>>>,
+    extension_to_loader: HashMap<String, usize>,
+    asset_channels: Arc<RwLock<HashMap<TypeId, Box<dyn AnyAssetCommandChannel>>>>,
     asset_handle_ref_channel: HandleRefChannel,
-    asset_handle_ref_count: FxHashMap<HandleId, usize>,
+    asset_handle_ref_count: HashMap<HandleId, usize>,
     asset_io: Arc<dyn AssetIo>,
 }
 
@@ -166,30 +166,30 @@ impl Default for AssetManager {
         #[cfg(target_arch = "wasm32")]
         return Self {
             loaders: Vec::default(),
-            extension_to_loader: FxHashMap::default(),
-            asset_channels: Arc::new(RwLock::new(FxHashMap::default())),
+            extension_to_loader: HashMap::default(),
+            asset_channels: Arc::new(RwLock::new(HashMap::default())),
             asset_handle_ref_channel: HandleRefChannel::default(),
-            asset_handle_ref_count: FxHashMap::default(),
+            asset_handle_ref_count: HashMap::default(),
             asset_io: Arc::new(crate::io::WasmAssetIo::default()),
         };
 
         #[cfg(target_os = "android")]
         return Self {
             loaders: Vec::default(),
-            extension_to_loader: FxHashMap::default(),
-            asset_channels: Arc::new(RwLock::new(FxHashMap::default())),
+            extension_to_loader: HashMap::default(),
+            asset_channels: Arc::new(RwLock::new(HashMap::default())),
             asset_handle_ref_channel: HandleRefChannel::default(),
-            asset_handle_ref_count: FxHashMap::default(),
+            asset_handle_ref_count: HashMap::default(),
             asset_io: Arc::new(crate::io::AndroidAssetIo::default()),
         };
 
         #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
         return Self {
             loaders: Vec::default(),
-            extension_to_loader: FxHashMap::default(),
-            asset_channels: Arc::new(RwLock::new(FxHashMap::default())),
+            extension_to_loader: HashMap::default(),
+            asset_channels: Arc::new(RwLock::new(HashMap::default())),
             asset_handle_ref_channel: HandleRefChannel::default(),
-            asset_handle_ref_count: FxHashMap::default(),
+            asset_handle_ref_count: HashMap::default(),
             asset_io: Arc::new(crate::io::FileAssetIo::default()),
         };
     }
@@ -200,10 +200,10 @@ impl AssetManager {
     pub fn new<T: AssetIo>(asset_io: T) -> Self {
         Self {
             loaders: Vec::default(),
-            extension_to_loader: FxHashMap::default(),
-            asset_channels: Arc::new(RwLock::new(FxHashMap::default())),
+            extension_to_loader: HashMap::default(),
+            asset_channels: Arc::new(RwLock::new(HashMap::default())),
             asset_handle_ref_channel: HandleRefChannel::default(),
-            asset_handle_ref_count: FxHashMap::default(),
+            asset_handle_ref_count: HashMap::default(),
             asset_io: Arc::new(asset_io),
         }
     }

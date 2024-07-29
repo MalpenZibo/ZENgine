@@ -9,7 +9,7 @@ pub type ArchetypeId = u64;
 pub type ArchetypeSpecs = Vec<TypeId>;
 
 pub(crate) fn calculate_archetype_id(types: &[TypeId]) -> ArchetypeId {
-    let mut s = rustc_hash::FxHasher::default();
+    let mut s = ahash::AHasher::default();
     types.hash(&mut s);
     s.finish()
 }

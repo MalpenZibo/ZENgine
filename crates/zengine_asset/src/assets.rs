@@ -1,6 +1,6 @@
 use crossbeam_channel::Sender;
 use downcast_rs::{impl_downcast, Downcast};
-use rustc_hash::FxHashMap;
+use hashbrown::HashMap;
 use std::{ffi::OsStr, path::PathBuf};
 use zengine_macro::Resource;
 
@@ -53,14 +53,14 @@ impl_downcast!(Asset);
 /// To get a reference to an asset without forcing it to stay loadid you can use a Weak handle
 #[derive(Resource, Debug)]
 pub struct Assets<T: Asset> {
-    assets: FxHashMap<HandleId, T>,
+    assets: HashMap<HandleId, T>,
     pub(crate) sender: Sender<HandleRef>,
 }
 
 impl<T: Asset> Assets<T> {
     pub(crate) fn new(sender: Sender<HandleRef>) -> Self {
         Self {
-            assets: FxHashMap::default(),
+            assets: HashMap::default(),
             sender,
         }
     }

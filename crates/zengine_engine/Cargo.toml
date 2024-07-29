@@ -14,4 +14,6 @@ license.workspace = true
 zengine_ecs = { workspace = true }
 
 log = { workspace = true }
+hashbrown = { workspace = true }
+
 

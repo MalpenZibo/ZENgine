@@ -1,14 +1,13 @@
 use std::{
     any::{Any, TypeId},
     cell::{Ref, RefCell, RefMut},
-    collections::HashMap,
     fmt::Debug,
     hash::BuildHasherDefault,
     sync::{RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
+use hashbrown::HashMap;
 use nohash_hasher::NoHashHasher;
-use rustc_hash::FxHashMap;
 
 use crate::{
     archetype::{calculate_archetype_id, Archetype, ArchetypeSpecs},
@@ -43,24 +42,24 @@ struct Record {
 #[derive(Debug)]
 pub struct World {
     pub(crate) entity_generator: EntityGenerator,
-    entity_record: FxHashMap<Entity, Record>,
+    entity_record: HashMap<Entity, Record>,
     archetype_map: HashMap<u64, usize, BuildHasherDefault<NoHashHasher<u64>>>,
     pub(crate) archetypes: Vec<Archetype>,
-    resources: FxHashMap<TypeId, Box<dyn ResourceCell>>,
-    unsendable_resources: FxHashMap<TypeId, Box<dyn UnsendableResourceCell>>,
-    event_handlers: FxHashMap<TypeId, Box<dyn EventCell>>,
+    resources: HashMap<TypeId, Box<dyn ResourceCell>>,
+    unsendable_resources: HashMap<TypeId, Box<dyn UnsendableResourceCell>>,
+    event_handlers: HashMap<TypeId, Box<dyn EventCell>>,
 }
 
 impl Default for World {
     fn default() -> Self {
         let mut world = World {
             entity_generator: EntityGenerator::default(),
-            entity_record: FxHashMap::default(),
+            entity_record: HashMap::default(),
             archetype_map: HashMap::default(),
             archetypes: Vec::default(),
-            resources: FxHashMap::default(),
-            unsendable_resources: FxHashMap::default(),
-            event_handlers: FxHashMap::default(),
+            resources: HashMap::default(),
+            unsendable_resources: HashMap::default(),
+            event_handlers: HashMap::default(),
         };
 
         let root_archetype = Archetype::root();

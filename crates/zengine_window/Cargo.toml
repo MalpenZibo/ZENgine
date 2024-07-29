@@ -16,7 +16,7 @@ zengine_engine = { workspace = true }
 zengine_input = { workspace = true }
 zengine_macro = { workspace = true }
 
-rustc-hash = { workspace = true }
+hashbrown = { workspace = true }
 log = { workspace = true }
 glam = { workspace = true }
 winit = { workspace = true }

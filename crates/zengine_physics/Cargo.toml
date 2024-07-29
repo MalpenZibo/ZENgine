@@ -18,7 +18,7 @@ zengine_macro = { workspace = true }
 zengine_graphic = { workspace = true }
 
 log = { workspace = true }
-rustc-hash = { workspace = true }
+hashbrown = { workspace = true }
 glam = { workspace = true }
 bytemuck = { version = "1", features = ["derive"] }
 

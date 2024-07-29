@@ -5,6 +5,8 @@ use zengine_ecs::{
     World,
 };
 
+mod schedule;
+
 /// A collection of engine logics and configurations.
 ///
 /// A Module configure the [`Engine`]. When the [`Engine`] registers a module,

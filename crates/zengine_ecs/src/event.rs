@@ -1,9 +1,10 @@
-use rustc_hash::FxHashMap;
 use std::any::Any;
 use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::{RwLock, RwLockWriteGuard};
+
+use hashbrown::HashMap;
 
 const STREAM_SIZE_BLOCK: usize = 10;
 
@@ -34,7 +35,7 @@ impl<T: Any + Debug> EventCell for RwLock<EventHandler<T>> {
 pub struct EventHandler<E: Any + Debug> {
     buffer: Vec<E>,
     head: Option<usize>,
-    subscriptions: FxHashMap<SubscriptionToken, RwLock<Subscription>>,
+    subscriptions: HashMap<SubscriptionToken, RwLock<Subscription>>,
     token_serial: u64,
 }
 
@@ -43,7 +44,7 @@ impl<E: Any + Debug> Default for EventHandler<E> {
         EventHandler {
             buffer: Vec::with_capacity(STREAM_SIZE_BLOCK),
             head: None,
-            subscriptions: FxHashMap::default(),
+            subscriptions: HashMap::default(),
             token_serial: 0,
         }
     }
