@@ -1,4 +1,4 @@
-use super::{SystemParam, SystemParamFetch};
+use super::{ConditionParam, ConditionParamFetch, SystemParam, SystemParamFetch};
 use crate::{
     query::{Query, QueryParameters, QueryRunner},
     World,
@@ -26,5 +26,17 @@ impl<'a, T: QueryParameters> SystemParamFetch<'a> for QueryState<T> {
 }
 
 impl<'a, T: QueryParameters> SystemParam for Query<'a, T> {
+    type Fetch = QueryState<T>;
+}
+
+impl<'a, T: QueryParameters> ConditionParamFetch<'a> for QueryState<T> {
+    type Item = Query<'a, T>;
+
+    fn fetch(&mut self, world: &'a World) -> Self::Item {
+        self.query_runner.run(world)
+    }
+}
+
+impl<'a, T: QueryParameters> ConditionParam for Query<'a, T> {
     type Fetch = QueryState<T>;
 }

@@ -1,4 +1,4 @@
-use super::{SystemParam, SystemParamFetch};
+use super::{ConditionParam, ConditionParamFetch, SystemParam, SystemParamFetch};
 use crate::world::World;
 use std::any::Any;
 
@@ -46,5 +46,17 @@ impl<'a, T: Default + 'static> SystemParamFetch<'a> for LocalState<T> {
 }
 
 impl<'a, T: Default + 'static> SystemParam for Local<'a, T> {
+    type Fetch = LocalState<T>;
+}
+
+impl<'a, T: Default + 'static> ConditionParamFetch<'a> for LocalState<T> {
+    type Item = Local<'a, T>;
+
+    fn fetch(&'a mut self, _world: &'a World) -> Self::Item {
+        &mut self.data
+    }
+}
+
+impl<'a, T: Default + 'static> ConditionParam for Local<'a, T> {
     type Fetch = LocalState<T>;
 }

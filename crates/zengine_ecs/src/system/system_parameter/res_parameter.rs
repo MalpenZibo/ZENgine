@@ -6,7 +6,7 @@ use std::{
 
 use crate::{Resource, UnsendableResource, World};
 
-use super::{SystemParam, SystemParamFetch};
+use super::{ConditionParam, ConditionParamFetch, SystemParam, SystemParamFetch};
 
 /// Shared borrow of a resource that implements also the [Default] trait
 ///
@@ -61,6 +61,24 @@ impl<'a, R: Resource + Default> SystemParamFetch<'a> for ResState<R> {
 }
 
 impl<'a, R: Resource + Default> SystemParam for Res<'a, R> {
+    type Fetch = ResState<R>;
+}
+
+impl<'a, R: Resource + Default> ConditionParamFetch<'a> for ResState<R> {
+    type Item = Res<'a, R>;
+
+    fn init(&mut self, world: &mut World) {
+        if world.get_resource::<R>().is_none() {
+            world.create_resource(R::default())
+        }
+    }
+
+    fn fetch(&mut self, world: &'a World) -> Self::Item {
+        world.get_resource().unwrap()
+    }
+}
+
+impl<'a, R: Resource + Default> ConditionParam for Res<'a, R> {
     type Fetch = ResState<R>;
 }
 
@@ -152,6 +170,18 @@ impl<'a, R: Resource> SystemParam for Option<Res<'a, R>> {
     type Fetch = OptionalResState<R>;
 }
 
+impl<'a, R: Resource> ConditionParamFetch<'a> for OptionalResState<R> {
+    type Item = Option<Res<'a, R>>;
+
+    fn fetch(&mut self, world: &'a World) -> Self::Item {
+        world.get_resource()
+    }
+}
+
+impl<'a, R: Resource> ConditionParam for Option<Res<'a, R>> {
+    type Fetch = OptionalResState<R>;
+}
+
 #[doc(hidden)]
 pub struct OptionalResMutState<R: Resource> {
     _marker: std::marker::PhantomData<R>,
@@ -233,6 +263,24 @@ impl<'a, R: UnsendableResource + Default> SystemParamFetch<'a> for UnsendableRes
 }
 
 impl<'a, R: UnsendableResource + Default> SystemParam for UnsendableRes<'a, R> {
+    type Fetch = UnsendableResState<R>;
+}
+
+impl<'a, R: UnsendableResource + Default> ConditionParamFetch<'a> for UnsendableResState<R> {
+    type Item = UnsendableRes<'a, R>;
+
+    fn init(&mut self, world: &mut World) {
+        if world.get_unsendable_resource::<R>().is_none() {
+            world.create_unsendable_resource(R::default());
+        }
+    }
+
+    fn fetch(&mut self, world: &'a World) -> Self::Item {
+        world.get_unsendable_resource().unwrap()
+    }
+}
+
+impl<'a, R: UnsendableResource + Default> ConditionParam for UnsendableRes<'a, R> {
     type Fetch = UnsendableResState<R>;
 }
 
@@ -321,6 +369,18 @@ impl<'a, R: UnsendableResource> SystemParamFetch<'a> for OptionalUnsendableResSt
 }
 
 impl<'a, R: UnsendableResource> SystemParam for Option<UnsendableRes<'a, R>> {
+    type Fetch = OptionalUnsendableResState<R>;
+}
+
+impl<'a, R: UnsendableResource> ConditionParamFetch<'a> for OptionalUnsendableResState<R> {
+    type Item = Option<UnsendableRes<'a, R>>;
+
+    fn fetch(&mut self, world: &'a World) -> Self::Item {
+        world.get_unsendable_resource()
+    }
+}
+
+impl<'a, R: UnsendableResource> ConditionParam for Option<UnsendableRes<'a, R>> {
     type Fetch = OptionalUnsendableResState<R>;
 }
 

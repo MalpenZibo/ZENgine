@@ -1,4 +1,4 @@
-use super::{SystemParam, SystemParamFetch};
+use super::{ConditionParam, ConditionParamFetch, SystemParam, SystemParamFetch};
 use crate::{
     event::{EventHandler, SubscriptionToken},
     world::World,
@@ -75,6 +75,31 @@ impl<'a, E: Any + std::fmt::Debug> SystemParam for EventStream<'a, E> {
     type Fetch = EventStreamState<E>;
 }
 
+impl<'a, E: Any + std::fmt::Debug> ConditionParamFetch<'a> for EventStreamState<E> {
+    type Item = EventStream<'a, E>;
+
+    fn init(&mut self, world: &mut World) {
+        if world.get_event_handler::<E>().is_none() {
+            world.create_event_handler::<E>()
+        }
+
+        self.token = world
+            .get_mut_event_handler::<E>()
+            .map(|mut e: RwLockWriteGuard<EventHandler<E>>| e.subscribe());
+    }
+
+    fn fetch(&mut self, world: &'a World) -> Self::Item {
+        Self::Item {
+            event_handler: world.get_event_handler().unwrap(),
+            token: self.token.unwrap(),
+        }
+    }
+}
+
+impl<'a, E: Any + std::fmt::Debug> ConditionParam for EventStream<'a, E> {
+    type Fetch = EventStreamState<E>;
+}
+
 /// Shared borrow of an event without a subscription to the event queue
 ///
 /// # Example
@@ -130,6 +155,26 @@ impl<'a, E: Any + std::fmt::Debug> SystemParamFetch<'a> for EventState<E> {
 }
 
 impl<'a, E: Any + std::fmt::Debug> SystemParam for Event<'a, E> {
+    type Fetch = EventState<E>;
+}
+
+impl<'a, E: Any + std::fmt::Debug> ConditionParamFetch<'a> for EventState<E> {
+    type Item = Event<'a, E>;
+
+    fn init(&mut self, world: &mut World) {
+        if world.get_event_handler::<E>().is_none() {
+            world.create_event_handler::<E>()
+        }
+    }
+
+    fn fetch(&mut self, world: &'a World) -> Self::Item {
+        Self::Item {
+            event_handler: world.get_event_handler().unwrap(),
+        }
+    }
+}
+
+impl<'a, E: Any + std::fmt::Debug> ConditionParam for Event<'a, E> {
     type Fetch = EventState<E>;
 }
 

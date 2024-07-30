@@ -66,6 +66,7 @@ use zengine_macro::all_tuples;
 
 use crate::world::World;
 
+pub mod condition;
 mod system_parameter;
 pub use system_parameter::*;
 

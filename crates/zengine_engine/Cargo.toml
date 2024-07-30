@@ -12,6 +12,7 @@ license.workspace = true
 
 [dependencies]
 zengine_ecs = { workspace = true }
+zengine_macro = { workspace = true }
 
 log = { workspace = true }
 hashbrown = { workspace = true }

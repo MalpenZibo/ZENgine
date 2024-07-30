@@ -30,3 +30,20 @@ pub trait SystemParamFetch<'a> {
 
 #[doc(hidden)]
 pub type SystemParamItem<'a, P> = <<P as SystemParam>::Fetch as SystemParamFetch<'a>>::Item;
+
+#[doc(hidden)]
+pub trait ConditionParam: Sized {
+    type Fetch: for<'a> ConditionParamFetch<'a> + Default;
+}
+
+#[doc(hidden)]
+pub trait ConditionParamFetch<'a> {
+    type Item;
+
+    fn init(&mut self, _world: &mut World) {}
+
+    fn fetch(&'a mut self, world: &'a World) -> Self::Item;
+}
+
+#[doc(hidden)]
+pub type ConditionParamItem<'a, P> = <<P as ConditionParam>::Fetch as ConditionParamFetch<'a>>::Item;
