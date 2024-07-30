@@ -1,6 +1,6 @@
 use sprite::{setup_sprite_render, sprite_render};
 use zengine_asset::AssetExtension;
-use zengine_engine::{Module, Stage};
+use zengine_engine::{schedule::default_schedule::{PostRender, PreRender, Render}, Module};
 use zengine_macro::Resource;
 
 mod camera;
@@ -42,11 +42,11 @@ impl Module for GraphicModule {
             .add_startup_system(setup_render)
             .add_startup_system(setup_camera)
             .add_startup_system(setup_sprite_render)
-            .add_system_into_stage(prepare_texture_asset, Stage::PreRender)
-            .add_system_into_stage(prepare_texture_atlas_asset, Stage::PreRender)
-            .add_system_into_stage(clear, Stage::PreRender)
-            .add_system_into_stage(camera_render, Stage::Render)
-            .add_system_into_stage(sprite_render, Stage::Render)
-            .add_system_into_stage(present, Stage::PostRender);
+            .add_system_into_schedule(prepare_texture_asset, PreRender)
+            .add_system_into_schedule(prepare_texture_atlas_asset, PreRender)
+            .add_system_into_schedule(clear, PreRender)
+            .add_system_into_schedule(camera_render, Render)
+            .add_system_into_schedule(sprite_render, Render)
+            .add_system_into_schedule(present, PostRender);
     }
 }

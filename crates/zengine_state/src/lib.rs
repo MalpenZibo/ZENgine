@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use zengine_ecs::system::ResMut;
-use zengine_engine::{Engine, Stage};
+use zengine_engine::{schedule::default_schedule::PreUpdate, Engine};
 use zengine_macro::Resource;
 
 pub trait States: Copy + Default + Debug + Send + Sync + 'static {}
@@ -42,7 +42,7 @@ impl StateExtension for Engine {
             current: S::default(),
             pending: None,
         });
-        self.add_system_into_stage(state_transition::<S>, Stage::PreUpdate);
+        self.add_system_into_schedule(state_transition::<S>, PreUpdate);
 
         self
     }
@@ -52,7 +52,7 @@ impl StateExtension for Engine {
             current: state,
             pending: None,
         });
-        self.add_system_into_stage(state_transition::<S>, Stage::PreUpdate);
+        self.add_system_into_schedule(state_transition::<S>, PreUpdate);
 
         self
     }

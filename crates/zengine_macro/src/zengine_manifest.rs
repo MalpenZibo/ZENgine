@@ -54,17 +54,29 @@ impl ZENgineManifest {
             Some(path)
         };
 
-        let deps = self
+        let is_self = self
             .manifest
-            .get("dependencies")
-            .map(|deps| deps.as_table().unwrap());
-        let deps_dev = self
-            .manifest
-            .get("dev-dependencies")
-            .map(|deps| deps.as_table().unwrap());
+            .get("package")
+            .and_then(|p| p.as_table())
+            .and_then(|t| t.get("name"))
+            .map(|p| p.as_str() == Some(name))
+            .unwrap_or(false);
 
-        deps.and_then(find_in_deps)
-            .or_else(|| deps_dev.and_then(find_in_deps))
+        if is_self {
+            Some(Self::parse_str("crate"))
+        } else {
+            let deps = self
+                .manifest
+                .get("dependencies")
+                .map(|deps| deps.as_table().unwrap());
+            let deps_dev = self
+                .manifest
+                .get("dev-dependencies")
+                .map(|deps| deps.as_table().unwrap());
+
+            deps.and_then(find_in_deps)
+                .or_else(|| deps_dev.and_then(find_in_deps))
+        }
     }
 
     pub fn get_path(&self, name: &str) -> syn::Path {

@@ -106,6 +106,26 @@ pub fn input_type_macro_derive(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+/// Generates an impl of the `ScheduleLabel` trait.
+#[proc_macro_derive(ScheduleLabel)]
+pub fn schedule_label_macro_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let zengine_engine_path = ZENgineManifest::default().get_path("zengine_engine");
+
+    let name = input.ident;
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+    let expanded = quote! {
+        impl #impl_generics #zengine_engine_path::ScheduleLabel for #name #ty_generics #where_clause {
+            fn name(&self) -> &'static str {
+                stringify!(#name)
+            }
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
 struct AllTuples {
     macro_ident: Ident,
     start: usize,

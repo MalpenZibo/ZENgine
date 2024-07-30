@@ -1,19 +1,29 @@
-use std::{collections::HashMap, panic};
+use std::collections::HashMap;
 
-use flexi_logger::{FileSpec, LogSpecBuilder, Logger};
-use log::error;
+use flexi_logger::{LogSpecBuilder, Logger};
 use serde::Deserialize;
 use zengine::{
-    asset::{AssetManager, AssetModule, Assets, Handle}, audio::{Audio, AudioDevice, AudioInstance, AudioModule, AudioSettings}, core::{Time, TimeModule, Transform}, ecs::{
+    asset::{AssetManager, AssetModule, Assets, Handle},
+    audio::{Audio, AudioDevice, AudioInstance, AudioModule, AudioSettings},
+    core::{Time, TimeModule, Transform},
+    ecs::{
         query::{Query, QueryIter, QueryIterMut},
         system::{Commands, EventPublisher, EventStream, Local, Res, ResMut},
         Entity,
-    }, gamepad::GamepadModule, graphic::{
+    },
+    gamepad::GamepadModule,
+    graphic::{
         ActiveCamera, Background, Camera, CameraMode, Color, GraphicModule, Sprite, SpriteSize,
         SpriteTexture, Texture, TextureAssets, TextureAtlas, TextureAtlasAssets,
-    }, input::{
-        device::{ControllerButton, Key, TouchPhase, Which}, Axis, AxisBind, Bindings, Input, InputEvent, InputHandler, InputModule
-    }, math::{Vec2, Vec3}, physics::{CollisionModule, Collisions, Shape2D, ShapeType}, window::{WindowConfig, WindowModule, WindowSpecs}, Component, Engine, EngineEvent, InputType, Resource
+    },
+    input::{
+        device::{ControllerButton, Key, TouchPhase, Which},
+        Axis, AxisBind, Bindings, Input, InputEvent, InputHandler, InputModule,
+    },
+    math::{Vec2, Vec3},
+    physics::{CollisionModule, Collisions, Shape2D, ShapeType},
+    window::{WindowConfig, WindowModule, WindowSpecs},
+    Component, Engine, EngineEvent, InputType, Resource,
 };
 
 static PAD_FORCE: f32 = 2000.0;
@@ -92,7 +102,7 @@ pub struct Dimensions {
 pub fn main() {
     Logger::with(
         LogSpecBuilder::new()
-            .default(log::LevelFilter::Info)
+            .default(log::LevelFilter::Debug)
             .module("wgpu_core", log::LevelFilter::Warn)
             .module("wgpu_hal", log::LevelFilter::Error)
             .build(),
@@ -594,4 +604,3 @@ fn exit(event_stream: EventStream<InputEvent>, mut engine_event: EventPublisher<
         engine_event.publish(EngineEvent::Quit);
     }
 }
-

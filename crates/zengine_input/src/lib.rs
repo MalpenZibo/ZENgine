@@ -3,7 +3,7 @@ use fnv::FnvHashMap;
 use serde::Deserialize;
 use std::any::Any;
 use std::hash::Hash;
-use zengine_engine::{Module, Stage};
+use zengine_engine::{schedule::default_schedule::PreUpdate, Module};
 use zengine_macro::Resource;
 
 mod input;
@@ -16,7 +16,7 @@ pub struct InputModule<T: InputType>(pub Bindings<T>);
 
 impl<T: InputType> Module for InputModule<T> {
     fn init(self, engine: &mut zengine_engine::Engine) {
-        engine.add_system_into_stage(input_system(self.0), Stage::PreUpdate);
+        engine.add_system_into_schedule(input_system(self.0), PreUpdate);
     }
 }
 

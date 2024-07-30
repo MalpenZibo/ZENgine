@@ -10,7 +10,7 @@ use zengine_ecs::{
     query::{Query, QueryIter},
     system::{Commands, Local, Res, ResMut},
 };
-use zengine_engine::{Engine, Module, Stage};
+use zengine_engine::{schedule::default_schedule::Render, Engine, Module};
 use zengine_graphic::{
     CameraBuffer, Color, Device, Queue, RenderContextInstance, Surface, UsedCamera,
 };
@@ -47,7 +47,7 @@ impl Module for TextModule {
             .add_asset::<Font>()
             .add_asset_loader(FontLoader)
             .add_startup_system(setup_text_render)
-            .add_system_into_stage(text_render, Stage::Render);
+            .add_system_into_schedule(text_render, Render);
     }
 }
 

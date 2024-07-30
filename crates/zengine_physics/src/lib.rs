@@ -3,7 +3,10 @@ mod tracer;
 
 pub use collision::*;
 pub use tracer::*;
-use zengine_engine::{Engine, Module, Stage};
+use zengine_engine::{
+    schedule::default_schedule::{PostUpdate, Render},
+    Engine, Module,
+};
 
 /// Adds a simple collision system to the engine.
 #[derive(Default, Debug)]
@@ -19,13 +22,13 @@ impl CollisionModule {
 
 impl Module for CollisionModule {
     fn init(self, engine: &mut Engine) {
-        engine.add_system_into_stage(collision_system, Stage::PostUpdate);
+        engine.add_system_into_schedule(collision_system, PostUpdate);
 
         if self.with_tracer {
             engine
                 .add_startup_system(setup_trace_render)
-                .add_system_into_stage(collision_system, Stage::Render)
-                .add_system_into_stage(collision_tracer, Stage::Render);
+                .add_system_into_schedule(collision_system, Render)
+                .add_system_into_schedule(collision_tracer, Render);
         }
     }
 }

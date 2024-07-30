@@ -1,11 +1,12 @@
-use std::{any::Any, collections::HashMap};
+use std::any::{Any, TypeId};
 
+use schedule::{default_schedule::{Startup, Update}, ScheduleLabelInternal, Schedules};
 use zengine_ecs::{
-    system::{IntoSystem, System, SystemParam},
+    system::{IntoSystem, SystemParam},
     World,
 };
 
-mod schedule;
+pub mod schedule;
 
 /// A collection of engine logics and configurations.
 ///
@@ -16,55 +17,12 @@ pub trait Module {
     fn init(self, engine: &mut Engine);
 }
 
-/// The possible stages in the engine pipeline
-#[derive(Hash, Eq, PartialEq)]
-pub enum Stage {
-    /// Statup stage, runs only one time when the engine start
-    Startup,
-    /// Run just before the main update stage
-    PreUpdate,
-    /// Main stage
-    Update,
-    /// Run after the update stage
-    PostUpdate,
-    /// Run before the render stage
-    PreRender,
-    /// Render stage, draws the new state
-    Render,
-    /// Run after the render stage
-    PostRender,
-}
-
-#[derive(Default)]
-struct SystemsStage {
-    systems: Vec<Box<dyn System>>,
-}
-
-impl SystemsStage {
-    pub fn init(&mut self, world: &mut World) {
-        for s in self.systems.iter_mut() {
-            s.init(world);
-        }
+pub trait ScheduleLabel: Copy + Clone + 'static {
+    fn internal(&self) -> ScheduleLabelInternal {
+        ScheduleLabelInternal(TypeId::of::<Self>(), self.name())
     }
 
-    pub fn run(&mut self, world: &World) {
-        for s in self.systems.iter_mut() {
-            s.run(world);
-        }
-    }
-
-    pub fn apply(&mut self, world: &mut World) {
-        for s in self.systems.iter_mut() {
-            s.apply(world);
-        }
-    }
-
-    pub fn run_and_apply(&mut self, world: &mut World) {
-        for s in self.systems.iter_mut() {
-            s.run(world);
-            s.apply(world);
-        }
-    }
+    fn name(&self) -> &'static str;
 }
 
 /// List of all engine events
@@ -102,9 +60,7 @@ pub enum EngineEvent {
 /// }
 /// ```
 pub struct Engine {
-    stages: HashMap<Stage, SystemsStage>,
-    stage_order: Vec<Stage>,
-    running_stages: Vec<SystemsStage>,
+    schedules: Schedules,
     /// The main ECS [`World`] of the [`Engine`].
     /// This stores and provides access to all the data of the application.
     /// The systems of the [`Engine`] will run using this [`World`].
@@ -115,25 +71,7 @@ pub struct Engine {
 impl Default for Engine {
     fn default() -> Self {
         Engine {
-            stages: HashMap::from([
-                (Stage::Startup, SystemsStage::default()),
-                (Stage::PreUpdate, SystemsStage::default()),
-                (Stage::Update, SystemsStage::default()),
-                (Stage::PostUpdate, SystemsStage::default()),
-                (Stage::PreRender, SystemsStage::default()),
-                (Stage::Render, SystemsStage::default()),
-                (Stage::PostRender, SystemsStage::default()),
-            ]),
-            stage_order: vec![
-                Stage::Startup,
-                Stage::PreUpdate,
-                Stage::Update,
-                Stage::PostUpdate,
-                Stage::PreRender,
-                Stage::Render,
-                Stage::PostRender,
-            ],
-            running_stages: Vec::default(),
+            schedules: Schedules::default(),
             world: World::default(),
             runner: Box::new(default_runner),
         }
@@ -160,33 +98,31 @@ fn default_runner(mut engine: Engine) {
 impl Engine {
     /// Add a system to the [Engine] pipeling
     ///
-    /// Using this funtion the system will be added to the default [Update Stage](Stage::Update)
+    /// Using this funtion the system will be added to the default [Update Schedule Label](Update)
     pub fn add_system<Params: SystemParam + Any, I: IntoSystem<Params> + Any>(
         &mut self,
         system: I,
     ) -> &mut Self {
-        self.add_system_into_stage(system, Stage::Update)
+        self.add_system_into_schedule(system, Update)
     }
 
-    /// Add a system to the [Engine] pipeling in the [Startup Stage](Stage::Startup)
+    /// Add a system to the [Engine] pipeling in the [Startup Schedule Label](Startup)
     ///
     /// The system added using this function will run only one time during the engine startup phase
     pub fn add_startup_system<Params: SystemParam + Any, I: IntoSystem<Params> + Any>(
         &mut self,
         system: I,
     ) -> &mut Self {
-        self.add_system_into_stage(system, Stage::Startup)
+        self.add_system_into_schedule(system, Startup)
     }
 
-    /// Add a system to the [Engine] pipeling in the specified [Stage]
-    pub fn add_system_into_stage<Params: SystemParam + Any, I: IntoSystem<Params> + Any>(
+    /// Add a system to the [Engine] pipeling in the specified [ScheduleLabel]
+    pub fn add_system_into_schedule<Params: SystemParam + Any, I: IntoSystem<Params> + Any>(
         &mut self,
         system: I,
-        stage: Stage,
+        schedule: impl ScheduleLabel,
     ) -> &mut Self {
-        if let Some(stage) = self.stages.get_mut(&stage) {
-            stage.systems.push(Box::new(system.into_system()));
-        }
+        self.schedules.add_system(schedule, system);
 
         self
     }
@@ -231,31 +167,14 @@ impl Engine {
 
     /// Startup function of the engine. Should be called only one time before the update function
     pub fn startup(&mut self) {
-        let mut stages: Vec<SystemsStage> = self
-            .stage_order
-            .iter()
-            .map(|stage| self.stages.remove(stage).unwrap())
-            .collect();
-
-        for stage in stages.iter_mut() {
-            stage.init(&mut self.world);
-        }
-
-        let mut startup_stage = stages.remove(0);
-        startup_stage.run_and_apply(&mut self.world);
-
-        self.running_stages = stages;
+        self.schedules.startup(&mut self.world);
     }
 
     /// Update function of the engine. Should be called only one time for each frame
     pub fn update(&mut self) {
-        for stage in self.running_stages.iter_mut() {
-            stage.run(&self.world);
-        }
+        self.schedules.run(&self.world);
 
-        for stage in self.running_stages.iter_mut() {
-            stage.apply(&mut self.world);
-        }
+        self.schedules.apply(&mut self.world);
     }
 
     /// Starts the engine by calling the engine's runner function

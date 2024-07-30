@@ -33,6 +33,8 @@ impl DerefMut for GamepadHandler {
 impl Module for GamepadModule {
     #[cfg(not(target_os = "android"))]
     fn init(self, engine: &mut zengine_engine::Engine) {
+        use zengine_engine::schedule::default_schedule::PreUpdate;
+
         let gilrs = Gilrs::new().unwrap();
         gilrs.gamepads().for_each(|(id, gamepad)| {
             log::info!("Found gamepad: {} - {}", id, gamepad.name());
@@ -41,7 +43,7 @@ impl Module for GamepadModule {
         engine
             .world
             .create_unsendable_resource(GamepadHandler(gilrs));
-        engine.add_system_into_stage(gamepad_system(self.0), zengine_engine::Stage::PreUpdate);
+        engine.add_system_into_schedule(gamepad_system(self.0), PreUpdate);
     }
 
     #[cfg(target_os = "android")]

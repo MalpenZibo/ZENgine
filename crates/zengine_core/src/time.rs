@@ -2,7 +2,7 @@ use instant::Instant;
 use log::trace;
 use std::thread::sleep;
 use zengine_ecs::system::{EventStream, Local, ResMut};
-use zengine_engine::{EngineEvent, Module, Stage};
+use zengine_engine::{schedule::default_schedule::PreUpdate, EngineEvent, Module};
 
 use std::time::Duration;
 use zengine_macro::Resource;
@@ -71,7 +71,7 @@ pub struct TimeModule(
 );
 impl Module for TimeModule {
     fn init(self, engine: &mut zengine_engine::Engine) {
-        engine.add_system_into_stage(timing_system(self.0), Stage::PreUpdate);
+        engine.add_system_into_schedule(timing_system(self.0), PreUpdate);
     }
 }
 
