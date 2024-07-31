@@ -99,7 +99,7 @@ macro_rules! impl_component_bundle_for_tuple {
 all_positional_tuples!(impl_component_bundle_for_tuple, 0, 14, C);
 
 #[doc(hidden)]
-pub trait ComponentColumn: Debug {
+pub trait ComponentColumn: Send + Sync + Debug {
     fn to_any(&self) -> &dyn Any;
     fn to_any_mut(&mut self) -> &mut dyn Any;
     fn swap_remove(&mut self, row_index: usize) -> Box<dyn Component>;

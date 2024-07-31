@@ -71,7 +71,7 @@ struct CreateResourceCommand<T: Resource> {
     resource: T,
 }
 
-impl<T: Resource> Command for CreateResourceCommand<T> {
+impl<T: Resource + Sync + Send> Command for CreateResourceCommand<T> {
     fn apply(self, world: &mut World) {
         world.create_resource(self.resource);
     }
@@ -87,11 +87,11 @@ impl Command for DestroyResourceCommand {
     }
 }
 
-struct CreateUnsendableResourceCommand<T: UnsendableResource> {
+struct CreateUnsendableResourceCommand<T: Resource> {
     resource: T,
 }
 
-impl<T: UnsendableResource> Command for CreateUnsendableResourceCommand<T> {
+impl<T: Resource> Command for CreateUnsendableResourceCommand<T> {
     fn apply(self, world: &mut World) {
         world.create_unsendable_resource(self.resource);
     }
@@ -173,26 +173,26 @@ impl<'a> Commands<'a> {
     }
 
     /// Create or replace the given [Resource]
-    pub fn create_resource<T: Resource>(&mut self, resource: T) {
+    pub fn create_resource<T: Resource + Send + Sync>(&mut self, resource: T) {
         self.queue
             .push(Box::new(CreateResourceCommand { resource }))
     }
 
     /// Destroy the given [Resource] type
-    pub fn destroy_resource<T: Resource>(&mut self) {
+    pub fn destroy_resource<T: Resource + Send + Sync>(&mut self) {
         self.queue.push(Box::new(DestroyResourceCommand {
             resource_type: TypeId::of::<T>(),
         }))
     }
 
-    /// Create or replace the given [UnsendableResource]
-    pub fn create_unsendable_resource<T: UnsendableResource>(&mut self, resource: T) {
+    /// Create or replace the given [Resource]
+    pub fn create_unsendable_resource<T: Resource>(&mut self, resource: T) {
         self.queue
             .push(Box::new(CreateUnsendableResourceCommand { resource }))
     }
 
     /// Destroy the given [UnsendableResource] type
-    pub fn destroy_unsendable_resource<T: UnsendableResource>(&mut self) {
+    pub fn destroy_unsendable_resource<T: Resource>(&mut self) {
         self.queue.push(Box::new(DestroyUnsendableResourceCommand {
             resource_type: TypeId::of::<T>(),
         }))

@@ -4,7 +4,6 @@ use crate::{
     world::World,
 };
 use std::{
-    any::Any,
     marker::PhantomData,
     sync::{RwLockReadGuard, RwLockWriteGuard},
 };
@@ -24,24 +23,24 @@ use std::{
 ///     }
 /// }
 /// ```
-pub struct EventStream<'a, E: Any + std::fmt::Debug> {
+pub struct EventStream<'a, E: Send + Sync + std::fmt::Debug + 'static> {
     event_handler: RwLockReadGuard<'a, EventHandler<E>>,
     token: SubscriptionToken,
 }
 
-impl<'a, E: Any + std::fmt::Debug> EventStream<'a, E> {
+impl<'a, E: Send + Sync + std::fmt::Debug + 'static> EventStream<'a, E> {
     pub fn read(&self) -> impl Iterator<Item = &E> {
         self.event_handler.read(&self.token)
     }
 }
 
 #[doc(hidden)]
-pub struct EventStreamState<E: Any + std::fmt::Debug> {
+pub struct EventStreamState<E: Send + Sync + std::fmt::Debug + 'static> {
     _marker: std::marker::PhantomData<E>,
     token: Option<SubscriptionToken>,
 }
 
-impl<E: Any + std::fmt::Debug> Default for EventStreamState<E> {
+impl<E: Send + Sync + std::fmt::Debug + 'static> Default for EventStreamState<E> {
     fn default() -> Self {
         EventStreamState {
             _marker: PhantomData,
@@ -50,7 +49,7 @@ impl<E: Any + std::fmt::Debug> Default for EventStreamState<E> {
     }
 }
 
-impl<'a, E: Any + std::fmt::Debug> SystemParamFetch<'a> for EventStreamState<E> {
+impl<'a, E: Send + Sync + std::fmt::Debug + 'static> SystemParamFetch<'a> for EventStreamState<E> {
     type Item = EventStream<'a, E>;
 
     fn init(&mut self, world: &mut World) {
@@ -71,11 +70,13 @@ impl<'a, E: Any + std::fmt::Debug> SystemParamFetch<'a> for EventStreamState<E> 
     }
 }
 
-impl<'a, E: Any + std::fmt::Debug> SystemParam for EventStream<'a, E> {
+impl<'a, E: Send + Sync + std::fmt::Debug + 'static> SystemParam for EventStream<'a, E> {
     type Fetch = EventStreamState<E>;
 }
 
-impl<'a, E: Any + std::fmt::Debug> ConditionParamFetch<'a> for EventStreamState<E> {
+impl<'a, E: Send + Sync + std::fmt::Debug + 'static> ConditionParamFetch<'a>
+    for EventStreamState<E>
+{
     type Item = EventStream<'a, E>;
 
     fn init(&mut self, world: &mut World) {
@@ -96,7 +97,7 @@ impl<'a, E: Any + std::fmt::Debug> ConditionParamFetch<'a> for EventStreamState<
     }
 }
 
-impl<'a, E: Any + std::fmt::Debug> ConditionParam for EventStream<'a, E> {
+impl<'a, E: Send + Sync + std::fmt::Debug + 'static> ConditionParam for EventStream<'a, E> {
     type Fetch = EventStreamState<E>;
 }
 
@@ -115,22 +116,22 @@ impl<'a, E: Any + std::fmt::Debug> ConditionParam for EventStream<'a, E> {
 ///     }
 /// }
 /// ```
-pub struct Event<'a, E: Any + std::fmt::Debug> {
+pub struct Event<'a, E: Send + Sync + std::fmt::Debug + 'static> {
     event_handler: RwLockReadGuard<'a, EventHandler<E>>,
 }
 
-impl<'a, E: Any + std::fmt::Debug> Event<'a, E> {
+impl<'a, E: Send + Sync + std::fmt::Debug + 'static> Event<'a, E> {
     pub fn read(&self) -> Option<&E> {
         self.event_handler.read_last()
     }
 }
 
 #[doc(hidden)]
-pub struct EventState<E: Any + std::fmt::Debug> {
+pub struct EventState<E: Send + Sync + std::fmt::Debug + 'static> {
     _marker: std::marker::PhantomData<E>,
 }
 
-impl<E: Any + std::fmt::Debug> Default for EventState<E> {
+impl<E: Send + Sync + std::fmt::Debug + 'static> Default for EventState<E> {
     fn default() -> Self {
         EventState {
             _marker: PhantomData,
@@ -138,7 +139,7 @@ impl<E: Any + std::fmt::Debug> Default for EventState<E> {
     }
 }
 
-impl<'a, E: Any + std::fmt::Debug> SystemParamFetch<'a> for EventState<E> {
+impl<'a, E: Send + Sync + std::fmt::Debug + 'static> SystemParamFetch<'a> for EventState<E> {
     type Item = Event<'a, E>;
 
     fn init(&mut self, world: &mut World) {
@@ -154,11 +155,11 @@ impl<'a, E: Any + std::fmt::Debug> SystemParamFetch<'a> for EventState<E> {
     }
 }
 
-impl<'a, E: Any + std::fmt::Debug> SystemParam for Event<'a, E> {
+impl<'a, E: Send + Sync + std::fmt::Debug + 'static> SystemParam for Event<'a, E> {
     type Fetch = EventState<E>;
 }
 
-impl<'a, E: Any + std::fmt::Debug> ConditionParamFetch<'a> for EventState<E> {
+impl<'a, E: Send + Sync + std::fmt::Debug + 'static> ConditionParamFetch<'a> for EventState<E> {
     type Item = Event<'a, E>;
 
     fn init(&mut self, world: &mut World) {
@@ -174,7 +175,7 @@ impl<'a, E: Any + std::fmt::Debug> ConditionParamFetch<'a> for EventState<E> {
     }
 }
 
-impl<'a, E: Any + std::fmt::Debug> ConditionParam for Event<'a, E> {
+impl<'a, E: Send + Sync + std::fmt::Debug + 'static> ConditionParam for Event<'a, E> {
     type Fetch = EventState<E>;
 }
 
@@ -191,11 +192,11 @@ impl<'a, E: Any + std::fmt::Debug> ConditionParam for Event<'a, E> {
 ///    let new_event = EventA {};
 ///    event.publish(new_event);
 /// }
-pub struct EventPublisher<'a, E: Any + std::fmt::Debug> {
+pub struct EventPublisher<'a, E: Send + Sync + std::fmt::Debug + 'static> {
     event_handler: RwLockWriteGuard<'a, EventHandler<E>>,
 }
 
-impl<'a, E: Any + std::fmt::Debug> EventPublisher<'a, E> {
+impl<'a, E: Send + Sync + std::fmt::Debug + 'static> EventPublisher<'a, E> {
     pub fn new(event_handler: RwLockWriteGuard<'a, EventHandler<E>>) -> Self {
         Self { event_handler }
     }
@@ -206,11 +207,11 @@ impl<'a, E: Any + std::fmt::Debug> EventPublisher<'a, E> {
 }
 
 #[doc(hidden)]
-pub struct EventPublisherState<E: Any + std::fmt::Debug> {
+pub struct EventPublisherState<E: Send + Sync + std::fmt::Debug + 'static> {
     _marker: std::marker::PhantomData<E>,
 }
 
-impl<E: Any + std::fmt::Debug> Default for EventPublisherState<E> {
+impl<E: Send + Sync + std::fmt::Debug + 'static> Default for EventPublisherState<E> {
     fn default() -> Self {
         EventPublisherState {
             _marker: PhantomData,
@@ -218,7 +219,9 @@ impl<E: Any + std::fmt::Debug> Default for EventPublisherState<E> {
     }
 }
 
-impl<'a, E: Any + std::fmt::Debug> SystemParamFetch<'a> for EventPublisherState<E> {
+impl<'a, E: Send + Sync + std::fmt::Debug + 'static> SystemParamFetch<'a>
+    for EventPublisherState<E>
+{
     type Item = EventPublisher<'a, E>;
 
     fn init(&mut self, world: &mut World) {
@@ -234,6 +237,6 @@ impl<'a, E: Any + std::fmt::Debug> SystemParamFetch<'a> for EventPublisherState<
     }
 }
 
-impl<'a, E: Any + std::fmt::Debug> SystemParam for EventPublisher<'a, E> {
+impl<'a, E: Send + Sync + std::fmt::Debug + 'static> SystemParam for EventPublisher<'a, E> {
     type Fetch = EventPublisherState<E>;
 }

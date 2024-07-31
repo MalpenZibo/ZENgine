@@ -236,7 +236,7 @@ impl AudioDevice {
 }
 
 /// Used internally to play audio on the platform
-#[derive(UnsendableResource)]
+#[derive(Resource)]
 pub struct AudioOutput {
     _stream: OutputStream,
     stream_handle: OutputStreamHandle,

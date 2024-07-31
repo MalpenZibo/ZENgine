@@ -16,5 +16,6 @@ zengine_macro = { workspace = true }
 
 log = { workspace = true }
 hashbrown = { workspace = true }
+rayon = "1.10.0"
 
 

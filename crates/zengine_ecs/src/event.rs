@@ -9,12 +9,12 @@ use hashbrown::HashMap;
 const STREAM_SIZE_BLOCK: usize = 10;
 
 #[doc(hidden)]
-pub trait EventCell: Debug {
+pub trait EventCell: Sync + Debug {
     fn to_any(&self) -> &dyn Any;
     fn to_any_mut(&mut self) -> &mut dyn Any;
 }
 
-impl<T: Any + Debug> EventCell for RwLock<EventHandler<T>> {
+impl<T: Send + Sync + Debug + 'static> EventCell for RwLock<EventHandler<T>> {
     fn to_any(&self) -> &dyn Any {
         self
     }
@@ -32,14 +32,14 @@ impl<T: Any + Debug> EventCell for RwLock<EventHandler<T>> {
 ///
 /// A non subscribed reader can only read the last published event
 #[derive(Debug)]
-pub struct EventHandler<E: Any + Debug> {
+pub struct EventHandler<E: Send + Sync + Debug + 'static> {
     buffer: Vec<E>,
     head: Option<usize>,
     subscriptions: HashMap<SubscriptionToken, RwLock<Subscription>>,
     token_serial: u64,
 }
 
-impl<E: Any + Debug> Default for EventHandler<E> {
+impl<E: Send + Sync + Debug + 'static> Default for EventHandler<E> {
     fn default() -> Self {
         EventHandler {
             buffer: Vec::with_capacity(STREAM_SIZE_BLOCK),
@@ -50,7 +50,7 @@ impl<E: Any + Debug> Default for EventHandler<E> {
     }
 }
 
-impl<E: Any + Debug> EventHandler<E> {
+impl<E: Send + Sync + Debug + 'static> EventHandler<E> {
     /// Subscribes to the event queue
     ///
     /// Returns a SubscriptionToken that can be use to retrive

@@ -1,9 +1,5 @@
 use std::{
-    any::{Any, TypeId},
-    cell::{Ref, RefCell, RefMut},
-    fmt::Debug,
-    hash::BuildHasherDefault,
-    sync::{RwLock, RwLockReadGuard, RwLockWriteGuard},
+    any::TypeId, cell::{Ref, RefMut}, fmt::Debug, hash::BuildHasherDefault, sync::{RwLock, RwLockReadGuard, RwLockWriteGuard}
 };
 
 use hashbrown::HashMap;
@@ -15,7 +11,8 @@ use crate::{
     entity::{Entity, EntityGenerator},
     event::{EventCell, EventHandler},
     query::{QueryParameters, QueryRunner},
-    resource::{Resource, ResourceCell, UnsendableResource, UnsendableResourceCell},
+    resource::Resource,
+    ResourceCell2, UnsendableResourceCell2,
 };
 
 #[derive(PartialEq, Debug)]
@@ -45,8 +42,8 @@ pub struct World {
     entity_record: HashMap<Entity, Record>,
     archetype_map: HashMap<u64, usize, BuildHasherDefault<NoHashHasher<u64>>>,
     pub(crate) archetypes: Vec<Archetype>,
-    resources: HashMap<TypeId, Box<dyn ResourceCell>>,
-    unsendable_resources: HashMap<TypeId, Box<dyn UnsendableResourceCell>>,
+    resources: HashMap<TypeId, ResourceCell2>,
+    unsendable_resources: HashMap<TypeId, UnsendableResourceCell2>,
     event_handlers: HashMap<TypeId, Box<dyn EventCell>>,
 }
 
@@ -510,100 +507,72 @@ impl World {
     }
 
     /// Gets a reference to the resource of the given type if it exists
-    pub fn get_resource<T: Resource + 'static>(&self) -> Option<RwLockReadGuard<T>> {
+    pub fn get_resource<T: Resource + Sync + Send + 'static>(&self) -> Option<RwLockReadGuard<T>> {
         let type_id = TypeId::of::<T>();
 
-        self.resources.get(&type_id).map(|r| {
-            r.to_any()
-                .downcast_ref::<RwLock<T>>()
-                .expect("donwcasting error")
-                .try_read()
-                .expect("lock error")
-        })
+        self.resources.get(&type_id).map(|r| r.read())
     }
 
     /// Gets a mutable reference to the resource of the given type if it exists
-    pub fn get_mut_resource<T: Resource + 'static>(&self) -> Option<RwLockWriteGuard<T>> {
+    pub fn get_mut_resource<T: Resource + Sync + Send + 'static>(
+        &self,
+    ) -> Option<RwLockWriteGuard<T>> {
         let type_id = TypeId::of::<T>();
 
-        self.resources.get(&type_id).map(|r| {
-            r.to_any()
-                .downcast_ref::<RwLock<T>>()
-                .expect("donwcasting error")
-                .try_write()
-                .expect("lock error")
-        })
+        self.resources.get(&type_id).map(|r| r.write())
     }
 
     /// Creates a new resource of the given value
     ///
     /// Resource are unique data of a given type so if you create a resource
     /// of a type that already exists you will overwrite any existing data
-    pub fn create_resource<T: Resource + 'static>(&mut self, resource: T) {
+    pub fn create_resource<T: Resource + Send + Sync + 'static>(&mut self, resource: T) {
         let type_id = TypeId::of::<T>();
 
-        self.resources
-            .insert(type_id, Box::new(RwLock::new(resource)));
+        self.resources.insert(type_id, ResourceCell2::new(resource));
     }
 
     /// Removes a resource of a given type and returns it if it exists
-    pub fn remove_resource<T: Resource + 'static>(&mut self) -> Option<T> {
+    pub fn remove_resource<T: Resource + Sync + Send + 'static>(&mut self) -> Option<T> {
         let type_id = TypeId::of::<T>();
 
-        let t = self.resources.remove(&type_id).unwrap();
-        let t = Box::into_raw(t);
-        let t = unsafe { Box::from_raw(t.cast::<RwLock<T>>()) };
-
-        Some(t.into_inner().expect("lock error"))
+        self.resources.remove(&type_id).and_then(|r| r.consume())
     }
 
     /// Gets a reference to an unsendable resource of the given type if it exists
-    pub fn get_unsendable_resource<T: UnsendableResource + 'static>(&self) -> Option<Ref<T>> {
+    pub fn get_unsendable_resource<T: Resource + 'static>(&self) -> Option<Ref<T>> {
         let type_id = TypeId::of::<T>();
 
-        self.unsendable_resources.get(&type_id).map(|r| {
-            r.to_any()
-                .downcast_ref::<RefCell<T>>()
-                .expect("donwcasting error")
-                .try_borrow()
-                .expect("lock error")
-        })
+        self.unsendable_resources.get(&type_id).map(|r| r.read())
     }
 
     /// Gets a mutable reference to an unsendable resource of the given type if it exists
-    pub fn get_mut_unsendable_resource<T: UnsendableResource + 'static>(
+    pub fn get_mut_unsendable_resource<T: Resource + 'static>(
         &self,
     ) -> Option<RefMut<T>> {
         let type_id = TypeId::of::<T>();
 
-        self.unsendable_resources.get(&type_id).map(|r| {
-            r.to_any()
-                .downcast_ref::<RefCell<T>>()
-                .expect("donwcasting error")
-                .try_borrow_mut()
-                .expect("lock error")
-        })
+        self.unsendable_resources.get(&type_id).map(|r| r.write())
     }
 
     /// Creates a new unsendable resource of the given value
     ///
     /// Unsendable resource are unique data of a given type so if you create an unsendable resource
     /// of a type that already exists you will overwrite any existing data
-    pub fn create_unsendable_resource<T: UnsendableResource + 'static>(&mut self, resource: T) {
+    pub fn create_unsendable_resource<T: Resource + 'static>(&mut self, resource: T) {
         let type_id = TypeId::of::<T>();
 
         self.unsendable_resources
-            .insert(type_id, Box::new(RefCell::new(resource)));
+            .insert(type_id, UnsendableResourceCell2::new(resource));
     }
 
     /// Removes an unsendable resource of a given type and returns it if it exists
-    pub fn remove_unsendable_resource<T: UnsendableResource + 'static>(&mut self) -> Option<T> {
+    pub fn remove_unsendable_resource<T: Resource + 'static>(&mut self) -> Option<T> {
         let type_id = TypeId::of::<T>();
 
-        let t = self.unsendable_resources.remove(&type_id).unwrap();
-        let t = Box::into_raw(t);
-        let t = unsafe { Box::from_raw(t.cast::<RefCell<T>>()) };
-        Some(t.into_inner())
+        self.unsendable_resources
+            .remove(&type_id)
+            .and_then(|r| r.consume())
     }
 
     /// Destroy a resource using its type id
@@ -617,7 +586,9 @@ impl World {
     }
 
     /// Gets a reference to an EventHandler of a given type
-    pub fn get_event_handler<T: Any + Debug>(&self) -> Option<RwLockReadGuard<EventHandler<T>>> {
+    pub fn get_event_handler<T: Send + Sync + Debug + 'static>(
+        &self,
+    ) -> Option<RwLockReadGuard<EventHandler<T>>> {
         let type_id = TypeId::of::<EventHandler<T>>();
 
         self.event_handlers.get(&type_id).map(|e| {
@@ -630,7 +601,7 @@ impl World {
     }
 
     /// Gets a mutable reference to an EventHandler of a given type
-    pub fn get_mut_event_handler<T: Any + Debug>(
+    pub fn get_mut_event_handler<T: Send + Sync + Debug + 'static>(
         &self,
     ) -> Option<RwLockWriteGuard<EventHandler<T>>> {
         let type_id = TypeId::of::<EventHandler<T>>();
@@ -648,7 +619,7 @@ impl World {
     ///
     /// EventHandlers are unique handler of a given type so if you create a EventHandler
     /// of a type that already exists you will overwrite any existing handler
-    pub fn create_event_handler<T: Any + Debug>(&mut self) {
+    pub fn create_event_handler<T: Send + Sync + Debug + 'static>(&mut self) {
         let type_id = TypeId::of::<EventHandler<T>>();
 
         self.event_handlers

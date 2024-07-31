@@ -8,6 +8,7 @@ pub mod event;
 pub mod query;
 mod resource;
 pub mod system;
+pub mod system2;
 mod world;
 
 pub use component::*;

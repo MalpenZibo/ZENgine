@@ -5,7 +5,7 @@ use std::{
 };
 use zengine_engine::Module;
 use zengine_input::device::ControllerButton;
-use zengine_macro::UnsendableResource;
+use zengine_macro::{Resource, UnsendableResource};
 
 /// Adds gamepad support to the engine
 ///
@@ -13,7 +13,7 @@ use zengine_macro::UnsendableResource;
 #[derive(Debug, Default)]
 pub struct GamepadModule(pub Option<HashMap<u32, ControllerButton>>);
 
-#[derive(UnsendableResource, Debug)]
+#[derive(Resource, Debug)]
 struct GamepadHandler(Gilrs);
 
 impl Deref for GamepadHandler {
