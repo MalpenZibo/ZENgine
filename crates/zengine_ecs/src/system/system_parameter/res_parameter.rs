@@ -5,7 +5,7 @@ use std::{
     sync::{RwLockReadGuard, RwLockWriteGuard},
 };
 
-use crate::{Resource, World};
+use crate::{Resource, UnsendableResource, World};
 
 use super::{ConditionParam, ConditionParamFetch, SystemParam, SystemParamFetch};
 
@@ -269,11 +269,11 @@ impl<R> Deref for UnsendableRes<'_, R> {
 }
 
 #[doc(hidden)]
-pub struct UnsendableResState<R: Resource + Default> {
+pub struct UnsendableResState<R: UnsendableResource + Default> {
     _marker: std::marker::PhantomData<R>,
 }
 
-impl<T: Resource + Default> Default for UnsendableResState<T> {
+impl<T: UnsendableResource + Default> Default for UnsendableResState<T> {
     fn default() -> Self {
         Self {
             _marker: PhantomData,
@@ -281,7 +281,7 @@ impl<T: Resource + Default> Default for UnsendableResState<T> {
     }
 }
 
-impl<'a, R: Resource + Default> SystemParamFetch<'a> for UnsendableResState<R> {
+impl<'a, R: UnsendableResource + Default> SystemParamFetch<'a> for UnsendableResState<R> {
     type Item = UnsendableRes<'a, R>;
 
     fn init(&mut self, world: &mut World) {
@@ -295,11 +295,11 @@ impl<'a, R: Resource + Default> SystemParamFetch<'a> for UnsendableResState<R> {
     }
 }
 
-impl<'a, R: Resource + Default> SystemParam for UnsendableRes<'a, R> {
+impl<'a, R: UnsendableResource + Default> SystemParam for UnsendableRes<'a, R> {
     type Fetch = UnsendableResState<R>;
 }
 
-impl<'a, R: Resource + Default> ConditionParamFetch<'a> for UnsendableResState<R> {
+impl<'a, R: UnsendableResource + Default> ConditionParamFetch<'a> for UnsendableResState<R> {
     type Item = UnsendableRes<'a, R>;
 
     fn init(&mut self, world: &mut World) {
@@ -313,7 +313,7 @@ impl<'a, R: Resource + Default> ConditionParamFetch<'a> for UnsendableResState<R
     }
 }
 
-impl<'a, R: Resource + Default> ConditionParam for UnsendableRes<'a, R> {
+impl<'a, R: UnsendableResource + Default> ConditionParam for UnsendableRes<'a, R> {
     type Fetch = UnsendableResState<R>;
 }
 
@@ -364,11 +364,11 @@ impl<R> DerefMut for UnsendableResMut<'_, R> {
 }
 
 #[doc(hidden)]
-pub struct UnsendableResMutState<R: Resource + Default> {
+pub struct UnsendableResMutState<R: UnsendableResource + Default> {
     _marker: std::marker::PhantomData<R>,
 }
 
-impl<T: Resource + Default> Default for UnsendableResMutState<T> {
+impl<T: UnsendableResource + Default> Default for UnsendableResMutState<T> {
     fn default() -> Self {
         Self {
             _marker: PhantomData,
@@ -376,7 +376,7 @@ impl<T: Resource + Default> Default for UnsendableResMutState<T> {
     }
 }
 
-impl<'a, R: Resource + Default> SystemParamFetch<'a> for UnsendableResMutState<R> {
+impl<'a, R: UnsendableResource + Default> SystemParamFetch<'a> for UnsendableResMutState<R> {
     type Item = UnsendableResMut<'a, R>;
 
     fn init(&mut self, world: &mut World) {
@@ -390,16 +390,16 @@ impl<'a, R: Resource + Default> SystemParamFetch<'a> for UnsendableResMutState<R
     }
 }
 
-impl<'a, R: Resource + Default> SystemParam for UnsendableResMut<'a, R> {
+impl<'a, R: UnsendableResource + Default> SystemParam for UnsendableResMut<'a, R> {
     type Fetch = UnsendableResMutState<R>;
 }
 
 #[doc(hidden)]
-pub struct OptionalUnsendableResState<R: Resource> {
+pub struct OptionalUnsendableResState<R: UnsendableResource> {
     _marker: std::marker::PhantomData<R>,
 }
 
-impl<T: Resource> Default for OptionalUnsendableResState<T> {
+impl<T: UnsendableResource> Default for OptionalUnsendableResState<T> {
     fn default() -> Self {
         Self {
             _marker: PhantomData,
@@ -407,7 +407,7 @@ impl<T: Resource> Default for OptionalUnsendableResState<T> {
     }
 }
 
-impl<'a, R: Resource> SystemParamFetch<'a> for OptionalUnsendableResState<R> {
+impl<'a, R: UnsendableResource> SystemParamFetch<'a> for OptionalUnsendableResState<R> {
     type Item = Option<UnsendableRes<'a, R>>;
 
     fn fetch(&mut self, world: &'a World) -> Self::Item {
@@ -415,11 +415,11 @@ impl<'a, R: Resource> SystemParamFetch<'a> for OptionalUnsendableResState<R> {
     }
 }
 
-impl<'a, R: Resource> SystemParam for Option<UnsendableRes<'a, R>> {
+impl<'a, R: UnsendableResource> SystemParam for Option<UnsendableRes<'a, R>> {
     type Fetch = OptionalUnsendableResState<R>;
 }
 
-impl<'a, R: Resource> ConditionParamFetch<'a> for OptionalUnsendableResState<R> {
+impl<'a, R: UnsendableResource> ConditionParamFetch<'a> for OptionalUnsendableResState<R> {
     type Item = Option<UnsendableRes<'a, R>>;
 
     fn fetch(&mut self, world: &'a World) -> Self::Item {
@@ -427,16 +427,16 @@ impl<'a, R: Resource> ConditionParamFetch<'a> for OptionalUnsendableResState<R> 
     }
 }
 
-impl<'a, R: Resource> ConditionParam for Option<UnsendableRes<'a, R>> {
+impl<'a, R: UnsendableResource> ConditionParam for Option<UnsendableRes<'a, R>> {
     type Fetch = OptionalUnsendableResState<R>;
 }
 
 #[doc(hidden)]
-pub struct OptionalUnsendableResMutState<R: Resource> {
+pub struct OptionalUnsendableResMutState<R: UnsendableResource> {
     _marker: std::marker::PhantomData<R>,
 }
 
-impl<T: Resource> Default for OptionalUnsendableResMutState<T> {
+impl<T: UnsendableResource> Default for OptionalUnsendableResMutState<T> {
     fn default() -> Self {
         Self {
             _marker: PhantomData,
@@ -444,7 +444,7 @@ impl<T: Resource> Default for OptionalUnsendableResMutState<T> {
     }
 }
 
-impl<'a, R: Resource> SystemParamFetch<'a> for OptionalUnsendableResMutState<R> {
+impl<'a, R: UnsendableResource> SystemParamFetch<'a> for OptionalUnsendableResMutState<R> {
     type Item = Option<UnsendableResMut<'a, R>>;
 
     fn fetch(&mut self, world: &'a World) -> Self::Item {
@@ -452,6 +452,6 @@ impl<'a, R: Resource> SystemParamFetch<'a> for OptionalUnsendableResMutState<R> 
     }
 }
 
-impl<'a, R: Resource> SystemParam for Option<UnsendableResMut<'a, R>> {
+impl<'a, R: UnsendableResource> SystemParam for Option<UnsendableResMut<'a, R>> {
     type Fetch = OptionalUnsendableResMutState<R>;
 }

@@ -8,25 +8,25 @@ use super::{query_iterators::*, QueryCache};
 use zengine_macro::all_tuples;
 
 #[doc(hidden)]
-pub trait QueryParameters: for<'a> QueryParameterFetch<'a> {}
+pub trait QueryParameters: for<'a> QueryParameterFetch<'a> + Send + Sync {}
 
 #[doc(hidden)]
-pub trait QueryParameter {
-    type Item: for<'a> QueryParameterFetchFromArchetype<'a>;
+pub trait QueryParameter: Send + Sync {
+    type Item: for<'a> QueryParameterFetchFromArchetype<'a> + Send + Sync;
 
     fn matches_archetype(archetype: &Archetype) -> bool;
 }
 
 #[doc(hidden)]
-pub trait QueryParameterFetch<'a> {
-    type FetchItem;
+pub trait QueryParameterFetch<'a>: Send + Sync {
+    type FetchItem: Send + Sync;
 
     fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem;
 }
 
 #[doc(hidden)]
-pub trait QueryParameterFetchFromArchetype<'a> {
-    type ArchetypeFetchItem: std::fmt::Debug;
+pub trait QueryParameterFetchFromArchetype<'a>: Send + Sync {
+    type ArchetypeFetchItem: Send + Sync + std::fmt::Debug;
 
     fn fetch_from_archetype(
         archetype: &'a Archetype,
@@ -112,11 +112,14 @@ impl<T: Component + 'static> QueryParameter for &T {
     }
 }
 
+pub struct QueryItem<'a, T>(Vec<RwLockReadGuard<'a, Vec<T>>>);
+unsafe impl<'a, T> Send for QueryItem<'a, T> {}
+
 impl<'a, T: Component + 'static> QueryParameterFetch<'a> for ReadQueryParameterFetch<T> {
-    type FetchItem = Vec<RwLockReadGuard<'a, Vec<T>>>;
+    type FetchItem = QueryItem<'a, T>;
 
     fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem {
-        let mut result: Self::FetchItem = Vec::default();
+        let mut result: Self::FetchItem = QueryItem(Vec::default());
         if let Some(cache) = cache {
             for (archetype, columns_vector) in cache
                 .matched_archetypes
@@ -124,7 +127,7 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for ReadQueryParameterF
                 .map(|(i, column_indexes)| (world.archetypes.get(*i).unwrap(), column_indexes))
             {
                 if !archetype.entities.is_empty() {
-                    result.push(
+                    result.0.push(
                         archetype
                             .get(columns_vector[0].expect(
                                 "Cache column for non Optional Parameter should not be None",
@@ -146,7 +149,7 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for ReadQueryParameterF
                         .matched_archetypes
                         .push((archetype_index, vec![Some(index)]));
                     if !a.entities.is_empty() {
-                        result.push(a.get(index).try_read().unwrap());
+                        result.0.push(a.get(index).try_read().unwrap());
                     }
                 }
             }
@@ -157,10 +160,14 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for ReadQueryParameterF
     }
 }
 
+#[derive(Debug)]
+pub struct ArchetypeItem<'a, T>(RwLockReadGuard<'a, Vec<T>>);
+unsafe impl<'a, T> Send for ArchetypeItem<'a, T> {}
+
 impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
     for ReadQueryParameterFetch<T>
 {
-    type ArchetypeFetchItem = RwLockReadGuard<'a, Vec<T>>;
+    type ArchetypeFetchItem = ArchetypeItem<'a, T>;
 
     fn fetch_from_archetype(
         archetype: &'a Archetype,
@@ -169,7 +176,10 @@ impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
         if let Some(column) = column_cache {
             let column =
                 column.expect("Cache column for non Optional Parameter should not be None");
-            (archetype.get(column).try_read().unwrap(), Some(column))
+            (
+                ArchetypeItem(archetype.get(column).try_read().unwrap()),
+                Some(column),
+            )
         } else {
             let type_id = TypeId::of::<T>();
             let index = archetype
@@ -178,7 +188,10 @@ impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
                 .position(|c| *c == type_id)
                 .unwrap();
 
-            (archetype.get(index).try_read().unwrap(), Some(index))
+            (
+                ArchetypeItem(archetype.get(index).try_read().unwrap()),
+                Some(index),
+            )
         }
     }
 }
@@ -197,11 +210,14 @@ impl<T: Component + 'static> QueryParameter for &mut T {
     }
 }
 
+pub struct QueryItemMut<'a, T>(Vec<RwLockWriteGuard<'a, Vec<T>>>);
+unsafe impl<'a, T> Send for QueryItemMut<'a, T> {}
+
 impl<'a, T: Component + 'static> QueryParameterFetch<'a> for WriteQueryParameterFetch<T> {
-    type FetchItem = Vec<RwLockWriteGuard<'a, Vec<T>>>;
+    type FetchItem = QueryItemMut<'a, T>;
 
     fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem {
-        let mut result: Self::FetchItem = Vec::default();
+        let mut result: Self::FetchItem = QueryItemMut(Vec::default());
         if let Some(cache) = cache {
             for (archetype, columns_vector) in cache
                 .matched_archetypes
@@ -209,7 +225,7 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for WriteQueryParameter
                 .map(|(i, column_indexes)| (world.archetypes.get(*i).unwrap(), column_indexes))
             {
                 if !archetype.entities.is_empty() {
-                    result.push(
+                    result.0.push(
                         archetype
                             .get(columns_vector[0].expect(
                                 "Cache column for non Optional Parameter should not be None",
@@ -231,7 +247,7 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for WriteQueryParameter
                         .matched_archetypes
                         .push((archetype_index, vec![Some(index)]));
                     if !a.entities.is_empty() {
-                        result.push(a.get(index).try_write().unwrap());
+                        result.0.push(a.get(index).try_write().unwrap());
                     }
                 }
             }
@@ -242,10 +258,14 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for WriteQueryParameter
     }
 }
 
+#[derive(Debug)]
+pub struct ArchetypeItemMut<'a, T>(RwLockWriteGuard<'a, Vec<T>>);
+unsafe impl<'a, T> Send for ArchetypeItemMut<'a, T> {}
+
 impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
     for WriteQueryParameterFetch<T>
 {
-    type ArchetypeFetchItem = RwLockWriteGuard<'a, Vec<T>>;
+    type ArchetypeFetchItem = ArchetypeItemMut<'a, T>;
 
     fn fetch_from_archetype(
         archetype: &'a Archetype,
@@ -254,7 +274,10 @@ impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
         if let Some(column) = column_cache {
             let column =
                 column.expect("Cache column for non Optional Parameter should not be None");
-            (archetype.get(column).try_write().unwrap(), Some(column))
+            (
+                ArchetypeItemMut(archetype.get(column).try_write().unwrap()),
+                Some(column),
+            )
         } else {
             let type_id = TypeId::of::<T>();
             let index = archetype
@@ -263,7 +286,10 @@ impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
                 .position(|c| *c == type_id)
                 .unwrap();
 
-            (archetype.get(index).try_write().unwrap(), Some(index))
+            (
+                ArchetypeItemMut(archetype.get(index).try_write().unwrap()),
+                Some(index),
+            )
         }
     }
 }
@@ -276,11 +302,14 @@ impl<T: Component + 'static> QueryParameter for Option<&T> {
     }
 }
 
+pub struct QueryOptionalItem<'a, T>(Vec<Option<RwLockReadGuard<'a, Vec<T>>>>);
+unsafe impl<'a, T> Send for QueryOptionalItem<'a, T> {}
+
 impl<'a, T: Component + 'static> QueryParameterFetch<'a> for Option<ReadQueryParameterFetch<T>> {
-    type FetchItem = Vec<Option<RwLockReadGuard<'a, Vec<T>>>>;
+    type FetchItem = QueryOptionalItem<'a, T>;
 
     fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem {
-        let mut result: Self::FetchItem = Vec::default();
+        let mut result: Self::FetchItem = QueryOptionalItem(Vec::default());
         if let Some(cache) = cache {
             for (archetype, columns_vector) in cache
                 .matched_archetypes
@@ -290,10 +319,12 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for Option<ReadQueryPar
                 if !archetype.entities.is_empty() {
                     match columns_vector[0] {
                         Some(column) => {
-                            result.push(Some(archetype.get(column).try_read().unwrap()));
+                            result
+                                .0
+                                .push(Some(archetype.get(column).try_read().unwrap()));
                         }
                         None => {
-                            result.push(None);
+                            result.0.push(None);
                         }
                     }
                 }
@@ -311,7 +342,7 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for Option<ReadQueryPar
                             .matched_archetypes
                             .push((archetype_index, vec![Some(column)]));
                         if !a.entities.is_empty() {
-                            result.push(Some(a.get(column).try_read().unwrap()));
+                            result.0.push(Some(a.get(column).try_read().unwrap()));
                         }
                     }
                     None => {
@@ -319,7 +350,7 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for Option<ReadQueryPar
                             .matched_archetypes
                             .push((archetype_index, vec![None]));
                         if !a.entities.is_empty() {
-                            result.push(None);
+                            result.0.push(None);
                         }
                     }
                 }
@@ -331,10 +362,14 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for Option<ReadQueryPar
     }
 }
 
+#[derive(Debug)]
+pub struct ArchetypeOptionalItem<'a, T>(Option<RwLockReadGuard<'a, Vec<T>>>);
+unsafe impl<'a, T> Send for ArchetypeOptionalItem<'a, T> {}
+
 impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
     for Option<ReadQueryParameterFetch<T>>
 {
-    type ArchetypeFetchItem = Option<RwLockReadGuard<'a, Vec<T>>>;
+    type ArchetypeFetchItem = ArchetypeOptionalItem<'a, T>;
 
     fn fetch_from_archetype(
         archetype: &'a Archetype,
@@ -343,19 +378,19 @@ impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
         if let Some(column) = column_cache {
             match column {
                 Some(column) => (
-                    Some(archetype.get(column).try_read().unwrap()),
+                    ArchetypeOptionalItem(Some(archetype.get(column).try_read().unwrap())),
                     Some(column),
                 ),
-                None => (None, None),
+                None => (ArchetypeOptionalItem(None), None),
             }
         } else {
             let type_id = TypeId::of::<T>();
             match archetype.archetype_specs.iter().position(|c| *c == type_id) {
                 Some(column) => (
-                    Some(archetype.get(column).try_read().unwrap()),
+                    ArchetypeOptionalItem(Some(archetype.get(column).try_read().unwrap())),
                     Some(column),
                 ),
-                None => (None, None),
+                None => (ArchetypeOptionalItem(None), None),
             }
         }
     }
@@ -369,11 +404,14 @@ impl<T: Component + 'static> QueryParameter for Option<&mut T> {
     }
 }
 
+pub struct QueryOptionalItemMut<'a, T>(Vec<Option<RwLockWriteGuard<'a, Vec<T>>>>);
+unsafe impl<'a, T> Send for QueryOptionalItemMut<'a, T> {}
+
 impl<'a, T: Component + 'static> QueryParameterFetch<'a> for Option<WriteQueryParameterFetch<T>> {
-    type FetchItem = Vec<Option<RwLockWriteGuard<'a, Vec<T>>>>;
+    type FetchItem = QueryOptionalItemMut<'a, T>;
 
     fn fetch(world: &'a World, cache: &mut Option<QueryCache>) -> Self::FetchItem {
-        let mut result: Self::FetchItem = Vec::default();
+        let mut result: Self::FetchItem = QueryOptionalItemMut(Vec::default());
         if let Some(cache) = cache {
             for (archetype, columns_vector) in cache
                 .matched_archetypes
@@ -383,10 +421,12 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for Option<WriteQueryPa
                 if !archetype.entities.is_empty() {
                     match columns_vector[0] {
                         Some(column) => {
-                            result.push(Some(archetype.get(column).try_write().unwrap()));
+                            result
+                                .0
+                                .push(Some(archetype.get(column).try_write().unwrap()));
                         }
                         None => {
-                            result.push(None);
+                            result.0.push(None);
                         }
                     }
                 }
@@ -404,7 +444,7 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for Option<WriteQueryPa
                             .matched_archetypes
                             .push((archetype_index, vec![Some(column)]));
                         if !a.entities.is_empty() {
-                            result.push(Some(a.get(column).try_write().unwrap()));
+                            result.0.push(Some(a.get(column).try_write().unwrap()));
                         }
                     }
                     None => {
@@ -412,7 +452,7 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for Option<WriteQueryPa
                             .matched_archetypes
                             .push((archetype_index, vec![None]));
                         if !a.entities.is_empty() {
-                            result.push(None);
+                            result.0.push(None);
                         }
                     }
                 }
@@ -424,10 +464,14 @@ impl<'a, T: Component + 'static> QueryParameterFetch<'a> for Option<WriteQueryPa
     }
 }
 
+#[derive(Debug)]
+pub struct ArchetypeOptionalItemMut<'a, T>(Option<RwLockWriteGuard<'a, Vec<T>>>);
+unsafe impl<'a, T> Send for ArchetypeOptionalItemMut<'a, T> {}
+
 impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
     for Option<WriteQueryParameterFetch<T>>
 {
-    type ArchetypeFetchItem = Option<RwLockWriteGuard<'a, Vec<T>>>;
+    type ArchetypeFetchItem = ArchetypeOptionalItemMut<'a, T>;
 
     fn fetch_from_archetype(
         archetype: &'a Archetype,
@@ -436,19 +480,19 @@ impl<'a, T: Component + 'static> QueryParameterFetchFromArchetype<'a>
         if let Some(column) = column_cache {
             match column {
                 Some(column) => (
-                    Some(archetype.get(column).try_write().unwrap()),
+                    ArchetypeOptionalItemMut(Some(archetype.get(column).try_write().unwrap())),
                     Some(column),
                 ),
-                None => (None, None),
+                None => (ArchetypeOptionalItemMut(None), None),
             }
         } else {
             let type_id = TypeId::of::<T>();
             match archetype.archetype_specs.iter().position(|c| *c == type_id) {
                 Some(column) => (
-                    Some(archetype.get(column).try_write().unwrap()),
+                    ArchetypeOptionalItemMut(Some(archetype.get(column).try_write().unwrap())),
                     Some(column),
                 ),
-                None => (None, None),
+                None => (ArchetypeOptionalItemMut(None), None),
             }
         }
     }
@@ -559,34 +603,34 @@ impl<'a, 'b> QueryIter<'b> for &'a Vec<Entity> {
     }
 }
 
-impl<'a, 'b, T: 'static> QueryIter<'b> for RwLockReadGuard<'a, Vec<T>> {
+impl<'a, 'b, T: 'static> QueryIter<'b> for ArchetypeItem<'a, T> {
     type Iter = std::slice::Iter<'b, T>;
     fn iter(&'b self) -> Self::Iter {
-        <[T]>::iter(self)
+        <[T]>::iter(&self.0)
     }
 }
 
-impl<'a, 'b, T: 'static> QueryIter<'b> for RwLockWriteGuard<'a, Vec<T>> {
+impl<'a, 'b, T: 'static> QueryIter<'b> for ArchetypeItemMut<'a, T> {
     type Iter = std::slice::Iter<'b, T>;
     fn iter(&'b self) -> Self::Iter {
-        <[T]>::iter(self)
+        <[T]>::iter(&self.0)
     }
 }
 
-impl<'a, 'b, T: 'static> QueryIter<'b> for Option<RwLockReadGuard<'a, Vec<T>>> {
+impl<'a, 'b, T: 'static> QueryIter<'b> for ArchetypeOptionalItem<'a, T> {
     type Iter = OptionalIterator<std::slice::Iter<'b, T>>;
     fn iter(&'b self) -> Self::Iter {
-        self.as_ref().map_or_else(
+        self.0.as_ref().map_or_else(
             || OptionalIterator::NoneIterator,
             |value| OptionalIterator::SomeIterator(<[T]>::iter(value)),
         )
     }
 }
 
-impl<'a, 'b, T: 'static> QueryIter<'b> for Option<RwLockWriteGuard<'a, Vec<T>>> {
+impl<'a, 'b, T: 'static> QueryIter<'b> for ArchetypeOptionalItemMut<'a, T> {
     type Iter = OptionalIterator<std::slice::Iter<'b, T>>;
     fn iter(&'b self) -> Self::Iter {
-        self.as_ref().map_or_else(
+        self.0.as_ref().map_or_else(
             || OptionalIterator::NoneIterator,
             |value| OptionalIterator::SomeIterator(<[T]>::iter(value)),
         )
@@ -600,34 +644,34 @@ impl<'a, 'b> QueryIterMut<'b> for &'a Vec<Entity> {
     }
 }
 
-impl<'a, 'b, T: 'static> QueryIterMut<'b> for RwLockReadGuard<'a, Vec<T>> {
+impl<'a, 'b, T: 'static> QueryIterMut<'b> for ArchetypeItem<'a, T> {
     type Iter = std::slice::Iter<'b, T>;
     fn iter_mut(&'b mut self) -> Self::Iter {
-        <[T]>::iter(self)
+        <[T]>::iter(&self.0)
     }
 }
 
-impl<'a, 'b, T: 'static> QueryIterMut<'b> for RwLockWriteGuard<'a, Vec<T>> {
+impl<'a, 'b, T: 'static> QueryIterMut<'b> for ArchetypeItemMut<'a, T> {
     type Iter = std::slice::IterMut<'b, T>;
     fn iter_mut(&'b mut self) -> Self::Iter {
-        <[T]>::iter_mut(self)
+        <[T]>::iter_mut(&mut self.0)
     }
 }
 
-impl<'a, 'b, T: 'static> QueryIterMut<'b> for Option<RwLockReadGuard<'a, Vec<T>>> {
+impl<'a, 'b, T: 'static> QueryIterMut<'b> for ArchetypeOptionalItem<'a, T> {
     type Iter = OptionalIterator<std::slice::Iter<'b, T>>;
     fn iter_mut(&'b mut self) -> Self::Iter {
-        self.as_ref().map_or_else(
+        self.0.as_ref().map_or_else(
             || OptionalIterator::NoneIterator,
             |value| OptionalIterator::SomeIterator(<[T]>::iter(value)),
         )
     }
 }
 
-impl<'a, 'b, T: 'static> QueryIterMut<'b> for Option<RwLockWriteGuard<'a, Vec<T>>> {
+impl<'a, 'b, T: 'static> QueryIterMut<'b> for ArchetypeOptionalItemMut<'a, T> {
     type Iter = OptionalIterator<std::slice::IterMut<'b, T>>;
     fn iter_mut(&'b mut self) -> Self::Iter {
-        self.as_mut().map_or_else(
+        self.0.as_mut().map_or_else(
             || OptionalIterator::NoneIterator,
             |value| OptionalIterator::SomeIterator(<[T]>::iter_mut(value)),
         )

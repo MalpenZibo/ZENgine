@@ -13,7 +13,7 @@ use zengine_macro::{Resource, UnsendableResource};
 #[derive(Debug, Default)]
 pub struct GamepadModule(pub Option<HashMap<u32, ControllerButton>>);
 
-#[derive(Resource, Debug)]
+#[derive(UnsendableResource, Debug)]
 struct GamepadHandler(Gilrs);
 
 impl Deref for GamepadHandler {

@@ -1,6 +1,5 @@
-use std::sync::RwLockReadGuard;
-
-use crate::{Resource, World};
+use crate::World;
+use system_parameter::SystemParam;
 use zengine_macro::all_tuples;
 
 pub mod system_parameter;
@@ -14,13 +13,16 @@ pub trait System: Send + Sync {
 }
 
 pub trait SystemFunction<Marker>: Send + Sync + 'static {
-    fn run_function(&mut self, world: &World);
+    type Param: SystemParam;
+
+    fn run_function(&mut self, data: <Self::Param as SystemParam>::Item<'_, '_>);
 
     fn into_system(self) -> BoxedSystem;
 }
 
 pub struct SystemFunctionData<Marker, F: SystemFunction<Marker>> {
     function: F,
+    param_state: <F::Param as SystemParam>::State,
     _phantom: std::marker::PhantomData<fn() -> Marker>,
 }
 
@@ -28,61 +30,59 @@ pub type BoxedSystem = Box<dyn System>;
 
 impl<Marker, F: SystemFunction<Marker>> System for SystemFunctionData<Marker, F> {
     fn init(&mut self, world: &mut World) {
-        // self.param_state.init(world);
+        <F::Param as SystemParam>::init(world, &mut self.param_state);
     }
 
     fn run(&mut self, world: &World) {
-        // let data: <<P as SystemParam>::Fetch as SystemParamFetch>::Item = self.param_state.fetch(world);
-        self.function.run_function(world);
+        let data = <F::Param as SystemParam>::get(world, &mut self.param_state);
+        self.function.run_function(data);
     }
 
     fn apply(&mut self, world: &mut World) {
-        // self.param_state.apply(world);
-    }
-}
-
-pub trait SystemParam: Sync + Sized {
-    type State: Send + Sync;
-    type Item<'a>: Sync;
-
-    fn get(world: &World) -> Self::Item<'_>;
-}
-
-pub struct Res<'a, R: Resource>(RwLockReadGuard<'a, R>);
-unsafe impl<'a, T: Resource> Send for Res<'a, T> {}
-
-impl<'a, T: Resource> SystemParam for Res<'a, T> {
-    type State = T;
-    type Item<'b> = Res<'b, T>;
-
-    fn get(world: &World) -> Res<'_, T> {
-        Res(world.get_resource::<T>().unwrap())
-    }
-}
-
-impl<A: SystemParam, B: SystemParam> SystemParam for (A, B) {
-    type State = (A::State, B::State);
-    type Item<'a> = (A::Item<'a>, B::Item<'a>);
-
-    fn get(world: &World) -> Self::Item<'_> {
-        (A::get(world), B::get(world))
+        <F::Param as SystemParam>::apply(world, &mut self.param_state);
     }
 }
 
 macro_rules! impl_system_function {
     ($($param: ident),*) => {
         #[allow(non_snake_case)]
+        impl<$($param: SystemParam + 'static),*> SystemParam for ($($param,)*) {
+            type State = ($($param::State,)*);
+            type Item<'w, 's> = ($($param::Item<'w, 's>,)*);
+
+            fn init(_world: &mut World, state: &mut Self::State) {
+                let ($($param,)*) = state;
+                $($param::init(_world, $param);)*
+            }
+
+            fn get<'w, 's>(_world: &'w World, state: &'s mut Self::State) -> Self::Item<'w, 's> {
+                let ($($param,)*) = state;
+                #[allow(clippy::unused_unit)]
+                ($($param::get(_world, $param),)*)
+            }
+
+            fn apply(_world: &mut World, state: &mut Self::State) {
+                let ($($param,)*) = state;
+                $($param::apply(_world, $param);)*
+            }
+        }
+
+        #[allow(non_snake_case)]
         impl<F: Send + Sync + 'static, $($param: SystemParam + 'static),*> SystemFunction<fn($($param,)*)> for F
         where
-            F: FnMut($($param),*) + FnMut($($param::Item<'_>),*)
+            F: FnMut($($param),*) + FnMut($($param::Item<'_, '_>),*)
         {
-            fn run_function(&mut self, _world: &World) {
-                (self)($($param::get(_world)),*);
+            type Param = ($($param,)*);
+
+            fn run_function(&mut self, data: <Self::Param as SystemParam>::Item<'_, '_>) {
+                let ($($param,)*) = data;
+                (self)($($param),*);
             }
 
             fn into_system(self) -> BoxedSystem {
                 Box::new(SystemFunctionData {
                     function: self,
+                    param_state: Default::default(),
                     _phantom: std::marker::PhantomData,
                 })
             }
@@ -97,15 +97,15 @@ mod tests {
 
     use crate::Resource;
 
-    use super::{BoxedSystem, Res, SystemFunction};
+    use super::{BoxedSystem, system_parameter::Res, SystemFunction};
 
-    #[derive(Debug)]
+    #[derive(Debug, Default)]
     struct T {
         a: i32,
     }
     impl Resource for T {}
 
-    #[derive(Debug)]
+    #[derive(Debug, Default)]
     struct W {
         a: i32,
     }
@@ -114,11 +114,12 @@ mod tests {
     fn system0() {}
 
     fn system1(a: Res<T>) {
-        println!("{:?}", a.0);
+        println!("{:?}", a.a);
     }
 
     fn system2(a: Res<T>, b: Res<W>) {
-        println!("{:?}", a.0);
+        println!("{:?}", a.a);
+        println!("{:?}", b.a);
     }
 
     #[test]

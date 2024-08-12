@@ -38,7 +38,7 @@ pub enum InsertType {
 }
 
 #[doc(hidden)]
-pub trait ComponentBundle {
+pub trait ComponentBundle: Send + Sync {
     fn get_types() -> Vec<TypeId>;
 
     fn get_component_columns() -> Vec<(TypeId, Box<dyn ComponentColumn>)>;

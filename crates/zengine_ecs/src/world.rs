@@ -6,13 +6,7 @@ use hashbrown::HashMap;
 use nohash_hasher::NoHashHasher;
 
 use crate::{
-    archetype::{calculate_archetype_id, Archetype, ArchetypeSpecs},
-    component::{ComponentBundle, ComponentColumn, InsertType},
-    entity::{Entity, EntityGenerator},
-    event::{EventCell, EventHandler},
-    query::{QueryParameters, QueryRunner},
-    resource::Resource,
-    ResourceCell2, UnsendableResourceCell2,
+    archetype::{calculate_archetype_id, Archetype, ArchetypeSpecs}, component::{ComponentBundle, ComponentColumn, InsertType}, entity::{Entity, EntityGenerator}, event::{EventCell, EventHandler}, query::{QueryParameters, QueryRunner}, resource::Resource, ResourceCell2, UnsendableResource, UnsendableResourceCell2
 };
 
 #[derive(PartialEq, Debug)]
@@ -540,14 +534,14 @@ impl World {
     }
 
     /// Gets a reference to an unsendable resource of the given type if it exists
-    pub fn get_unsendable_resource<T: Resource + 'static>(&self) -> Option<Ref<T>> {
+    pub fn get_unsendable_resource<T: UnsendableResource + 'static>(&self) -> Option<Ref<T>> {
         let type_id = TypeId::of::<T>();
 
         self.unsendable_resources.get(&type_id).map(|r| r.read())
     }
 
     /// Gets a mutable reference to an unsendable resource of the given type if it exists
-    pub fn get_mut_unsendable_resource<T: Resource + 'static>(
+    pub fn get_mut_unsendable_resource<T: UnsendableResource + 'static>(
         &self,
     ) -> Option<RefMut<T>> {
         let type_id = TypeId::of::<T>();
@@ -559,7 +553,7 @@ impl World {
     ///
     /// Unsendable resource are unique data of a given type so if you create an unsendable resource
     /// of a type that already exists you will overwrite any existing data
-    pub fn create_unsendable_resource<T: Resource + 'static>(&mut self, resource: T) {
+    pub fn create_unsendable_resource<T: UnsendableResource + 'static>(&mut self, resource: T) {
         let type_id = TypeId::of::<T>();
 
         self.unsendable_resources
@@ -567,7 +561,7 @@ impl World {
     }
 
     /// Removes an unsendable resource of a given type and returns it if it exists
-    pub fn remove_unsendable_resource<T: Resource + 'static>(&mut self) -> Option<T> {
+    pub fn remove_unsendable_resource<T: UnsendableResource + 'static>(&mut self) -> Option<T> {
         let type_id = TypeId::of::<T>();
 
         self.unsendable_resources

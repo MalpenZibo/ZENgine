@@ -87,11 +87,11 @@ impl Command for DestroyResourceCommand {
     }
 }
 
-struct CreateUnsendableResourceCommand<T: Resource> {
+struct CreateUnsendableResourceCommand<T: UnsendableResource> {
     resource: T,
 }
 
-impl<T: Resource> Command for CreateUnsendableResourceCommand<T> {
+impl<T: UnsendableResource> Command for CreateUnsendableResourceCommand<T> {
     fn apply(self, world: &mut World) {
         world.create_unsendable_resource(self.resource);
     }
@@ -185,8 +185,8 @@ impl<'a> Commands<'a> {
         }))
     }
 
-    /// Create or replace the given [Resource]
-    pub fn create_unsendable_resource<T: Resource>(&mut self, resource: T) {
+    /// Create or replace the given [UnsendableResource]
+    pub fn create_unsendable_resource<T: UnsendableResource>(&mut self, resource: T) {
         self.queue
             .push(Box::new(CreateUnsendableResourceCommand { resource }))
     }
