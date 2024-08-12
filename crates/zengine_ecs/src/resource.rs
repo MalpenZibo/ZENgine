@@ -114,7 +114,7 @@ impl UnsendableResourceCell2 {
 /// #[derive(Resource, Debug)]
 /// struct MyWrapper(Vec<usize>);
 /// ```
-pub trait Resource: Any + Debug {}
+pub trait Resource: Send + Sync + Any + Debug {}
 
 #[doc(hidden)]
 pub trait ResourceCell: Sync + Send + Debug {
