@@ -3,7 +3,7 @@ use std::{any::TypeId, fmt::Debug};
 use default_schedule::*;
 use log::debug;
 use zengine_ecs::{
-    system::{BoxedSystem, IntoSystem, SystemFunction},
+    system::{BoxedSystem, IntoSystem},
     World,
 };
 

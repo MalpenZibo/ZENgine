@@ -4,7 +4,7 @@ use schedule::{
     default_schedule::{Startup, Update},
     ScheduleLabelInternal, Schedules,
 };
-use zengine_ecs::{system::{IntoSystem, SystemFunction}, World};
+use zengine_ecs::{system::IntoSystem, World};
 
 pub mod schedule;
 
@@ -106,10 +106,7 @@ impl Engine {
     /// Add a system to the [Engine] pipeling in the [Startup Schedule Label](Startup)
     ///
     /// The system added using this function will run only one time during the engine startup phase
-    pub fn add_startup_system<Marker, S: IntoSystem<Marker>>(
-        &mut self,
-        system: S,
-    ) -> &mut Self {
+    pub fn add_startup_system<Marker, S: IntoSystem<Marker>>(&mut self, system: S) -> &mut Self {
         self.add_system_into_schedule(system, Startup)
     }
 

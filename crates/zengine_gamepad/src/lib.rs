@@ -5,7 +5,7 @@ use std::{
 };
 use zengine_engine::Module;
 use zengine_input::device::ControllerButton;
-use zengine_macro::{Resource, UnsendableResource};
+use zengine_macro::UnsendableResource;
 
 /// Adds gamepad support to the engine
 ///
