@@ -3,7 +3,7 @@ use zengine_ecs::system::{EventStream, ResMut};
 
 pub(crate) fn input_system<T: InputType>(
     bindings: Bindings<T>,
-) -> impl Fn(EventStream<InputEvent>, ResMut<InputHandler<T>>) {
+) -> impl FnMut(EventStream<InputEvent>, ResMut<InputHandler<T>>) {
     move |event_stream: EventStream<InputEvent>, mut input_handler: ResMut<InputHandler<T>>| {
         for e in event_stream.read() {
             if let Some(action_mappings) = &bindings.action_mappings {
@@ -95,7 +95,7 @@ mod tests {
     use crate::device::Key;
     use serde::Deserialize;
     use zengine_ecs::{
-        system::{IntoSystem, System},
+        system::{BoxedSystem, IntoSystem},
         World,
     };
 
@@ -108,7 +108,7 @@ mod tests {
 
     impl InputType for UserInput {}
 
-    fn setup_test() -> (World, impl System) {
+    fn setup_test() -> (World, BoxedSystem) {
         let world = World::default();
 
         let bindings = Bindings::default()
@@ -124,7 +124,7 @@ mod tests {
                 ],
             );
 
-        let input_system = IntoSystem::into_system(input_system(bindings));
+        let input_system = input_system(bindings).into_system();
 
         (world, input_system)
     }

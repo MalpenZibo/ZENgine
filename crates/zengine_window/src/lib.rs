@@ -38,7 +38,7 @@ impl Default for WindowConfig {
 }
 
 #[doc(hidden)]
-#[derive(Resource, Debug)]
+#[derive(UnsendableResource, Debug)]
 pub struct Window {
     pub internal: Arc<winit::window::Window>,
 }

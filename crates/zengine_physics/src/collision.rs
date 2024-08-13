@@ -3,7 +3,7 @@ use hashbrown::HashSet;
 use zengine_core::Transform;
 use zengine_ecs::{
     query::{Query, QueryIter},
-    system::{Local, ResMut},
+    system::ResMut,
     Entity,
 };
 use zengine_macro::{Component, Resource};
@@ -36,14 +36,16 @@ impl Collisions {
     }
 
     pub fn collides(&self, entity: Entity) -> bool {
-        self.0.iter().any(|c| c.entity_a == entity || c.entity_b == entity)
+        self.0
+            .iter()
+            .any(|c| c.entity_a == entity || c.entity_b == entity)
     }
 
-    pub (crate) fn insert(&mut self, collision: Collision) {
+    pub(crate) fn insert(&mut self, collision: Collision) {
         self.0.push(collision);
     }
 
-    pub (crate) fn clear(&mut self) {
+    pub(crate) fn clear(&mut self) {
         self.0.clear();
     }
 }
@@ -123,133 +125,136 @@ fn check_rectangle_and_circle(
 /// This system doesn't take in consideration the entity transform
 /// rotation for rectangular shape
 pub(crate) fn collision_system(
-    query: Query<(Entity, &Shape2D, &Transform)>,
-    mut collisions: ResMut<Collisions>,
-    already_collided: Local<HashSet<(Entity, Entity)>>,
-) {
-    collisions.clear();
-    already_collided.clear();
-    for (a_entity, a_shape, a_transform) in query.iter() {
-        for (b_entity, b_shape, b_transform) in query.iter().filter(|e| e.0 != a_entity) {
-            if match (&a_shape.shape_type, &b_shape.shape_type) {
-                (
-                    ShapeType::Circle { radius: a_radius },
-                    ShapeType::Circle { radius: b_radius },
-                ) => {
-                    let a_origin =
-                        Mat4::from_translation(a_shape.origin * Vec3::splat(*a_radius)).inverse();
-                    let b_origin =
-                        Mat4::from_translation(b_shape.origin * Vec3::splat(*b_radius)).inverse();
-                    let a_pos = a_origin.mul_vec4(a_transform.position.extend(1.0));
-                    let b_pos = b_origin.mul_vec4(b_transform.position.extend(1.0));
+) -> impl FnMut(Query<(Entity, &Shape2D, &Transform)>, ResMut<Collisions>) {
+    let mut already_collided = HashSet::new();
 
-                    let distance = (a_pos).distance(b_pos).abs();
+    move |query, mut collisions| {
+        collisions.clear();
+        already_collided.clear();
+        for (a_entity, a_shape, a_transform) in query.iter() {
+            for (b_entity, b_shape, b_transform) in query.iter().filter(|e| e.0 != a_entity) {
+                if match (&a_shape.shape_type, &b_shape.shape_type) {
+                    (
+                        ShapeType::Circle { radius: a_radius },
+                        ShapeType::Circle { radius: b_radius },
+                    ) => {
+                        let a_origin =
+                            Mat4::from_translation(a_shape.origin * Vec3::splat(*a_radius))
+                                .inverse();
+                        let b_origin =
+                            Mat4::from_translation(b_shape.origin * Vec3::splat(*b_radius))
+                                .inverse();
+                        let a_pos = a_origin.mul_vec4(a_transform.position.extend(1.0));
+                        let b_pos = b_origin.mul_vec4(b_transform.position.extend(1.0));
 
-                    let radius_lenghts =
-                        a_radius * a_transform.scale + b_radius * b_transform.scale;
-                    distance < radius_lenghts
+                        let distance = (a_pos).distance(b_pos).abs();
+
+                        let radius_lenghts =
+                            a_radius * a_transform.scale + b_radius * b_transform.scale;
+                        distance < radius_lenghts
+                    }
+                    (
+                        ShapeType::Circle { radius: a_radius },
+                        ShapeType::Rectangle {
+                            width: b_width,
+                            height: b_height,
+                        },
+                    ) => check_rectangle_and_circle(
+                        (
+                            &(b_width * b_transform.scale),
+                            &(b_height * b_transform.scale),
+                            &b_transform.position,
+                            b_shape.origin,
+                        ),
+                        (
+                            &(a_radius * a_transform.scale),
+                            &a_transform.position,
+                            a_shape.origin,
+                        ),
+                    ),
+                    (
+                        ShapeType::Rectangle {
+                            width: a_width,
+                            height: a_height,
+                        },
+                        ShapeType::Circle { radius: b_radius },
+                    ) => check_rectangle_and_circle(
+                        (
+                            &(a_width * a_transform.scale),
+                            &(a_height * a_transform.scale),
+                            &a_transform.position,
+                            a_shape.origin,
+                        ),
+                        (
+                            &(b_radius * b_transform.scale),
+                            &b_transform.position,
+                            b_shape.origin,
+                        ),
+                    ),
+                    (
+                        ShapeType::Rectangle {
+                            width: a_width,
+                            height: a_height,
+                        },
+                        ShapeType::Rectangle {
+                            width: b_width,
+                            height: b_height,
+                        },
+                    ) => {
+                        let a_half_width = *a_width * a_transform.scale / 2.0;
+                        let a_half_height = *a_height * a_transform.scale / 2.0;
+
+                        let a_origin = Mat4::from_translation(
+                            a_shape.origin * Vec3::new(a_half_width, a_half_height, 0.0),
+                        )
+                        .inverse();
+                        let a_position = a_origin.mul_vec4(a_transform.position.extend(1.0));
+
+                        let b_half_width = *b_width / 2.0;
+                        let b_half_height = *b_height / 2.0;
+
+                        let b_origin = Mat4::from_translation(
+                            b_shape.origin * Vec3::new(b_half_width, b_half_height, 0.0),
+                        )
+                        .inverse();
+                        let b_position = b_origin.mul_vec4(b_transform.position.extend(1.0));
+
+                        let x = a_position.x - a_half_width;
+                        let y = a_position.y - a_half_height;
+
+                        let extent_x = a_position.x + a_half_width;
+                        let extent_y = a_position.y + a_half_height;
+
+                        let point_in_shape = |point: Vec3| {
+                            point.x > x && point.x < extent_x && point.y > y && point.y < extent_y
+                        };
+
+                        point_in_shape(Vec3::new(
+                            b_position.x - b_half_width,
+                            b_position.y - b_half_height,
+                            0.0,
+                        )) || point_in_shape(Vec3::new(
+                            b_position.x - b_half_width,
+                            b_position.y + b_half_height,
+                            0.0,
+                        )) || point_in_shape(Vec3::new(
+                            b_position.x + b_half_width,
+                            b_position.y - b_half_height,
+                            0.0,
+                        )) || point_in_shape(Vec3::new(
+                            b_position.x + b_half_width,
+                            b_position.y + b_half_height,
+                            0.0,
+                        ))
+                    }
+                } && !already_collided.contains(&(*b_entity, *a_entity))
+                {
+                    collisions.insert(Collision {
+                        entity_a: *a_entity,
+                        entity_b: *b_entity,
+                    });
+                    already_collided.insert((*a_entity, *b_entity));
                 }
-                (
-                    ShapeType::Circle { radius: a_radius },
-                    ShapeType::Rectangle {
-                        width: b_width,
-                        height: b_height,
-                    },
-                ) => check_rectangle_and_circle(
-                    (
-                        &(b_width * b_transform.scale),
-                        &(b_height * b_transform.scale),
-                        &b_transform.position,
-                        b_shape.origin,
-                    ),
-                    (
-                        &(a_radius * a_transform.scale),
-                        &a_transform.position,
-                        a_shape.origin,
-                    ),
-                ),
-                (
-                    ShapeType::Rectangle {
-                        width: a_width,
-                        height: a_height,
-                    },
-                    ShapeType::Circle { radius: b_radius },
-                ) => check_rectangle_and_circle(
-                    (
-                        &(a_width * a_transform.scale),
-                        &(a_height * a_transform.scale),
-                        &a_transform.position,
-                        a_shape.origin,
-                    ),
-                    (
-                        &(b_radius * b_transform.scale),
-                        &b_transform.position,
-                        b_shape.origin,
-                    ),
-                ),
-                (
-                    ShapeType::Rectangle {
-                        width: a_width,
-                        height: a_height,
-                    },
-                    ShapeType::Rectangle {
-                        width: b_width,
-                        height: b_height,
-                    },
-                ) => {
-                    let a_half_width = *a_width * a_transform.scale / 2.0;
-                    let a_half_height = *a_height * a_transform.scale / 2.0;
-
-                    let a_origin = Mat4::from_translation(
-                        a_shape.origin * Vec3::new(a_half_width, a_half_height, 0.0),
-                    )
-                    .inverse();
-                    let a_position = a_origin.mul_vec4(a_transform.position.extend(1.0));
-
-                    let b_half_width = *b_width / 2.0;
-                    let b_half_height = *b_height / 2.0;
-
-                    let b_origin = Mat4::from_translation(
-                        b_shape.origin * Vec3::new(b_half_width, b_half_height, 0.0),
-                    )
-                    .inverse();
-                    let b_position = b_origin.mul_vec4(b_transform.position.extend(1.0));
-
-                    let x = a_position.x - a_half_width;
-                    let y = a_position.y - a_half_height;
-
-                    let extent_x = a_position.x + a_half_width;
-                    let extent_y = a_position.y + a_half_height;
-
-                    let point_in_shape = |point: Vec3| {
-                        point.x > x && point.x < extent_x && point.y > y && point.y < extent_y
-                    };
-
-                    point_in_shape(Vec3::new(
-                        b_position.x - b_half_width,
-                        b_position.y - b_half_height,
-                        0.0,
-                    )) || point_in_shape(Vec3::new(
-                        b_position.x - b_half_width,
-                        b_position.y + b_half_height,
-                        0.0,
-                    )) || point_in_shape(Vec3::new(
-                        b_position.x + b_half_width,
-                        b_position.y - b_half_height,
-                        0.0,
-                    )) || point_in_shape(Vec3::new(
-                        b_position.x + b_half_width,
-                        b_position.y + b_half_height,
-                        0.0,
-                    ))
-                }
-            } && !already_collided.contains(&(*b_entity, *a_entity))
-            {
-                collisions.insert(Collision {
-                    entity_a: *a_entity,
-                    entity_b: *b_entity,
-                });
-                already_collided.insert((*a_entity, *b_entity));
             }
         }
     }

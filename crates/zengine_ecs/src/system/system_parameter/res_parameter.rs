@@ -1,13 +1,10 @@
 use std::{
-    cell::{Ref, RefMut},
-    marker::PhantomData,
-    ops::{Deref, DerefMut},
-    sync::{RwLockReadGuard, RwLockWriteGuard},
+    cell::{Ref, RefMut}, ops::{Deref, DerefMut}, sync::{RwLockReadGuard, RwLockWriteGuard}
 };
 
 use crate::{Resource, UnsendableResource, World};
 
-use super::{ConditionParam, ConditionParamFetch, SystemParam, SystemParamFetch};
+use super::SystemParam;
 
 /// Shared borrow of a resource that implements also the [Default] trait
 ///
@@ -33,63 +30,39 @@ use super::{ConditionParam, ConditionParamFetch, SystemParam, SystemParamFetch};
 /// }
 /// ```
 #[derive(Debug)]
-pub struct Res<'a, R>(RwLockReadGuard<'a, R>);
+pub struct Res<'a, R: Resource>(RwLockReadGuard<'a, R>);
+unsafe impl<'a, T: Resource> Send for Res<'a, T> {}
 
-impl<R> Deref for Res<'_, R> {
+impl<R: Resource> Deref for Res<'_, R> {
     type Target = R;
 
     fn deref(&self) -> &Self::Target {
-        &*self.0
+        &self.0
     }
 }
 
-#[doc(hidden)]
-pub struct ResState<R: Resource + Send + Sync + Default> {
-    _marker: std::marker::PhantomData<R>,
-}
+impl<'a, T: Resource + Default> SystemParam for Res<'a, T> {
+    type State = ();
+    type Item<'w, 's> = Res<'w, T>;
 
-impl<T: Resource + Send + Sync + Default> Default for ResState<T> {
-    fn default() -> Self {
-        ResState {
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<'a, R: Resource + Send + Sync + Default> SystemParamFetch<'a> for ResState<R> {
-    type Item = Res<'a, R>;
-
-    fn init(&mut self, world: &mut World) {
-        if world.get_resource::<R>().is_none() {
-            world.create_resource(R::default())
+    fn init(world: &mut World, _state: &mut Self::State) {
+        if world.get_resource::<T>().is_none() {
+            world.create_resource(T::default())
         }
     }
 
-    fn fetch(&mut self, world: &'a World) -> Self::Item {
-        Res(world.get_resource().unwrap())
+    fn get<'w, 's>(world: &'w World, _state: &'s mut Self::State) -> Self::Item<'w, 's> {
+        Res(world.get_resource::<T>().unwrap())
     }
 }
 
-impl<'a, R: Resource + Send + Sync + Default> SystemParam for Res<'a, R> {
-    type Fetch = ResState<R>;
-}
+impl<'a, T: Resource > SystemParam for Option<Res<'a, T>> {
+    type State = ();
+    type Item<'w, 's> = Option<Res<'w, T>>;
 
-impl<'a, R: Resource + Send + Sync + Default> ConditionParamFetch<'a> for ResState<R> {
-    type Item = Res<'a, R>;
-
-    fn init(&mut self, world: &mut World) {
-        if world.get_resource::<R>().is_none() {
-            world.create_resource(R::default())
-        }
+    fn get<'w, 's>(world: &'w World, _state: &'s mut Self::State) -> Self::Item<'w, 's> {
+        world.get_resource::<T>().map(Res)
     }
-
-    fn fetch(&mut self, world: &'a World) -> Self::Item {
-        Res(world.get_resource().unwrap())
-    }
-}
-
-impl<'a, R: Resource + Send + Sync + Default> ConditionParam for Res<'a, R> {
-    type Fetch = ResState<R>;
 }
 
 /// Unique mutable borrow of a resource that implements also the [Default] trait
@@ -123,113 +96,45 @@ impl<'a, R: Resource + Send + Sync + Default> ConditionParam for Res<'a, R> {
 /// }
 /// ```
 #[derive(Debug)]
-pub struct ResMut<'a, R> ( RwLockWriteGuard<'a, R>);
+pub struct ResMut<'a, R: Resource>(RwLockWriteGuard<'a, R>);
+unsafe impl<'a, T: Resource> Send for ResMut<'a, T> {}
 
-impl<R> Deref for ResMut<'_, R> {
+impl<R: Resource> Deref for ResMut<'_, R> {
     type Target = R;
 
     fn deref(&self) -> &Self::Target {
-        &*self.0
+        &self.0
     }
 }
 
-impl<R> DerefMut for ResMut<'_, R> {
+impl<R: Resource> DerefMut for ResMut<'_, R> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut *self.0
+        &mut self.0
     }
 }
 
-#[doc(hidden)]
-pub struct ResMutState<R: Resource + Send + Sync + Default> {
-    _marker: std::marker::PhantomData<R>,
-}
+impl<'a, T: Resource + Default> SystemParam for ResMut<'a, T> {
+    type State = ();
+    type Item<'w, 's> = ResMut<'w, T>;
 
-impl<T: Resource + Send + Sync + Default> Default for ResMutState<T> {
-    fn default() -> Self {
-        ResMutState {
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<'a, R: Resource + Send + Sync + Default> SystemParamFetch<'a> for ResMutState<R> {
-    type Item = ResMut<'a, R>;
-
-    fn init(&mut self, world: &mut World) {
-        if world.get_resource::<R>().is_none() {
-            world.create_resource::<R>(R::default())
+    fn init(world: &mut World, _state: &mut Self::State) {
+        if world.get_resource::<T>().is_none() {
+            world.create_resource(T::default())
         }
     }
 
-    fn fetch(&mut self, world: &'a World) -> Self::Item {
-        ResMut(world.get_mut_resource().unwrap())
+    fn get<'w, 's>(world: &'w World, _state: &'s mut Self::State) -> Self::Item<'w, 's> {
+        ResMut(world.get_mut_resource::<T>().unwrap())
     }
 }
 
-impl<'a, R: Resource + Send + Sync + Default> SystemParam for ResMut<'a, R> {
-    type Fetch = ResMutState<R>;
-}
+impl<'a, T: Resource> SystemParam for Option<ResMut<'a, T>> {
+    type State = ();
+    type Item<'w, 's> = Option<ResMut<'w, T>>;
 
-#[doc(hidden)]
-pub struct OptionalResState<R: Resource + Send + Sync> {
-    _marker: std::marker::PhantomData<R>,
-}
-
-impl<T: Resource + Send + Sync> Default for OptionalResState<T> {
-    fn default() -> Self {
-        OptionalResState {
-            _marker: PhantomData,
-        }
+    fn get<'w, 's>(world: &'w World, _state: &'s mut Self::State) -> Self::Item<'w, 's> {
+        world.get_mut_resource::<T>().map(ResMut)
     }
-}
-
-impl<'a, R: Resource + Send + Sync> SystemParamFetch<'a> for OptionalResState<R> {
-    type Item = Option<Res<'a, R>>;
-
-    fn fetch(&mut self, world: &'a World) -> Self::Item {
-        world.get_resource().map(Res)
-    }
-}
-
-impl<'a, R: Resource + Send + Sync> SystemParam for Option<Res<'a, R>> {
-    type Fetch = OptionalResState<R>;
-}
-
-impl<'a, R: Resource + Send + Sync> ConditionParamFetch<'a> for OptionalResState<R> {
-    type Item = Option<Res<'a, R>>;
-
-    fn fetch(&mut self, world: &'a World) -> Self::Item {
-        world.get_resource().map(Res)
-    }
-}
-
-impl<'a, R: Resource + Send + Sync> ConditionParam for Option<Res<'a, R>> {
-    type Fetch = OptionalResState<R>;
-}
-
-#[doc(hidden)]
-pub struct OptionalResMutState<R: Resource + Send + Sync> {
-    _marker: std::marker::PhantomData<R>,
-}
-
-impl<T: Resource + Send + Sync> Default for OptionalResMutState<T> {
-    fn default() -> Self {
-        OptionalResMutState {
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<'a, R: Resource + Send + Sync> SystemParamFetch<'a> for OptionalResMutState<R> {
-    type Item = Option<ResMut<'a, R>>;
-
-    fn fetch(&mut self, world: &'a World) -> Self::Item {
-        world.get_mut_resource().map(ResMut)
-    }
-}
-
-impl<'a, R: Resource + Send + Sync> SystemParam for Option<ResMut<'a, R>> {
-    type Fetch = OptionalResMutState<R>;
 }
 
 /// Shared borrow of an unsendable resource that implements also the [Default] trait
@@ -258,63 +163,39 @@ impl<'a, R: Resource + Send + Sync> SystemParam for Option<ResMut<'a, R>> {
 ///     }
 /// }
 /// ```
-pub struct UnsendableRes<'a, R>(Ref<'a, R>);
+pub struct UnsendableRes<'a, R: UnsendableResource>(Ref<'a, R>);
+unsafe impl<'a, T: UnsendableResource> Sync for UnsendableRes<'a, T> {}
 
-impl<R> Deref for UnsendableRes<'_, R> {
+impl<R: UnsendableResource> Deref for UnsendableRes<'_, R> {
     type Target = R;
 
     fn deref(&self) -> &Self::Target {
-        &*self.0
+        &self.0
     }
 }
 
-#[doc(hidden)]
-pub struct UnsendableResState<R: UnsendableResource + Default> {
-    _marker: std::marker::PhantomData<R>,
-}
+impl<'a, T: UnsendableResource + Default> SystemParam for UnsendableRes<'a, T> {
+    type State = ();
+    type Item<'w, 's> = UnsendableRes<'w, T>;
 
-impl<T: UnsendableResource + Default> Default for UnsendableResState<T> {
-    fn default() -> Self {
-        Self {
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<'a, R: UnsendableResource + Default> SystemParamFetch<'a> for UnsendableResState<R> {
-    type Item = UnsendableRes<'a, R>;
-
-    fn init(&mut self, world: &mut World) {
-        if world.get_unsendable_resource::<R>().is_none() {
-            world.create_unsendable_resource(R::default());
+    fn init(world: &mut World, _state: &mut Self::State) {
+        if world.get_unsendable_resource::<T>().is_none() {
+            world.create_unsendable_resource(T::default())
         }
     }
 
-    fn fetch(&mut self, world: &'a World) -> Self::Item {
-        UnsendableRes(world.get_unsendable_resource().unwrap())
+    fn get<'w, 's>(world: &'w World, _state: &'s mut Self::State) -> Self::Item<'w, 's> {
+        UnsendableRes(world.get_unsendable_resource::<T>().unwrap())
     }
 }
 
-impl<'a, R: UnsendableResource + Default> SystemParam for UnsendableRes<'a, R> {
-    type Fetch = UnsendableResState<R>;
-}
+impl<'a, T: UnsendableResource > SystemParam for Option<UnsendableRes<'a, T>> {
+    type State = ();
+    type Item<'w, 's> = Option<UnsendableRes<'w, T>>;
 
-impl<'a, R: UnsendableResource + Default> ConditionParamFetch<'a> for UnsendableResState<R> {
-    type Item = UnsendableRes<'a, R>;
-
-    fn init(&mut self, world: &mut World) {
-        if world.get_unsendable_resource::<R>().is_none() {
-            world.create_unsendable_resource(R::default());
-        }
+    fn get<'w, 's>(world: &'w World, _state: &'s mut Self::State) -> Self::Item<'w, 's> {
+        world.get_unsendable_resource::<T>().map(UnsendableRes)
     }
-
-    fn fetch(&mut self, world: &'a World) -> Self::Item {
-        UnsendableRes(world.get_unsendable_resource().unwrap())
-    }
-}
-
-impl<'a, R: UnsendableResource + Default> ConditionParam for UnsendableRes<'a, R> {
-    type Fetch = UnsendableResState<R>;
 }
 
 /// Unique mutable borrow of an unsendable resource that implements also the [Default] trait
@@ -347,111 +228,43 @@ impl<'a, R: UnsendableResource + Default> ConditionParam for UnsendableRes<'a, R
 ///     }
 /// }
 /// ```
-pub struct UnsendableResMut<'a, R>(RefMut<'a, R>);
+pub struct UnsendableResMut<'a, R: UnsendableResource>(RefMut<'a, R>);
+unsafe impl<'a, T: UnsendableResource> Sync for UnsendableResMut<'a, T> {}
 
-impl<R> Deref for UnsendableResMut<'_, R> {
+impl<R: UnsendableResource> Deref for UnsendableResMut<'_, R> {
     type Target = R;
 
     fn deref(&self) -> &Self::Target {
-        &*self.0
+        &self.0
     }
 }
 
-impl<R> DerefMut for UnsendableResMut<'_, R> {
+impl<R: UnsendableResource> DerefMut for UnsendableResMut<'_, R> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut *self.0
+        &mut self.0
     }
 }
 
-#[doc(hidden)]
-pub struct UnsendableResMutState<R: UnsendableResource + Default> {
-    _marker: std::marker::PhantomData<R>,
-}
+impl<'a, T: UnsendableResource + Default> SystemParam for UnsendableResMut<'a, T> {
+    type State = ();
+    type Item<'w, 's> = UnsendableResMut<'w, T>;
 
-impl<T: UnsendableResource + Default> Default for UnsendableResMutState<T> {
-    fn default() -> Self {
-        Self {
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<'a, R: UnsendableResource + Default> SystemParamFetch<'a> for UnsendableResMutState<R> {
-    type Item = UnsendableResMut<'a, R>;
-
-    fn init(&mut self, world: &mut World) {
-        if world.get_unsendable_resource::<R>().is_none() {
-            world.create_unsendable_resource(R::default())
+    fn init(world: &mut World, _state: &mut Self::State) {
+        if world.get_unsendable_resource::<T>().is_none() {
+            world.create_unsendable_resource(T::default())
         }
     }
 
-    fn fetch(&mut self, world: &'a World) -> Self::Item {
-        UnsendableResMut(world.get_mut_unsendable_resource().unwrap())
+    fn get<'w, 's>(world: &'w World, _state: &'s mut Self::State) -> Self::Item<'w, 's> {
+        UnsendableResMut(world.get_mut_unsendable_resource::<T>().unwrap())
     }
 }
 
-impl<'a, R: UnsendableResource + Default> SystemParam for UnsendableResMut<'a, R> {
-    type Fetch = UnsendableResMutState<R>;
-}
+impl<'a, T: UnsendableResource> SystemParam for Option<UnsendableResMut<'a, T>> {
+    type State = ();
+    type Item<'w, 's> = Option<UnsendableResMut<'w, T>>;
 
-#[doc(hidden)]
-pub struct OptionalUnsendableResState<R: UnsendableResource> {
-    _marker: std::marker::PhantomData<R>,
-}
-
-impl<T: UnsendableResource> Default for OptionalUnsendableResState<T> {
-    fn default() -> Self {
-        Self {
-            _marker: PhantomData,
-        }
+    fn get<'w, 's>(world: &'w World, _state: &'s mut Self::State) -> Self::Item<'w, 's> {
+        world.get_mut_unsendable_resource::<T>().map(UnsendableResMut)
     }
-}
-
-impl<'a, R: UnsendableResource> SystemParamFetch<'a> for OptionalUnsendableResState<R> {
-    type Item = Option<UnsendableRes<'a, R>>;
-
-    fn fetch(&mut self, world: &'a World) -> Self::Item {
-        world.get_unsendable_resource().map(UnsendableRes)
-    }
-}
-
-impl<'a, R: UnsendableResource> SystemParam for Option<UnsendableRes<'a, R>> {
-    type Fetch = OptionalUnsendableResState<R>;
-}
-
-impl<'a, R: UnsendableResource> ConditionParamFetch<'a> for OptionalUnsendableResState<R> {
-    type Item = Option<UnsendableRes<'a, R>>;
-
-    fn fetch(&mut self, world: &'a World) -> Self::Item {
-        world.get_unsendable_resource().map(UnsendableRes)
-    }
-}
-
-impl<'a, R: UnsendableResource> ConditionParam for Option<UnsendableRes<'a, R>> {
-    type Fetch = OptionalUnsendableResState<R>;
-}
-
-#[doc(hidden)]
-pub struct OptionalUnsendableResMutState<R: UnsendableResource> {
-    _marker: std::marker::PhantomData<R>,
-}
-
-impl<T: UnsendableResource> Default for OptionalUnsendableResMutState<T> {
-    fn default() -> Self {
-        Self {
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<'a, R: UnsendableResource> SystemParamFetch<'a> for OptionalUnsendableResMutState<R> {
-    type Item = Option<UnsendableResMut<'a, R>>;
-
-    fn fetch(&mut self, world: &'a World) -> Self::Item {
-        world.get_mut_unsendable_resource().map(UnsendableResMut)
-    }
-}
-
-impl<'a, R: UnsendableResource> SystemParam for Option<UnsendableResMut<'a, R>> {
-    type Fetch = OptionalUnsendableResMutState<R>;
 }

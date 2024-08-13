@@ -1,42 +1,12 @@
-use super::{ConditionParam, ConditionParamFetch, SystemParam, SystemParamFetch};
-use crate::{
-    query::{Query, QueryParameters, QueryRunner},
-    World,
-};
+use crate::query::{Query, QueryParameters, QueryRunner};
 
-#[doc(hidden)]
-pub struct QueryState<T: QueryParameters> {
-    query_runner: QueryRunner<T>,
-}
-
-impl<T: QueryParameters> Default for QueryState<T> {
-    fn default() -> Self {
-        Self {
-            query_runner: QueryRunner::default(),
-        }
-    }
-}
-
-impl<'a, T: QueryParameters> SystemParamFetch<'a> for QueryState<T> {
-    type Item = Query<'a, T>;
-
-    fn fetch(&mut self, world: &'a World) -> Self::Item {
-        self.query_runner.run(world)
-    }
-}
+use super::SystemParam;
 
 impl<'a, T: QueryParameters> SystemParam for Query<'a, T> {
-    type Fetch = QueryState<T>;
-}
+    type State = QueryRunner<T>;
+    type Item<'w, 's> = Query<'w, T>;
 
-impl<'a, T: QueryParameters> ConditionParamFetch<'a> for QueryState<T> {
-    type Item = Query<'a, T>;
-
-    fn fetch(&mut self, world: &'a World) -> Self::Item {
-        self.query_runner.run(world)
+    fn get<'w, 's>(world: &'w crate::World, state: &'s mut Self::State) -> Self::Item<'w, 's> {
+        state.run(world)
     }
-}
-
-impl<'a, T: QueryParameters> ConditionParam for Query<'a, T> {
-    type Fetch = QueryState<T>;
 }

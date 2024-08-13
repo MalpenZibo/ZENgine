@@ -22,13 +22,13 @@ impl CollisionModule {
 
 impl Module for CollisionModule {
     fn init(self, engine: &mut Engine) {
-        engine.add_system_into_schedule(collision_system, PostUpdate);
+        engine.add_system_into_schedule(collision_system(), PostUpdate);
 
         if self.with_tracer {
             engine
                 .add_startup_system(setup_trace_render)
-                .add_system_into_schedule(collision_system, Render)
-                .add_system_into_schedule(collision_tracer, Render);
+                .add_system_into_schedule(collision_system(), Render)
+                .add_system_into_schedule(collision_tracer(), Render);
         }
     }
 }

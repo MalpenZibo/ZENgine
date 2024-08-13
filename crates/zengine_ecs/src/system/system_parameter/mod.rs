@@ -1,49 +1,22 @@
-use crate::world::World;
+use crate::World;
 
-mod command;
-mod event_parameter;
-mod local_parameter;
-mod query_parameter;
 mod res_parameter;
+mod command;
+mod query_parameter;
+mod event_parameter;
 
-pub use command::*;
-pub use event_parameter::*;
-pub use local_parameter::*;
-pub use query_parameter::*;
 pub use res_parameter::*;
+pub use command::*;
+pub use query_parameter::*;
+pub use event_parameter::*;
 
-#[doc(hidden)]
-pub trait SystemParam: Sized {
-    type Fetch: for<'a> SystemParamFetch<'a> + Default;
+pub trait SystemParam: Sync + Sized {
+    type State: Default + Send + Sync;
+    type Item<'w, 's>: Sync;
+
+    fn init(_world: &mut World, _state: &mut Self::State) {}
+
+    fn get<'w, 's>(world: &'w World, state: &'s mut Self::State) -> Self::Item<'w, 's>;
+
+    fn apply(_world: &mut World, _state: &mut Self::State) {}
 }
-
-#[doc(hidden)]
-pub trait SystemParamFetch<'a> {
-    type Item;
-
-    fn init(&mut self, _world: &mut World) {}
-
-    fn fetch(&'a mut self, world: &'a World) -> Self::Item;
-
-    fn apply(&mut self, _world: &mut World) {}
-}
-
-#[doc(hidden)]
-pub type SystemParamItem<'a, P> = <<P as SystemParam>::Fetch as SystemParamFetch<'a>>::Item;
-
-#[doc(hidden)]
-pub trait ConditionParam: Sized {
-    type Fetch: for<'a> ConditionParamFetch<'a> + Default;
-}
-
-#[doc(hidden)]
-pub trait ConditionParamFetch<'a> {
-    type Item;
-
-    fn init(&mut self, _world: &mut World) {}
-
-    fn fetch(&'a mut self, world: &'a World) -> Self::Item;
-}
-
-#[doc(hidden)]
-pub type ConditionParamItem<'a, P> = <<P as ConditionParam>::Fetch as ConditionParamFetch<'a>>::Item;

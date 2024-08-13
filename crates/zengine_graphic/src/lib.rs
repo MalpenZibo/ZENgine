@@ -46,7 +46,7 @@ impl Module for GraphicModule {
             .add_system_into_schedule(prepare_texture_atlas_asset, PreRender)
             .add_system_into_schedule(clear, PreRender)
             .add_system_into_schedule(camera_render, Render)
-            .add_system_into_schedule(sprite_render, Render)
+            .add_system_into_schedule(sprite_render(), Render)
             .add_system_into_schedule(present, PostRender);
     }
 }

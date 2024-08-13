@@ -1,10 +1,10 @@
-use std::any::{Any, TypeId};
+use std::any::TypeId;
 
-use schedule::{default_schedule::{Startup, Update}, ScheduleLabelInternal, Schedules};
-use zengine_ecs::{
-    system::{IntoSystem, SystemParam},
-    World,
+use schedule::{
+    default_schedule::{Startup, Update},
+    ScheduleLabelInternal, Schedules,
 };
+use zengine_ecs::{system::{IntoSystem, SystemFunction}, World};
 
 pub mod schedule;
 
@@ -99,27 +99,24 @@ impl Engine {
     /// Add a system to the [Engine] pipeling
     ///
     /// Using this funtion the system will be added to the default [Update Schedule Label](Update)
-    pub fn add_system<Params: SystemParam + Any, I: IntoSystem<Params> + Any>(
-        &mut self,
-        system: I,
-    ) -> &mut Self {
+    pub fn add_system<Marker, S: IntoSystem<Marker>>(&mut self, system: S) -> &mut Self {
         self.add_system_into_schedule(system, Update)
     }
 
     /// Add a system to the [Engine] pipeling in the [Startup Schedule Label](Startup)
     ///
     /// The system added using this function will run only one time during the engine startup phase
-    pub fn add_startup_system<Params: SystemParam + Any, I: IntoSystem<Params> + Any>(
+    pub fn add_startup_system<Marker, S: IntoSystem<Marker>>(
         &mut self,
-        system: I,
+        system: S,
     ) -> &mut Self {
         self.add_system_into_schedule(system, Startup)
     }
 
     /// Add a system to the [Engine] pipeling in the specified [ScheduleLabel]
-    pub fn add_system_into_schedule<Params: SystemParam + Any, I: IntoSystem<Params> + Any>(
+    pub fn add_system_into_schedule<Marker, S: IntoSystem<Marker>>(
         &mut self,
-        system: I,
+        system: S,
         schedule: impl ScheduleLabel,
     ) -> &mut Self {
         self.schedules.add_system(schedule, system);

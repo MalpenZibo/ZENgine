@@ -8,7 +8,7 @@ use zengine::{
     core::{Time, TimeModule, Transform},
     ecs::{
         query::{Query, QueryIter, QueryIterMut},
-        system::{Commands, EventPublisher, EventStream, Local, Res, ResMut},
+        system::{Commands, EventPublisher, EventStream, Res, ResMut},
         Entity,
     },
     gamepad::GamepadModule,
@@ -157,7 +157,7 @@ pub fn main() {
         .add_system(ai_pad_control)
         .add_system(player_pad_control)
         .add_system(pad_movement)
-        .add_system(ball_movement)
+        .add_system(ball_movement())
         .add_system(collision_response)
         .add_system(exit)
         .run();
@@ -466,25 +466,24 @@ struct BallMovement {
     respawn: f32,
 }
 
-fn ball_movement(
-    mut query: Query<(&mut Transform, &mut Ball)>,
-    time: Res<Time>,
-    game_events: EventStream<GameEvent>,
-    ball_movement: Local<BallMovement>,
-) {
-    if let Some(GameEvent::Score) = game_events.read().last() {
-        ball_movement.launched = false;
-    }
-    if ball_movement.launched {
-        for (transform, ball) in query.iter_mut() {
-            transform.position.x += ball.vel.x * time.delta().as_secs_f32();
-            transform.position.y += ball.vel.y * time.delta().as_secs_f32();
+fn ball_movement() -> impl FnMut(Query<(&mut Transform, &mut Ball)>, Res<Time>, EventStream<GameEvent>) {
+    let mut ball_movement = BallMovement::default();
+
+    move |mut query, time, game_events| {
+        if let Some(GameEvent::Score) = game_events.read().last() {
+            ball_movement.launched = false;
         }
-    } else {
-        ball_movement.respawn += time.delta().as_secs_f32();
-        if ball_movement.respawn > 5.0 {
-            ball_movement.launched = true;
-            ball_movement.respawn = 0.0;
+        if ball_movement.launched {
+            for (transform, ball) in query.iter_mut() {
+                transform.position.x += ball.vel.x * time.delta().as_secs_f32();
+                transform.position.y += ball.vel.y * time.delta().as_secs_f32();
+            }
+        } else {
+            ball_movement.respawn += time.delta().as_secs_f32();
+            if ball_movement.respawn > 5.0 {
+                ball_movement.launched = true;
+                ball_movement.respawn = 0.0;
+            }
         }
     }
 }

@@ -4,7 +4,7 @@ use zengine::{
     core::{Time, Transform},
     ecs::{
         query::{Query, QueryIter, QueryIterMut},
-        system::{Commands, Local, Res, ResMut},
+        system::{Commands, Res, ResMut},
         Entity,
     },
     graphic::{Background, Camera, CameraMode, Color, GraphicModule},
@@ -90,7 +90,7 @@ fn main() {
         .add_module(InputModule(bindings))
         .add_module(CollisionModule::with_tracer())
         .add_startup_system(setup)
-        .add_system(logics)
+        .add_system(logics())
         .run();
 }
 
@@ -150,44 +150,47 @@ fn setup(mut state: ResMut<State>, mut commands: Commands) {
     state.entities.push(e);
 }
 
-fn logics(
-    mut query: Query<(Entity, &mut Transform, &Controlled)>,
-    input: Res<InputHandler<UserInput>>,
-    state: Res<State>,
-    mut commands: Commands,
-    time: Res<Time>,
-    last_change_time: Local<LocalInstant>,
+fn logics() -> impl FnMut(
+    Query<(Entity, &mut Transform, &Controlled)>,
+    Res<InputHandler<UserInput>>,
+    Res<State>,
+    Commands,
+    Res<Time>,
 ) {
-    let controlled = query.iter().next().unwrap().0;
+    let mut last_change_time = LocalInstant::default();
 
-    if input.action_value(UserInput::Change)
-        && last_change_time.0.elapsed() > Duration::from_millis(500)
-    {
-        let skip = state
-            .entities
-            .iter()
-            .enumerate()
-            .find_map(|(i, e)| if e == controlled { Some(i) } else { None })
-            .unwrap();
+    move |mut query, input, state, mut commands, time| {
+        let controlled = query.iter().next().unwrap().0;
 
-        let skip = if skip == state.entities.len() - 1 {
-            0
-        } else {
-            skip + 1
-        };
+        if input.action_value(UserInput::Change)
+            && last_change_time.0.elapsed() > Duration::from_millis(500)
+        {
+            let skip = state
+                .entities
+                .iter()
+                .enumerate()
+                .find_map(|(i, e)| if e == controlled { Some(i) } else { None })
+                .unwrap();
 
-        let next = state.entities.iter().skip(skip).cycle().next().unwrap();
+            let skip = if skip == state.entities.len() - 1 {
+                0
+            } else {
+                skip + 1
+            };
 
-        commands.remove_components::<Controlled>(*controlled);
-        commands.add_components(*next, Controlled);
+            let next = state.entities.iter().skip(skip).cycle().next().unwrap();
 
-        last_change_time.0 = Instant::now();
-    }
+            commands.remove_components::<Controlled>(*controlled);
+            commands.add_components(*next, Controlled);
 
-    let delta = time.delta().as_secs_f32();
+            last_change_time.0 = Instant::now();
+        }
 
-    for (_, transform, _) in query.iter_mut() {
-        transform.position.x += 0.1 * delta * input.axis_value(UserInput::XAxis);
-        transform.position.y += 0.1 * delta * input.axis_value(UserInput::YAxis);
+        let delta = time.delta().as_secs_f32();
+
+        for (_, transform, _) in query.iter_mut() {
+            transform.position.x += 0.1 * delta * input.axis_value(UserInput::XAxis);
+            transform.position.y += 0.1 * delta * input.axis_value(UserInput::YAxis);
+        }
     }
 }

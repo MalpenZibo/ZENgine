@@ -6,7 +6,7 @@ use std::io::Cursor;
 use std::sync::RwLock;
 use zengine_asset::Asset;
 use zengine_asset::{AssetExtension, AssetLoader, Assets, Handle, HandleId};
-use zengine_ecs::system::{Local, Res, ResMut, UnsendableRes};
+use zengine_ecs::system::{Res, ResMut, UnsendableRes};
 use zengine_engine::schedule::default_schedule::{PostRender, PostUpdate};
 use zengine_engine::Module;
 use zengine_macro::{Asset, Resource, UnsendableResource};
@@ -23,8 +23,8 @@ impl Module for AudioModule {
             .add_asset::<Audio>()
             .add_asset::<AudioInstance>()
             .add_asset_loader(AudioLoader)
-            .add_system_into_schedule(audio_system, PostUpdate)
-            .add_system_into_schedule(update_instances, PostRender);
+            .add_system_into_schedule(audio_system(), PostUpdate)
+            .add_system_into_schedule(update_instances(), PostRender);
 
         #[cfg(target_os = "android")]
         engine.add_system_into_stage(handle_resume_suspended, Stage::PreUpdate);
@@ -236,7 +236,7 @@ impl AudioDevice {
 }
 
 /// Used internally to play audio on the platform
-#[derive(Resource)]
+#[derive(UnsendableResource)]
 pub struct AudioOutput {
     _stream: OutputStream,
     stream_handle: OutputStreamHandle,
@@ -258,49 +258,53 @@ impl Default for AudioOutput {
     }
 }
 
-fn audio_system(
-    audio_output: UnsendableRes<AudioOutput>,
-    mut audio_device: ResMut<AudioDevice>,
-    audio: Option<Res<Assets<Audio>>>,
-    audio_instances: Option<ResMut<Assets<AudioInstance>>>,
-    to_add: Local<Vec<Handle<AudioInstance>>>,
+fn audio_system() -> impl FnMut(
+    UnsendableRes<AudioOutput>,
+    ResMut<AudioDevice>,
+    Option<Res<Assets<Audio>>>,
+    Option<ResMut<Assets<AudioInstance>>>,
 ) {
-    if let (Some(audio), Some(mut audio_instances)) = (audio, audio_instances) {
-        {
-            let mut queue = audio_device.queue.write().unwrap();
-            let len = queue.len();
-            let mut i = 0;
+    let mut to_add: Vec<Handle<AudioInstance>> = Vec::new();
+    move |audio_output, mut audio_device, audio, audio_instances| {
+        if let (Some(audio), Some(mut audio_instances)) = (audio, audio_instances) {
+            {
+                let mut queue = audio_device.queue.write().unwrap();
+                let len = queue.len();
+                let mut i = 0;
 
-            while i < len {
-                let (instance_id, audio_handle, settings) = queue.pop_front().unwrap();
-                if let Some(audio) = audio.get(&audio_handle) {
-                    let sink = Sink::try_new(&audio_output.stream_handle).unwrap();
+                while i < len {
+                    let (instance_id, audio_handle, settings) = queue.pop_front().unwrap();
+                    if let Some(audio) = audio.get(&audio_handle) {
+                        let sink = Sink::try_new(&audio_output.stream_handle).unwrap();
 
-                    if settings.in_loop {
-                        sink.append(
-                            rodio::Decoder::new(Cursor::new(audio.data.clone()))
-                                .unwrap()
-                                .repeat_infinite(),
-                        );
+                        if settings.in_loop {
+                            sink.append(
+                                rodio::Decoder::new(Cursor::new(audio.data.clone()))
+                                    .unwrap()
+                                    .repeat_infinite(),
+                            );
+                        } else {
+                            sink.append(
+                                rodio::Decoder::new(Cursor::new(audio.data.clone())).unwrap(),
+                            )
+                        };
+
+                        sink.set_speed(settings.speed);
+                        sink.set_volume(settings.volume);
+
+                        let audio_instance = AudioInstance(Some(sink));
+                        let handle = audio_instances.set(Handle::weak(instance_id), audio_instance);
+                        to_add.push(handle);
                     } else {
-                        sink.append(rodio::Decoder::new(Cursor::new(audio.data.clone())).unwrap())
-                    };
-
-                    sink.set_speed(settings.speed);
-                    sink.set_volume(settings.volume);
-
-                    let audio_instance = AudioInstance(Some(sink));
-                    let handle = audio_instances.set(Handle::weak(instance_id), audio_instance);
-                    to_add.push(handle);
-                } else {
-                    queue.push_back((instance_id, audio_handle, settings));
+                        queue.push_back((instance_id, audio_handle, settings));
+                    }
+                    i += 1;
                 }
-                i += 1;
             }
-        }
 
-        for i in to_add.drain(..) {
-            audio_device.instances.push(i);
+            for i in to_add.drain(..) {
+                audio_device.instances.push(i);
+            }
         }
     }
 }
@@ -325,21 +329,20 @@ fn handle_resume_suspended(
     }
 }
 
-fn update_instances(
-    mut audio_device: ResMut<AudioDevice>,
-    audio_instances: Option<Res<Assets<AudioInstance>>>,
-    to_remove: Local<Vec<usize>>,
-) {
-    if let Some(audio_instances) = audio_instances.as_ref() {
-        for (index, handle) in audio_device.instances.iter().enumerate() {
-            let instance = audio_instances.get(handle).unwrap();
-            if instance.is_empty() {
-                to_remove.push(index);
+fn update_instances() -> impl FnMut(ResMut<AudioDevice>, Option<Res<Assets<AudioInstance>>>) {
+    let mut to_remove: Vec<usize> = Vec::new();
+    move |mut audio_device, audio_instances| {
+        if let Some(audio_instances) = audio_instances.as_ref() {
+            for (index, handle) in audio_device.instances.iter().enumerate() {
+                let instance = audio_instances.get(handle).unwrap();
+                if instance.is_empty() {
+                    to_remove.push(index);
+                }
             }
-        }
 
-        for i in to_remove.drain(..).rev() {
-            audio_device.instances.swap_remove(i);
+            for i in to_remove.drain(..).rev() {
+                audio_device.instances.swap_remove(i);
+            }
         }
     }
 }

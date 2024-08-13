@@ -1,10 +1,120 @@
-use super::{SystemParam, SystemParamFetch};
-use crate::{
-    component::ComponentBundle,
-    entity::{Entity, EntityGenerator},
-    Resource, UnsendableResource, World,
-};
 use std::{any::TypeId, marker::PhantomData};
+
+use crate::{ComponentBundle, Entity, EntityGenerator, Resource, UnsendableResource, World};
+
+use super::SystemParam;
+
+type CommandState = Vec<Box<dyn Command>>;
+
+/// A queue of commands that get executed at the end of the stage of the system that called them
+///
+/// Each command can be used to modify the World in arbitrary ways:
+///
+/// - spawning or despawning entities
+/// - adding or removing components on existing entities
+/// - destroy and create resources
+///
+/// # Example
+/// ```
+/// use zengine_macro::Component;
+/// use zengine_ecs::system::Commands;
+///
+/// #[derive(Component, Debug)]
+/// struct ComponentA {}
+///
+/// #[derive(Component, Debug)]
+/// struct ComponentB {}
+///
+/// fn my_system(mut commands: Commands) {
+///     commands.spawn((ComponentA {}, ComponentB {}));
+/// }
+/// ```
+pub struct Commands<'a, 'b> {
+    queue: &'b mut CommandState,
+    entities: &'a EntityGenerator,
+}
+
+impl<'a, 'b> SystemParam for Commands<'a, 'b> {
+    type State = CommandState;
+    type Item<'w, 's> = Commands<'w, 's>;
+
+    fn get<'w, 's>(world: &'w World, state: &'s mut Self::State) -> Self::Item<'w, 's> {
+        Commands {
+            queue: state,
+            entities: &world.entity_generator,
+        }
+    }
+
+    fn apply(world: &mut World, state: &mut Self::State) {
+        for q in state.drain(0..) {
+            q.apply_boxed(world);
+        }
+    }
+}
+
+impl<'a, 'b> Commands<'a, 'b> {
+    /// Spawn a new entity with the given Components tuple
+    pub fn spawn<T: ComponentBundle + 'static>(&mut self, component_bundle: T) -> Entity {
+        let entity = self.entities.generate();
+        self.queue.push(Box::new(SpawnCommand {
+            entity,
+            components: component_bundle,
+        }));
+
+        entity
+    }
+
+    /// Despawn the given [Entity]
+    pub fn despawn(&mut self, entity: Entity) {
+        self.queue.push(Box::new(DespawnCommand { entity }))
+    }
+
+    /// Add the given components tuple to the given [Entity]
+    pub fn add_components<T: ComponentBundle + 'static>(
+        &mut self,
+        entity: Entity,
+        component_bundle: T,
+    ) {
+        self.queue.push(Box::new(AddComponentCommand {
+            entity,
+            components: component_bundle,
+        }))
+    }
+
+    /// Removes the given components tuple type from the given [Entity]
+    pub fn remove_components<T: ComponentBundle + 'static>(&mut self, entity: Entity) {
+        self.queue.push(Box::new(RemoveComponentCommand::<T> {
+            entity,
+            _phantom: PhantomData,
+        }))
+    }
+
+    /// Create or replace the given [Resource]
+    pub fn create_resource<T: Resource + Send + Sync>(&mut self, resource: T) {
+        self.queue
+            .push(Box::new(CreateResourceCommand { resource }))
+    }
+
+    /// Destroy the given [Resource] type
+    pub fn destroy_resource<T: Resource + Send + Sync>(&mut self) {
+        self.queue.push(Box::new(DestroyResourceCommand {
+            resource_type: TypeId::of::<T>(),
+        }))
+    }
+
+    /// Create or replace the given [UnsendableResource]
+    pub fn create_unsendable_resource<T: UnsendableResource>(&mut self, resource: T) {
+        self.queue
+            .push(Box::new(CreateUnsendableResourceCommand { resource }))
+    }
+
+    /// Destroy the given [UnsendableResource] type
+    pub fn destroy_unsendable_resource<T: UnsendableResource>(&mut self) {
+        self.queue.push(Box::new(DestroyUnsendableResourceCommand {
+            resource_type: TypeId::of::<T>(),
+        }))
+    }
+}
 
 #[doc(hidden)]
 pub trait Command: ApplyCommand {
@@ -12,7 +122,7 @@ pub trait Command: ApplyCommand {
 }
 
 #[doc(hidden)]
-pub trait ApplyCommand {
+pub trait ApplyCommand: Send + Sync {
     fn apply_boxed(self: Box<Self>, world: &mut World);
 }
 
@@ -21,8 +131,6 @@ impl<T: Command> ApplyCommand for T {
         self.apply(world)
     }
 }
-
-type CommandState = Vec<Box<dyn Command>>;
 
 struct SpawnCommand<T: ComponentBundle> {
     entity: Entity,
@@ -90,6 +198,8 @@ impl Command for DestroyResourceCommand {
 struct CreateUnsendableResourceCommand<T: UnsendableResource> {
     resource: T,
 }
+unsafe impl<T: UnsendableResource> Send for CreateUnsendableResourceCommand<T> {}
+unsafe impl<T: UnsendableResource> Sync for CreateUnsendableResourceCommand<T> {}
 
 impl<T: UnsendableResource> Command for CreateUnsendableResourceCommand<T> {
     fn apply(self, world: &mut World) {
@@ -105,117 +215,4 @@ impl Command for DestroyUnsendableResourceCommand {
     fn apply(self, world: &mut World) {
         world.destroy_unsendable_resource_with_type_id(self.resource_type);
     }
-}
-
-/// A queue of commands that get executed at the end of the stage of the system that called them
-///
-/// Each command can be used to modify the World in arbitrary ways:
-///
-/// - spawning or despawning entities
-/// - adding or removing components on existing entities
-/// - destroy and create resources
-///
-/// # Example
-/// ```
-/// use zengine_macro::Component;
-/// use zengine_ecs::system::Commands;
-///
-/// #[derive(Component, Debug)]
-/// struct ComponentA {}
-///
-/// #[derive(Component, Debug)]
-/// struct ComponentB {}
-///
-/// fn my_system(mut commands: Commands) {
-///     commands.spawn((ComponentA {}, ComponentB {}));
-/// }
-/// ```
-pub struct Commands<'a> {
-    queue: &'a mut CommandState,
-    entities: &'a EntityGenerator,
-}
-
-impl<'a> Commands<'a> {
-    /// Spawn a new entity with the given Components tuple
-    pub fn spawn<T: ComponentBundle + 'static>(&mut self, component_bundle: T) -> Entity {
-        let entity = self.entities.generate();
-        self.queue.push(Box::new(SpawnCommand {
-            entity,
-            components: component_bundle,
-        }));
-
-        entity
-    }
-
-    /// Despawn the given [Entity]
-    pub fn despawn(&mut self, entity: Entity) {
-        self.queue.push(Box::new(DespawnCommand { entity }))
-    }
-
-    /// Add the given components tuple to the given [Entity]
-    pub fn add_components<T: ComponentBundle + 'static>(
-        &mut self,
-        entity: Entity,
-        component_bundle: T,
-    ) {
-        self.queue.push(Box::new(AddComponentCommand {
-            entity,
-            components: component_bundle,
-        }))
-    }
-
-    /// Removes the given components tuple type from the given [Entity]
-    pub fn remove_components<T: ComponentBundle + 'static>(&mut self, entity: Entity) {
-        self.queue.push(Box::new(RemoveComponentCommand::<T> {
-            entity,
-            _phantom: PhantomData,
-        }))
-    }
-
-    /// Create or replace the given [Resource]
-    pub fn create_resource<T: Resource + Send + Sync>(&mut self, resource: T) {
-        self.queue
-            .push(Box::new(CreateResourceCommand { resource }))
-    }
-
-    /// Destroy the given [Resource] type
-    pub fn destroy_resource<T: Resource + Send + Sync>(&mut self) {
-        self.queue.push(Box::new(DestroyResourceCommand {
-            resource_type: TypeId::of::<T>(),
-        }))
-    }
-
-    /// Create or replace the given [UnsendableResource]
-    pub fn create_unsendable_resource<T: UnsendableResource>(&mut self, resource: T) {
-        self.queue
-            .push(Box::new(CreateUnsendableResourceCommand { resource }))
-    }
-
-    /// Destroy the given [UnsendableResource] type
-    pub fn destroy_unsendable_resource<T: Resource>(&mut self) {
-        self.queue.push(Box::new(DestroyUnsendableResourceCommand {
-            resource_type: TypeId::of::<T>(),
-        }))
-    }
-}
-
-impl<'a> SystemParamFetch<'a> for CommandState {
-    type Item = Commands<'a>;
-
-    fn fetch(&'a mut self, world: &'a World) -> Self::Item {
-        Commands {
-            queue: self,
-            entities: &world.entity_generator,
-        }
-    }
-
-    fn apply(&mut self, world: &mut World) {
-        for q in self.drain(0..) {
-            q.apply_boxed(world);
-        }
-    }
-}
-
-impl<'a> SystemParam for Commands<'a> {
-    type Fetch = CommandState;
 }

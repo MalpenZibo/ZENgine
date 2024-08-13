@@ -1,12 +1,8 @@
-use super::{ConditionParam, ConditionParamFetch, SystemParam, SystemParamFetch};
-use crate::{
-    event::{EventHandler, SubscriptionToken},
-    world::World,
-};
-use std::{
-    marker::PhantomData,
-    sync::{RwLockReadGuard, RwLockWriteGuard},
-};
+use std::sync::{RwLockReadGuard, RwLockWriteGuard};
+
+use crate::event::{EventHandler, SubscriptionToken};
+
+use super::SystemParam;
 
 /// Shared borrow of an event with a subscription to the event queue
 ///
@@ -34,71 +30,26 @@ impl<'a, E: Send + Sync + std::fmt::Debug + 'static> EventStream<'a, E> {
     }
 }
 
-#[doc(hidden)]
-pub struct EventStreamState<E: Send + Sync + std::fmt::Debug + 'static> {
-    _marker: std::marker::PhantomData<E>,
-    token: Option<SubscriptionToken>,
-}
-
-impl<E: Send + Sync + std::fmt::Debug + 'static> Default for EventStreamState<E> {
-    fn default() -> Self {
-        EventStreamState {
-            _marker: PhantomData,
-            token: None,
-        }
-    }
-}
-
-impl<'a, E: Send + Sync + std::fmt::Debug + 'static> SystemParamFetch<'a> for EventStreamState<E> {
-    type Item = EventStream<'a, E>;
-
-    fn init(&mut self, world: &mut World) {
-        if world.get_event_handler::<E>().is_none() {
-            world.create_event_handler::<E>()
-        }
-
-        self.token = world
-            .get_mut_event_handler::<E>()
-            .map(|mut e: RwLockWriteGuard<EventHandler<E>>| e.subscribe());
-    }
-
-    fn fetch(&mut self, world: &'a World) -> Self::Item {
-        Self::Item {
-            event_handler: world.get_event_handler().unwrap(),
-            token: self.token.unwrap(),
-        }
-    }
-}
-
 impl<'a, E: Send + Sync + std::fmt::Debug + 'static> SystemParam for EventStream<'a, E> {
-    type Fetch = EventStreamState<E>;
-}
+    type State = Option<SubscriptionToken>;
+    type Item<'w, 's> = EventStream<'w, E>;
 
-impl<'a, E: Send + Sync + std::fmt::Debug + 'static> ConditionParamFetch<'a>
-    for EventStreamState<E>
-{
-    type Item = EventStream<'a, E>;
-
-    fn init(&mut self, world: &mut World) {
+    fn init(world: &mut crate::World, state: &mut Self::State) {
         if world.get_event_handler::<E>().is_none() {
             world.create_event_handler::<E>()
         }
 
-        self.token = world
+        *state = world
             .get_mut_event_handler::<E>()
             .map(|mut e: RwLockWriteGuard<EventHandler<E>>| e.subscribe());
     }
 
-    fn fetch(&mut self, world: &'a World) -> Self::Item {
+    fn get<'w, 's>(world: &'w crate::World, state: &'s mut Self::State) -> Self::Item<'w, 's> {
         Self::Item {
             event_handler: world.get_event_handler().unwrap(),
-            token: self.token.unwrap(),
+            token: state.unwrap(),
         }
     }
-}
-
-impl<'a, E: Send + Sync + std::fmt::Debug + 'static> ConditionParam for EventStream<'a, E> {
-    type Fetch = EventStreamState<E>;
 }
 
 /// Shared borrow of an event without a subscription to the event queue
@@ -126,57 +77,21 @@ impl<'a, E: Send + Sync + std::fmt::Debug + 'static> Event<'a, E> {
     }
 }
 
-#[doc(hidden)]
-pub struct EventState<E: Send + Sync + std::fmt::Debug + 'static> {
-    _marker: std::marker::PhantomData<E>,
-}
-
-impl<E: Send + Sync + std::fmt::Debug + 'static> Default for EventState<E> {
-    fn default() -> Self {
-        EventState {
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<'a, E: Send + Sync + std::fmt::Debug + 'static> SystemParamFetch<'a> for EventState<E> {
-    type Item = Event<'a, E>;
-
-    fn init(&mut self, world: &mut World) {
-        if world.get_event_handler::<E>().is_none() {
-            world.create_event_handler::<E>()
-        }
-    }
-
-    fn fetch(&mut self, world: &'a World) -> Self::Item {
-        Self::Item {
-            event_handler: world.get_event_handler().unwrap(),
-        }
-    }
-}
-
 impl<'a, E: Send + Sync + std::fmt::Debug + 'static> SystemParam for Event<'a, E> {
-    type Fetch = EventState<E>;
-}
+    type State = ();
+    type Item<'w, 's> = Event<'w, E>;
 
-impl<'a, E: Send + Sync + std::fmt::Debug + 'static> ConditionParamFetch<'a> for EventState<E> {
-    type Item = Event<'a, E>;
-
-    fn init(&mut self, world: &mut World) {
+    fn init(world: &mut crate::World, _state: &mut Self::State) {
         if world.get_event_handler::<E>().is_none() {
             world.create_event_handler::<E>()
         }
     }
 
-    fn fetch(&mut self, world: &'a World) -> Self::Item {
+    fn get<'w, 's>(world: &'w crate::World, _state: &'s mut Self::State) -> Self::Item<'w, 's> {
         Self::Item {
             event_handler: world.get_event_handler().unwrap(),
         }
     }
-}
-
-impl<'a, E: Send + Sync + std::fmt::Debug + 'static> ConditionParam for Event<'a, E> {
-    type Fetch = EventState<E>;
 }
 
 /// Unique mutable borrow of an event
@@ -206,37 +121,19 @@ impl<'a, E: Send + Sync + std::fmt::Debug + 'static> EventPublisher<'a, E> {
     }
 }
 
-#[doc(hidden)]
-pub struct EventPublisherState<E: Send + Sync + std::fmt::Debug + 'static> {
-    _marker: std::marker::PhantomData<E>,
-}
+impl<'a, E: Send + Sync + std::fmt::Debug + 'static> SystemParam for EventPublisher<'a, E> {
+    type State = Option<SubscriptionToken>;
+    type Item<'w, 's> = EventPublisher<'w, E>;
 
-impl<E: Send + Sync + std::fmt::Debug + 'static> Default for EventPublisherState<E> {
-    fn default() -> Self {
-        EventPublisherState {
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<'a, E: Send + Sync + std::fmt::Debug + 'static> SystemParamFetch<'a>
-    for EventPublisherState<E>
-{
-    type Item = EventPublisher<'a, E>;
-
-    fn init(&mut self, world: &mut World) {
+    fn init(world: &mut crate::World, _state: &mut Self::State) {
         if world.get_event_handler::<E>().is_none() {
             world.create_event_handler::<E>()
         }
     }
 
-    fn fetch(&mut self, world: &'a World) -> Self::Item {
+    fn get<'w, 's>(world: &'w crate::World, _state: &'s mut Self::State) -> Self::Item<'w, 's> {
         Self::Item {
             event_handler: world.get_mut_event_handler().unwrap(),
         }
     }
-}
-
-impl<'a, E: Send + Sync + std::fmt::Debug + 'static> SystemParam for EventPublisher<'a, E> {
-    type Fetch = EventPublisherState<E>;
 }

@@ -1,7 +1,7 @@
 use instant::Instant;
 use log::trace;
 use std::thread::sleep;
-use zengine_ecs::system::{EventStream, Local, ResMut};
+use zengine_ecs::system::{EventStream, ResMut};
 use zengine_engine::{schedule::default_schedule::PreUpdate, EngineEvent, Module};
 
 use std::time::Duration;
@@ -77,10 +77,9 @@ impl Module for TimeModule {
 
 fn timing_system(
     limiter: Option<FrameLimiter>,
-) -> impl Fn(EventStream<EngineEvent>, ResMut<Time>, Local<SystemInstant>) {
-    move |engine_event: EventStream<EngineEvent>,
-          mut time: ResMut<Time>,
-          last_call: Local<SystemInstant>| {
+) -> impl FnMut(EventStream<EngineEvent>, ResMut<Time>) {
+    let mut last_call = SystemInstant::default();
+    move |engine_event: EventStream<EngineEvent>, mut time: ResMut<Time>| {
         if engine_event.read().last() == Some(&EngineEvent::Resumed) {
             last_call.0 = Instant::now();
         }

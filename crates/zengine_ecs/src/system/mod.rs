@@ -58,53 +58,15 @@
 //! - [EventStream] to get access to an event with a subscription
 //! - [EventPublisher] to publish an event
 //! - [Commands] to send command to the [World]
-//! - [Local] to get access to data owned by the system
 
-use std::marker::PhantomData;
-
+use crate::World;
 use zengine_macro::all_tuples;
 
-use crate::world::World;
-
-pub mod condition;
 mod system_parameter;
 pub use system_parameter::*;
 
-/// A trait implemented for all functions that can be used as a [System]
-pub trait SystemFunction<P: SystemParam> {
-    fn run_function(&self, parameter: SystemParamItem<P>);
-}
-
-/// Conversion trait to turn something into a [System]
-pub trait IntoSystem<P: SystemParam> {
-    type System: SystemFunction<P>;
-
-    fn into_system(self) -> SystemWrapper<Self::System, P>;
-}
-
-impl<Param: SystemParam, F> IntoSystem<Param> for F
-where
-    F: SystemFunction<Param>,
-{
-    type System = F;
-    fn into_system(self) -> SystemWrapper<Self::System, Param> {
-        SystemWrapper {
-            _marker: PhantomData,
-            function: self,
-            param_state: Param::Fetch::default(),
-        }
-    }
-}
-
-/// Wraps a function that implements the [SystemFunction] trait
-pub struct SystemWrapper<F: SystemFunction<P>, P: SystemParam> {
-    _marker: std::marker::PhantomData<P>,
-    function: F,
-    param_state: P::Fetch,
-}
-
 /// System trait
-pub trait System {
+pub trait System: Send + Sync {
     fn init(&mut self, world: &mut World);
 
     fn run(&mut self, world: &World);
@@ -112,94 +74,100 @@ pub trait System {
     fn apply(&mut self, world: &mut World);
 }
 
-impl<F: SystemFunction<P>, P: SystemParam> System for SystemWrapper<F, P> {
+/// Conversion trait to turn something into a [BoxedSystem]
+pub trait IntoSystem<Marker> {
+    fn into_system(self) -> BoxedSystem;
+}
+
+/// A trait implemented for all functions that can be used as a [System]
+pub trait SystemFunction<Marker>: Send + Sync + 'static {
+    type Param: SystemParam;
+
+    fn run_function(&mut self, data: <Self::Param as SystemParam>::Item<'_, '_>);
+}
+
+impl<Marker: 'static, T> IntoSystem<Marker> for T
+where
+    T: SystemFunction<Marker> + Send + Sync,
+{
+    fn into_system(self) -> BoxedSystem {
+        Box::new(SystemFunctionData {
+            function: self,
+            param_state: Default::default(),
+            _phantom: std::marker::PhantomData,
+        })
+    }
+}
+
+/// Wraps a function that implements the [SystemFunction] trait
+pub struct SystemFunctionData<Marker, F: SystemFunction<Marker>> {
+    function: F,
+    param_state: <F::Param as SystemParam>::State,
+    _phantom: std::marker::PhantomData<fn() -> Marker>,
+}
+
+pub type BoxedSystem = Box<dyn System>;
+
+impl<Marker, F: SystemFunction<Marker>> System for SystemFunctionData<Marker, F> {
     fn init(&mut self, world: &mut World) {
-        self.param_state.init(world);
+        <F::Param as SystemParam>::init(world, &mut self.param_state);
     }
 
     fn run(&mut self, world: &World) {
-        let data: <<P as SystemParam>::Fetch as SystemParamFetch>::Item =
-            <P as SystemParam>::Fetch::fetch(&mut self.param_state, world);
+        let data = <F::Param as SystemParam>::get(world, &mut self.param_state);
         self.function.run_function(data);
     }
 
     fn apply(&mut self, world: &mut World) {
-        self.param_state.apply(world);
+        <F::Param as SystemParam>::apply(world, &mut self.param_state);
     }
 }
 
 macro_rules! impl_system_function {
-    () => {
+    ($($param: ident),*) => {
         #[allow(non_snake_case)]
-        impl<'a> SystemParamFetch<'a> for () {
-            type Item = ();
+        impl<$($param: SystemParam + 'static),*> SystemParam for ($($param,)*) {
+            type State = ($($param::State,)*);
+            type Item<'w, 's> = ($($param::Item<'w, 's>,)*);
 
-            fn fetch(&mut self, _world: &'a World) -> Self::Item {}
+            fn init(_world: &mut World, state: &mut Self::State) {
+                let ($($param,)*) = state;
+                $($param::init(_world, $param);)*
+            }
+
+            fn get<'w, 's>(_world: &'w World, state: &'s mut Self::State) -> Self::Item<'w, 's> {
+                let ($($param,)*) = state;
+                #[allow(clippy::unused_unit)]
+                ($($param::get(_world, $param),)*)
+            }
+
+            fn apply(_world: &mut World, state: &mut Self::State) {
+                let ($($param,)*) = state;
+                $($param::apply(_world, $param);)*
+            }
         }
 
-        impl SystemParam for () {
-            type Fetch = ();
-        }
-
         #[allow(non_snake_case)]
-        impl<Sys> SystemFunction<()> for Sys
+        impl<F: Send + Sync + 'static, $($param: SystemParam + 'static),*> SystemFunction<fn($($param,)*)> for F
         where
-            for<'a> &'a Sys: Fn(),
+            for <'a> &'a mut F: FnMut($($param),*) + FnMut($($param::Item<'_, '_>),*)
         {
-            fn run_function(&self, _parameter: SystemParamItem<()>) {
+            type Param = ($($param,)*);
+
+            fn run_function(&mut self, data: <Self::Param as SystemParam>::Item<'_, '_>) {
+                // Yes, this is strange, but `rustc` fails to compile this impl
+                // without using this function. It fails to recognize that `func`
+                // is a function, potentially because of the multiple impls of `FnMut`
                 #[allow(clippy::too_many_arguments)]
-                fn call_inner(f: impl Fn()) {
-                    f()
-                }
-
-                call_inner(self)
-            }
-        }
-    };
-    ($($param: ident),+) => {
-        #[allow(non_snake_case)]
-        impl<'a, $($param: SystemParamFetch<'a>),*> SystemParamFetch<'a> for ($($param,)*) {
-            type Item = ($($param::Item,)*);
-
-            fn init(&mut self, world: &mut World) {
-                let ($($param,)*) = self;
-
-                ($($param::init($param, world),)*);
-            }
-
-            fn fetch(&'a mut self, world: &'a World) -> Self::Item {
-                let ($($param,)*) = self;
-
-                ($($param::fetch($param, world),)*)
-            }
-
-            fn apply(&mut self, world: &mut World) {
-                let ($($param,)*) = self;
-
-                ($($param::apply($param, world),)*);
-            }
-        }
-
-        impl<$($param: SystemParam),*> SystemParam for ($($param,)*) {
-            type Fetch = ($($param::Fetch,)*);
-        }
-
-        #[allow(non_snake_case)]
-        impl<$($param: SystemParam),*, Sys> SystemFunction<($($param,)*)> for Sys
-        where
-            for<'a> &'a Sys: Fn( $($param),*)
-                + Fn(
-                    $(<<$param as SystemParam>::Fetch as SystemParamFetch>::Item,)*
-                ),
-        {
-            fn run_function(&self, parameter: SystemParamItem<($($param,)*)>) {
-                #[allow(clippy::too_many_arguments)]
-                fn call_inner<$($param),*>(f: impl Fn($($param,)*), $($param: $param,)*) {
+                fn call_inner<$($param,)*>(
+                    mut f: impl FnMut($($param,)*),
+                    $($param: $param,)*
+                ){
                     f($($param,)*)
                 }
 
-                let ($($param,)*) = parameter;
-                call_inner(self, $($param),*)
+                let ($($param,)*) = data;
+                call_inner(self, $($param),*);
             }
         }
     }
@@ -208,82 +176,54 @@ all_tuples!(impl_system_function, 0, 12, F);
 
 #[cfg(test)]
 mod tests {
+    use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
-    use crate::{query::Query, world::World, Component, Resource};
+    use crate::Resource;
 
-    use super::{
-        system_parameter::{Local, Res},
-        IntoSystem, System, SystemParam,
-    };
-
-    #[derive(Default)]
-    struct Executor {
-        world: World,
-        systems: Vec<Box<dyn System>>,
-    }
-
-    impl Executor {
-        fn add_system<Params: SystemParam + 'static>(
-            mut self,
-            system: impl IntoSystem<Params> + 'static,
-        ) -> Self {
-            self.systems.push(Box::new(system.into_system()));
-
-            self
-        }
-    }
-
-    impl Executor {
-        pub fn run(mut self) {
-            for s in self.systems.iter_mut() {
-                s.init(&mut self.world);
-            }
-
-            for s in self.systems.iter_mut() {
-                s.run(&self.world);
-            }
-        }
-    }
-
-    #[derive(PartialEq, Debug)]
-    struct CacheTest {
-        data: u32,
-    }
-    impl Default for CacheTest {
-        fn default() -> Self {
-            Self { data: 6 }
-        }
-    }
+    use super::{BoxedSystem, EventStream, IntoSystem, Res, ResMut};
 
     #[derive(Debug, Default)]
-    struct Resource1 {
-        _data: u32,
+    struct T {
+        a: i32,
     }
-    impl Resource for Resource1 {}
+    impl Resource for T {}
 
-    #[derive(Debug)]
-    struct Component1 {
-        _data: u32,
+    #[derive(Debug, Default)]
+    struct W {
+        a: i32,
     }
-    impl Component for Component1 {}
+    impl Resource for W {}
 
-    fn test() {
-        println!("hello")
+    fn system0() {}
+
+    fn system1(a: Res<T>) {
+        println!("{:?}", a.a);
     }
 
-    fn test1(_query: Query<(&Component1,)>) {}
-    fn test2(_res: Res<Resource1>) {}
-    fn test3(_res: Res<Resource1>, _query: Query<(&Component1,)>) {}
-    fn test4(_local: Local<Resource1>, _query: Query<(&Component1,)>) {}
+    fn system2(a: Res<T>, b: ResMut<W>, _c: EventStream<u32>) {
+        println!("{:?}", a.a);
+        println!("{:?}", b.a);
+    }
+
+    fn system3() -> impl FnMut(Res<T>, ResMut<W>, EventStream<u32>) {
+        |a: Res<T>, b: ResMut<W>, _c: EventStream<u32>| {
+            println!("{:?}", a.a);
+            println!("{:?}", b.a);
+        }
+    }
 
     #[test]
-    fn test_executor() {
-        Executor::default()
-            .add_system(test)
-            .add_system(test1)
-            .add_system(test2)
-            .add_system(test3)
-            .add_system(test4)
-            .run();
+    fn test_system() {
+        let sys0: BoxedSystem = IntoSystem::into_system(system0);
+        let sys1: BoxedSystem = IntoSystem::into_system(system1);
+        let sys2: BoxedSystem = IntoSystem::into_system(system2);
+        let sys3: BoxedSystem = IntoSystem::into_system(system3());
+        let mut systems: Vec<BoxedSystem> = vec![sys0, sys1, sys2, sys3];
+
+        let world = Default::default();
+
+        systems.par_iter_mut().for_each(|s| {
+            s.run(&world);
+        });
     }
 }

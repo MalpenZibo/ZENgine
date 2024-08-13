@@ -10,7 +10,7 @@ use zengine_asset::{Assets, Handle};
 use zengine_core::Transform;
 use zengine_ecs::{
     query::{Query, QueryIter},
-    system::{Commands, Local, Res, ResMut},
+    system::{Commands, Res, ResMut},
 };
 use zengine_macro::{Component, Resource};
 
@@ -301,7 +301,7 @@ pub(crate) fn setup_sprite_render(
             alpha_to_coverage_enabled: false,
         },
         multiview: None,
-        cache: None
+        cache: None,
     });
 
     commands.create_resource(RenderPipeline(render_pipeline));
@@ -353,148 +353,158 @@ impl<'a> DerefMut for Batches<'a> {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn sprite_render(
-    queue: Option<Res<Queue>>,
-    device: Option<Res<Device>>,
-    mut render_context: ResMut<RenderContextInstance>,
-    render_pipeline: Option<Res<RenderPipeline>>,
-    textures: Option<Res<Assets<Texture>>>,
-    textures_atlas: Option<Res<Assets<TextureAtlas>>>,
-    camera_buffer: Option<Res<CameraBuffer>>,
-    sprite_query: Query<(&Sprite, &Transform)>,
-    sprite_buffer: Local<SpriteBuffer>,
+pub(crate) fn sprite_render() -> impl FnMut(
+    Option<Res<Queue>>,
+    Option<Res<Device>>,
+    ResMut<RenderContextInstance>,
+    Option<Res<RenderPipeline>>,
+    Option<Res<Assets<Texture>>>,
+    Option<Res<Assets<TextureAtlas>>>,
+    Option<Res<CameraBuffer>>,
+    Query<(&Sprite, &Transform)>,
 ) {
-    if let (
-        Some(textures),
-        Some(textures_atlas),
-        Some(device),
-        Some(queue),
-        Some(camera_buffer),
-        Some(render_pipeline),
-    ) = (
-        textures,
-        textures_atlas,
-        device,
-        queue,
-        camera_buffer,
-        render_pipeline,
-    ) {
-        if let Some(render_context) = render_context.as_mut() {
-            let mut render_pass =
-                render_context
-                    .command_encoder
-                    .begin_render_pass(&wgpu::RenderPassDescriptor {
-                        label: Some("Sprite Render Pass"),
-                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                            view: &render_context.texture_view,
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Load,
-                                store: wgpu::StoreOp::Store,
-                            },
-                        })],
-                        depth_stencil_attachment: None,
-                        ..Default::default()
-                    });
+    let mut sprite_buffer = SpriteBuffer::default();
 
-            let mut batches = Batches::default();
-            for (s, t) in sprite_query.iter() {
-                if s.texture.is_ready(&textures, &textures_atlas) {
-                    let z = t.position.z;
-
-                    let batch_layer = match batches.binary_search_by(|l| l.z.total_cmp(&z)) {
-                        Ok(index) => batches.get_mut(index).unwrap(),
-                        Err(index) => {
-                            batches.insert(
-                                index,
-                                BatchLayer {
-                                    z,
-                                    data: HashMap::default(),
+    move |queue,
+          device,
+          mut render_context,
+          render_pipeline,
+          textures,
+          textures_atlas,
+          camera_buffer,
+          sprite_query| {
+        if let (
+            Some(textures),
+            Some(textures_atlas),
+            Some(device),
+            Some(queue),
+            Some(camera_buffer),
+            Some(render_pipeline),
+        ) = (
+            textures,
+            textures_atlas,
+            device,
+            queue,
+            camera_buffer,
+            render_pipeline,
+        ) {
+            if let Some(render_context) = render_context.as_mut() {
+                let mut render_pass =
+                    render_context
+                        .command_encoder
+                        .begin_render_pass(&wgpu::RenderPassDescriptor {
+                            label: Some("Sprite Render Pass"),
+                            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                                view: &render_context.texture_view,
+                                resolve_target: None,
+                                ops: wgpu::Operations {
+                                    load: wgpu::LoadOp::Load,
+                                    store: wgpu::StoreOp::Store,
                                 },
-                            );
-                            batches.get_mut(index).unwrap()
-                        }
-                    };
+                            })],
+                            depth_stencil_attachment: None,
+                            ..Default::default()
+                        });
 
-                    match batch_layer
-                        .data
-                        .get_mut(&s.texture.get_handle(&textures_atlas))
-                    {
-                        Some(batch) => {
-                            batch.push((s, t));
-                        }
-                        None => {
-                            batch_layer
-                                .data
-                                .insert(s.texture.get_handle(&textures_atlas), vec![(s, t)]);
+                let mut batches = Batches::default();
+                for (s, t) in sprite_query.iter() {
+                    if s.texture.is_ready(&textures, &textures_atlas) {
+                        let z = t.position.z;
+
+                        let batch_layer = match batches.binary_search_by(|l| l.z.total_cmp(&z)) {
+                            Ok(index) => batches.get_mut(index).unwrap(),
+                            Err(index) => {
+                                batches.insert(
+                                    index,
+                                    BatchLayer {
+                                        z,
+                                        data: HashMap::default(),
+                                    },
+                                );
+                                batches.get_mut(index).unwrap()
+                            }
+                        };
+
+                        match batch_layer
+                            .data
+                            .get_mut(&s.texture.get_handle(&textures_atlas))
+                        {
+                            Some(batch) => {
+                                batch.push((s, t));
+                            }
+                            None => {
+                                batch_layer
+                                    .data
+                                    .insert(s.texture.get_handle(&textures_atlas), vec![(s, t)]);
+                            }
                         }
                     }
                 }
-            }
 
-            let num_of_sprite = batches
-                .iter()
-                .flat_map(|l| l.data.values().map(|v| v.len()))
-                .sum();
-            if sprite_buffer.size >= num_of_sprite && sprite_buffer.vertex_buffer.is_some() {
-                queue.write_buffer(
-                    sprite_buffer.vertex_buffer.as_ref().unwrap(),
-                    0,
-                    bytemuck::cast_slice(&batches.to_vertex(&textures, &textures_atlas)),
-                );
-                let mut indices = Vec::default();
-                for index in 0..num_of_sprite {
-                    indices.extend(INDICES.iter().map(|i| i + (4 * index as u16)))
+                let num_of_sprite = batches
+                    .iter()
+                    .flat_map(|l| l.data.values().map(|v| v.len()))
+                    .sum();
+                if sprite_buffer.size >= num_of_sprite && sprite_buffer.vertex_buffer.is_some() {
+                    queue.write_buffer(
+                        sprite_buffer.vertex_buffer.as_ref().unwrap(),
+                        0,
+                        bytemuck::cast_slice(&batches.to_vertex(&textures, &textures_atlas)),
+                    );
+                    let mut indices = Vec::default();
+                    for index in 0..num_of_sprite {
+                        indices.extend(INDICES.iter().map(|i| i + (4 * index as u16)))
+                    }
+
+                    queue.write_buffer(
+                        sprite_buffer.index_buffer.as_ref().unwrap(),
+                        0,
+                        bytemuck::cast_slice(&indices),
+                    );
+                } else {
+                    let (v_buffer, i_buffer) = generate_vertex_and_indexes_buffer(
+                        &device,
+                        &batches.to_vertex(&textures, &textures_atlas),
+                    );
+                    if let Some(buffer) = &sprite_buffer.vertex_buffer {
+                        buffer.destroy();
+                    }
+                    if let Some(buffer) = &sprite_buffer.index_buffer {
+                        buffer.destroy();
+                    }
+                    sprite_buffer.vertex_buffer = Some(v_buffer);
+                    sprite_buffer.index_buffer = Some(i_buffer);
+
+                    sprite_buffer.size = num_of_sprite;
                 }
 
-                queue.write_buffer(
-                    sprite_buffer.index_buffer.as_ref().unwrap(),
-                    0,
-                    bytemuck::cast_slice(&indices),
+                render_pass.set_pipeline(&render_pipeline);
+                render_pass.set_bind_group(1, &camera_buffer.bind_group, &[]);
+
+                render_pass
+                    .set_vertex_buffer(0, sprite_buffer.vertex_buffer.as_ref().unwrap().slice(..));
+                render_pass.set_index_buffer(
+                    sprite_buffer.index_buffer.as_ref().unwrap().slice(..),
+                    wgpu::IndexFormat::Uint16,
                 );
-            } else {
-                let (v_buffer, i_buffer) = generate_vertex_and_indexes_buffer(
-                    &device,
-                    &batches.to_vertex(&textures, &textures_atlas),
-                );
-                if let Some(buffer) = &sprite_buffer.vertex_buffer {
-                    buffer.destroy();
-                }
-                if let Some(buffer) = &sprite_buffer.index_buffer {
-                    buffer.destroy();
-                }
-                sprite_buffer.vertex_buffer = Some(v_buffer);
-                sprite_buffer.index_buffer = Some(i_buffer);
 
-                sprite_buffer.size = num_of_sprite;
-            }
+                let mut offset: u32 = 0;
+                for b in batches.iter().rev() {
+                    for (k, v) in b.data.iter() {
+                        let texture = textures
+                            .get(k)
+                            .and_then(|t1| t1.gpu_image.as_ref())
+                            .unwrap();
 
-            render_pass.set_pipeline(&render_pipeline);
-            render_pass.set_bind_group(1, &camera_buffer.bind_group, &[]);
+                        let elements = v.len() as u32;
+                        let i_offset = offset * 6;
+                        let max_i = elements * 6 + i_offset;
 
-            render_pass
-                .set_vertex_buffer(0, sprite_buffer.vertex_buffer.as_ref().unwrap().slice(..));
-            render_pass.set_index_buffer(
-                sprite_buffer.index_buffer.as_ref().unwrap().slice(..),
-                wgpu::IndexFormat::Uint16,
-            );
+                        render_pass.set_bind_group(0, &texture.diffuse_bind_group, &[]);
+                        render_pass.draw_indexed(i_offset..max_i, 0, 0..1);
 
-            let mut offset: u32 = 0;
-            for b in batches.iter().rev() {
-                for (k, v) in b.data.iter() {
-                    let texture = textures
-                        .get(k)
-                        .and_then(|t1| t1.gpu_image.as_ref())
-                        .unwrap();
-
-                    let elements = v.len() as u32;
-                    let i_offset = offset * 6;
-                    let max_i = elements * 6 + i_offset;
-
-                    render_pass.set_bind_group(0, &texture.diffuse_bind_group, &[]);
-                    render_pass.draw_indexed(i_offset..max_i, 0, 0..1);
-
-                    offset += elements;
+                        offset += elements;
+                    }
                 }
             }
         }

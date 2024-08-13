@@ -1,12 +1,9 @@
-use std::{
-    any::{Any, TypeId},
-    fmt::Debug,
-};
+use std::{any::TypeId, fmt::Debug};
 
 use default_schedule::*;
 use log::debug;
 use zengine_ecs::{
-    system::{condition::Condition, IntoSystem, System, SystemParam},
+    system::{BoxedSystem, IntoSystem, SystemFunction},
     World,
 };
 
@@ -50,8 +47,8 @@ pub struct ScheduleLabelInternal(pub(crate) TypeId, pub(crate) &'static str);
 
 pub struct Schedule {
     label: ScheduleLabelInternal,
-    systems: Vec<Box<dyn System>>,
-    conditions: Vec<Box<dyn Condition>>,
+    systems: Vec<BoxedSystem>,
+    conditions: Vec<BoxedSystem>,
 }
 
 impl Debug for Schedule {
@@ -73,11 +70,8 @@ impl Schedule {
         }
     }
 
-    pub fn add_system<Params: SystemParam + Any, I: IntoSystem<Params> + Any>(
-        &mut self,
-        system: I,
-    ) {
-        self.systems.push(Box::new(system.into_system()));
+    pub fn add_system<Marker, S: IntoSystem<Marker>>(&mut self, system: S) {
+        self.systems.push(system.into_system());
     }
 
     pub fn init(&mut self, world: &mut World) {
@@ -124,10 +118,10 @@ impl Default for Schedules {
 }
 
 impl Schedules {
-    pub fn add_system<Params: SystemParam + Any, I: IntoSystem<Params> + Any>(
+    pub fn add_system<Marker, S: IntoSystem<Marker>>(
         &mut self,
         label: impl ScheduleLabel,
-        system: I,
+        system: S,
     ) {
         let schedule = self
             .0
