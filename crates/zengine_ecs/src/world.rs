@@ -6,7 +6,7 @@ use hashbrown::HashMap;
 use nohash_hasher::NoHashHasher;
 
 use crate::{
-    archetype::{calculate_archetype_id, Archetype, ArchetypeSpecs}, component::{ComponentBundle, ComponentColumn, InsertType}, entity::{Entity, EntityGenerator}, event::{EventCell, EventHandler}, query::{QueryParameters, QueryRunner}, resource::Resource, ResourceCell2, UnsendableResource, UnsendableResourceCell2
+    archetype::{calculate_archetype_id, Archetype, ArchetypeSpecs}, component::{ComponentBundle, ComponentColumn, InsertType}, entity::{Entity, EntityGenerator}, event::{EventCell, EventHandler}, query::{QueryParameters, QueryRunner, ReadOnlyQueryParameters, ReadOnlyQueryRunner}, resource::Resource, ResourceCell2, UnsendableResource, UnsendableResourceCell2
 };
 
 #[derive(PartialEq, Debug)]
@@ -498,6 +498,10 @@ impl World {
     /// ```
     pub fn query<T: QueryParameters>(&self) -> QueryRunner<T> {
         QueryRunner::default()
+    }
+
+    pub fn readonly_query<T: ReadOnlyQueryParameters>(&self) -> ReadOnlyQueryRunner<T> {
+        ReadOnlyQueryRunner::default()
     }
 
     /// Gets a reference to the resource of the given type if it exists

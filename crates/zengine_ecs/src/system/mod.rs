@@ -79,9 +79,19 @@ pub trait IntoSystem<Marker> {
     fn into_system(self) -> BoxedSystem;
 }
 
+pub trait IntoReadOnlySystem<Marker> {
+    fn into_system(self) -> BoxedReadOnlySystem;
+}
+
 /// A trait implemented for all functions that can be used as a [System]
 pub trait SystemFunction<Marker>: Send + Sync + 'static {
     type Param: SystemParam;
+
+    fn run_function(&mut self, data: <Self::Param as SystemParam>::Item<'_, '_>);
+}
+
+pub trait ReadOnlySystemFunction<Marker>: Send + Sync + 'static {
+    type Param: ReadOnlySystemParam;
 
     fn run_function(&mut self, data: <Self::Param as SystemParam>::Item<'_, '_>);
 }
@@ -99,6 +109,19 @@ where
     }
 }
 
+impl<Marker: 'static, T> IntoReadOnlySystem<Marker> for T
+where
+    T: ReadOnlySystemFunction<Marker> + Send + Sync,
+{
+    fn into_system(self) -> BoxedReadOnlySystem {
+        Box::new(ReadOnlySystemFunctionData {
+            function: self,
+            param_state: Default::default(),
+            _phantom: std::marker::PhantomData,
+        })
+    }
+}
+
 /// Wraps a function that implements the [SystemFunction] trait
 pub struct SystemFunctionData<Marker, F: SystemFunction<Marker>> {
     function: F,
@@ -106,9 +129,32 @@ pub struct SystemFunctionData<Marker, F: SystemFunction<Marker>> {
     _phantom: std::marker::PhantomData<fn() -> Marker>,
 }
 
+pub struct ReadOnlySystemFunctionData<Marker, F: ReadOnlySystemFunction<Marker>> {
+    function: F,
+    param_state: <F::Param as SystemParam>::State,
+    _phantom: std::marker::PhantomData<fn() -> Marker>,
+}
+
 pub type BoxedSystem = Box<dyn System>;
 
+pub type BoxedReadOnlySystem = Box<dyn System>;
+
 impl<Marker, F: SystemFunction<Marker>> System for SystemFunctionData<Marker, F> {
+    fn init(&mut self, world: &mut World) {
+        <F::Param as SystemParam>::init(world, &mut self.param_state);
+    }
+
+    fn run(&mut self, world: &World) {
+        let data = <F::Param as SystemParam>::get(world, &mut self.param_state);
+        self.function.run_function(data);
+    }
+
+    fn apply(&mut self, world: &mut World) {
+        <F::Param as SystemParam>::apply(world, &mut self.param_state);
+    }
+}
+
+impl<Marker, F: ReadOnlySystemFunction<Marker>> System for ReadOnlySystemFunctionData<Marker, F> {
     fn init(&mut self, world: &mut World) {
         <F::Param as SystemParam>::init(world, &mut self.param_state);
     }
@@ -173,6 +219,38 @@ macro_rules! impl_system_function {
     }
 }
 all_tuples!(impl_system_function, 0, 12, F);
+
+macro_rules! impl_readonly_system_function {
+    ($($param: ident),*) => {
+        #[allow(non_snake_case)]
+        impl<$($param: ReadOnlySystemParam + 'static),*> ReadOnlySystemParam for ($($param,)*) {}
+
+        #[allow(non_snake_case)]
+        impl<F: Send + Sync + 'static, $($param: ReadOnlySystemParam + 'static),*> ReadOnlySystemFunction<fn($($param,)*)> for F
+        where
+            for <'a> &'a mut F: FnMut($($param),*) + FnMut($($param::Item<'_, '_>),*)
+        {
+            type Param = ($($param,)*);
+
+            fn run_function(&mut self, data: <Self::Param as SystemParam>::Item<'_, '_>) {
+                // Yes, this is strange, but `rustc` fails to compile this impl
+                // without using this function. It fails to recognize that `func`
+                // is a function, potentially because of the multiple impls of `FnMut`
+                #[allow(clippy::too_many_arguments)]
+                fn call_inner<$($param,)*>(
+                    mut f: impl FnMut($($param,)*),
+                    $($param: $param,)*
+                ){
+                    f($($param,)*)
+                }
+
+                let ($($param,)*) = data;
+                call_inner(self, $($param),*);
+            }
+        }
+    }
+}
+all_tuples!(impl_readonly_system_function, 0, 12, F);
 
 #[cfg(test)]
 mod tests {

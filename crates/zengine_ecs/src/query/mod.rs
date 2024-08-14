@@ -42,6 +42,36 @@ impl<T: QueryParameters> Default for QueryRunner<T> {
     }
 }
 
+/// Provides access to Entities and components in the world
+pub struct ReadOnlyQueryRunner<T: ReadOnlyQueryParameters> {
+    _marker: std::marker::PhantomData<T>,
+    query_cache: Option<QueryCache>,
+}
+
+impl<T: ReadOnlyQueryParameters> ReadOnlyQueryRunner<T> {
+    /// Runs the query using a reference to the [World]
+    pub fn run<'a>(&mut self, world: &'a World) -> ReadOnlyQuery<'a, T> {
+        if let Some(some_cache) = &self.query_cache {
+            if some_cache.last_archetypes_count != world.archetypes.len() {
+                self.query_cache.take();
+            }
+        }
+
+        ReadOnlyQuery {
+            data: T::fetch(world, &mut self.query_cache),
+        }
+    }
+}
+
+impl<T: ReadOnlyQueryParameters> Default for ReadOnlyQueryRunner<T> {
+    fn default() -> Self {
+        Self {
+            _marker: PhantomData,
+            query_cache: None,
+        }
+    }
+}
+
 /// Contains result of a [QueryRunner] execution providing access to
 /// entities and components in the [World]
 ///
@@ -118,6 +148,10 @@ pub struct Query<'a, T: QueryParameters> {
     data: <T as QueryParameterFetch<'a>>::FetchItem,
 }
 
+pub struct ReadOnlyQuery<'a, T: ReadOnlyQueryParameters> {
+    data: <T as QueryParameterFetch<'a>>::FetchItem,
+}
+
 /// Cache query execution information
 pub struct QueryCache {
     last_archetypes_count: usize,
@@ -130,7 +164,11 @@ query_iter_mut_for_tuple!(14);
 #[cfg(test)]
 mod tests {
 
-    use crate::{component::Component, query::QueryIterMut, world::World};
+    use crate::{
+        component::Component,
+        query::{QueryIter, QueryIterMut},
+        world::World,
+    };
 
     #[derive(Debug, PartialEq)]
     struct Test1 {
@@ -244,5 +282,22 @@ mod tests {
 
         let data3 = iter.next();
         assert_eq!(data3, Some((&Test1 { data: 5 }, Some(&Test2 { _data: 4 }))));
+    }
+
+    #[test]
+    fn readonly_query() {
+        let mut world = World::default();
+
+        world.spawn((Test1 { data: 3 }, Test2 { _data: 3 }, Test3 { data: 3 }));
+        world.spawn(Test1 { data: 4 });
+        world.spawn(Test3 { data: 3 });
+        world.spawn((Test1 { data: 5 }, Test2 { _data: 4 }, Test3 { data: 3 }));
+
+        let mut query = world.readonly_query::<(&Test1, Option<&Test2>)>();
+        let query = query.run(&world);
+        assert_eq!(query.iter().count(), 3);
+
+        // This should not compile
+        // let mut query = world.readonly_query::<(&mut Test1, Option<&Test2>)>();
     }
 }

@@ -2,7 +2,7 @@ use std::sync::{RwLockReadGuard, RwLockWriteGuard};
 
 use crate::event::{EventHandler, SubscriptionToken};
 
-use super::SystemParam;
+use super::{ReadOnlySystemParam, SystemParam};
 
 /// Shared borrow of an event with a subscription to the event queue
 ///
@@ -52,6 +52,8 @@ impl<'a, E: Send + Sync + std::fmt::Debug + 'static> SystemParam for EventStream
     }
 }
 
+impl<'a, E: Send + Sync + std::fmt::Debug + 'static> ReadOnlySystemParam for EventStream<'a, E> {}
+
 /// Shared borrow of an event without a subscription to the event queue
 ///
 /// # Example
@@ -93,6 +95,8 @@ impl<'a, E: Send + Sync + std::fmt::Debug + 'static> SystemParam for Event<'a, E
         }
     }
 }
+
+impl<'a, E: Send + Sync + std::fmt::Debug + 'static> ReadOnlySystemParam for Event<'a, E> {}
 
 /// Unique mutable borrow of an event
 ///

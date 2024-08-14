@@ -380,9 +380,9 @@ pub fn query_iter_for_tuple(input: TokenStream) -> TokenStream {
             <<Z as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem: QueryIter<'b>,
         {
             type Iter = QueryIterator<
-            <<<Z as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem as QueryIter<
-            'b,
-        >>::Iter
+                <<<Z as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem as QueryIter<
+                    'b,
+                >>::Iter
             >;
             fn iter(&'b self) -> Self::Iter {
                 QueryIterator::new(self.data.iter().map(|a| a.iter()).collect())
@@ -417,12 +417,56 @@ pub fn query_iter_for_tuple(input: TokenStream) -> TokenStream {
             }
     });
 
+    expanded.extend(quote!{
+        impl<'a, 'b, Z: ReadOnlyQueryParameter> QueryIter<'b> for ReadOnlyQuery<'a, (Z,)>
+        where
+            <<Z as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem: QueryIter<'b>,
+        {
+            type Iter = QueryIterator<
+                <<<Z as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem as QueryIter<
+                    'b,
+                >>::Iter
+            >;
+            fn iter(&'b self) -> Self::Iter {
+                QueryIterator::new(self.data.iter().map(|a| a.iter()).collect())
+            }
+        }
+    });
+
+    expanded.extend(quote!{
+        impl<'a, 'b, Z0: ReadOnlyQueryParameter, Z1: ReadOnlyQueryParameter> QueryIter<'b> for ReadOnlyQuery<'a, (Z0, Z1)>
+            where
+                <<Z0 as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem: QueryIter<'b>,
+                <<Z1 as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem: QueryIter<'b>,
+            {
+                type Iter = QueryIterator<
+                    Zip<
+                        <<<Z0 as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem as QueryIter<
+                            'b,
+                        >>::Iter,
+                        <<<Z1 as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem as QueryIter<
+                            'b,
+                        >>::Iter,
+                    >,
+                >;
+                fn iter(&'b self) -> Self::Iter {
+                    QueryIterator::new(
+                        self.data
+                            .iter()
+                            .map(|(z0, z1)| zip(z0.iter(), z1.iter()))
+                            .collect(),
+                    )
+                }
+            }
+    });
+
     for zip_number in 3..input.end {
         let zip_type = format_ident!("Zip{}", zip_number);
 
         let identity = format_ident!("Z{}", 0_usize);
         let identity_lowercase = format_ident!("z{}", 0_usize);
         let mut generics = quote! { #identity: QueryParameter };
+        let mut readonly_generics = quote! { #identity: ReadOnlyQueryParameter };
         let mut tuple = quote! { #identity };
         let mut where_clause = quote! { <<#identity as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem: QueryIter<'b> };
         let mut zip_args = quote! { <<<#identity as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem as QueryIter<'b,>>::Iter };
@@ -432,6 +476,7 @@ pub fn query_iter_for_tuple(input: TokenStream) -> TokenStream {
             let identity = format_ident!("Z{}", i);
             let identity_lowercase = format_ident!("z{}", i);
             generics.extend(quote! { , #identity: QueryParameter });
+            readonly_generics.extend(quote! { , #identity: ReadOnlyQueryParameter });
             tuple.extend(quote! { , #identity });
             where_clause.extend(quote! { , <<#identity as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem: QueryIter<'b> });
             zip_args.extend(quote! { , <<<#identity as QueryParameter>::Item as QueryParameterFetchFromArchetype<'a>>::ArchetypeFetchItem as QueryIter<'b,>>::Iter });
@@ -441,20 +486,36 @@ pub fn query_iter_for_tuple(input: TokenStream) -> TokenStream {
 
         expanded.extend(quote! {
             impl<'a, 'b, #generics> QueryIter<'b> for Query<'a, ( #tuple )>
-        where #where_clause
-        {
-            type Iter = QueryIterator<
-                #zip_type<#zip_args>,
-            >;
-            fn iter(&'b self) -> Self::Iter {
-                QueryIterator::new(
-                    self.data
-                        .iter()
-                        .map(|( #tuple_args )| #zip_type::new( #tuple_iter ))
-                        .collect(),
-                )
+            where #where_clause
+            {
+                type Iter = QueryIterator<
+                    #zip_type<#zip_args>,
+                >;
+                fn iter(&'b self) -> Self::Iter {
+                    QueryIterator::new(
+                        self.data
+                            .iter()
+                            .map(|( #tuple_args )| #zip_type::new( #tuple_iter ))
+                            .collect(),
+                    )
+                }
             }
-        }
+
+            impl<'a, 'b, #readonly_generics> QueryIter<'b> for ReadOnlyQuery<'a, ( #tuple )>
+            where #where_clause
+            {
+                type Iter = QueryIterator<
+                    #zip_type<#zip_args>,
+                >;
+                fn iter(&'b self) -> Self::Iter {
+                    QueryIterator::new(
+                        self.data
+                            .iter()
+                            .map(|( #tuple_args )| #zip_type::new( #tuple_iter ))
+                            .collect(),
+                    )
+                }
+            }
         })
     }
 

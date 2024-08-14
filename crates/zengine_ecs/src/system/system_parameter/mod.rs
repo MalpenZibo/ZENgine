@@ -1,13 +1,13 @@
 use crate::World;
 
-mod res_parameter;
 mod command;
-mod query_parameter;
 mod event_parameter;
+mod query_parameter;
+mod res_parameter;
 
-pub use res_parameter::*;
 pub use command::*;
 pub use event_parameter::*;
+pub use res_parameter::*;
 
 pub trait SystemParam: Sync + Sized {
     type State: Default + Send + Sync;
@@ -19,3 +19,5 @@ pub trait SystemParam: Sync + Sized {
 
     fn apply(_world: &mut World, _state: &mut Self::State) {}
 }
+
+pub trait ReadOnlySystemParam: SystemParam {}

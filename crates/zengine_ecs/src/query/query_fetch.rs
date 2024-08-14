@@ -10,12 +10,16 @@ use zengine_macro::all_tuples;
 #[doc(hidden)]
 pub trait QueryParameters: for<'a> QueryParameterFetch<'a> + Send + Sync {}
 
+pub trait ReadOnlyQueryParameters: for<'a> QueryParameterFetch<'a> + Send + Sync {}
+
 #[doc(hidden)]
 pub trait QueryParameter: Send + Sync {
     type Item: for<'a> QueryParameterFetchFromArchetype<'a> + Send + Sync;
 
     fn matches_archetype(archetype: &Archetype) -> bool;
 }
+
+pub trait ReadOnlyQueryParameter: QueryParameter {}
 
 #[doc(hidden)]
 pub trait QueryParameterFetch<'a>: Send + Sync {
@@ -58,6 +62,8 @@ impl QueryParameter for Entity {
         true
     }
 }
+
+impl ReadOnlyQueryParameter for Entity {}
 
 impl<'a> QueryParameterFetch<'a> for ReadQueryParameterFetch<Entity> {
     type FetchItem = Vec<&'a Vec<Entity>>;
@@ -111,6 +117,8 @@ impl<T: Component + 'static> QueryParameter for &T {
         archetype.archetype_specs.iter().any(|c| *c == type_id)
     }
 }
+
+impl<T: Component + 'static> ReadOnlyQueryParameter for &T {}
 
 pub struct QueryItem<'a, T>(Vec<RwLockReadGuard<'a, Vec<T>>>);
 unsafe impl<'a, T> Send for QueryItem<'a, T> {}
@@ -301,6 +309,8 @@ impl<T: Component + 'static> QueryParameter for Option<&T> {
         true
     }
 }
+
+impl<T: Component + 'static> ReadOnlyQueryParameter for Option<&T> {}
 
 pub struct QueryOptionalItem<'a, T>(Vec<Option<RwLockReadGuard<'a, Vec<T>>>>);
 unsafe impl<'a, T> Send for QueryOptionalItem<'a, T> {}
@@ -595,6 +605,17 @@ macro_rules! impl_query_parameters {
     };
 }
 all_tuples!(impl_query_parameters, 0, 14, P);
+
+macro_rules! impl_readonly_query_parameters {
+    () => {};
+    ($ty: ident) => {
+        impl<$ty: ReadOnlyQueryParameter> ReadOnlyQueryParameters for ($ty,) {}
+    };
+    ($($ty: ident),+) => {
+        impl<$($ty: ReadOnlyQueryParameter),*> ReadOnlyQueryParameters for ($($ty,)*) {}
+    };
+}
+all_tuples!(impl_readonly_query_parameters, 0, 14, P);
 
 impl<'a, 'b> QueryIter<'b> for &'a Vec<Entity> {
     type Iter = std::slice::Iter<'b, Entity>;

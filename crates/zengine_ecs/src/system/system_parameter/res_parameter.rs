@@ -4,7 +4,7 @@ use std::{
 
 use crate::{Resource, UnsendableResource, World};
 
-use super::SystemParam;
+use super::{ReadOnlySystemParam, SystemParam};
 
 /// Shared borrow of a resource that implements also the [Default] trait
 ///
@@ -64,6 +64,9 @@ impl<'a, T: Resource > SystemParam for Option<Res<'a, T>> {
         world.get_resource::<T>().map(Res)
     }
 }
+
+impl<'a, T: Resource + Default> ReadOnlySystemParam for Res<'a, T> {}
+impl<'a, T: Resource> ReadOnlySystemParam for Option<Res<'a, T>> {}
 
 /// Unique mutable borrow of a resource that implements also the [Default] trait
 ///
@@ -197,6 +200,9 @@ impl<'a, T: UnsendableResource > SystemParam for Option<UnsendableRes<'a, T>> {
         world.get_unsendable_resource::<T>().map(UnsendableRes)
     }
 }
+
+impl<'a, T: UnsendableResource + Default> ReadOnlySystemParam for UnsendableRes<'a, T> {}
+impl<'a, T: UnsendableResource> ReadOnlySystemParam for Option<UnsendableRes<'a, T>> {}
 
 /// Unique mutable borrow of an unsendable resource that implements also the [Default] trait
 ///
