@@ -138,7 +138,7 @@ mod tests {
         assert_eq!(archetype2.entities.len(), 1);
 
         let column = component_vec_to_mut::<Component1>(&mut *archetype2.components[index]);
-        let component: &Component1 = column.get(0).unwrap();
+        let component: &Component1 = column.first().unwrap();
         assert_eq!(component, &Component1 {})
     }
 }
